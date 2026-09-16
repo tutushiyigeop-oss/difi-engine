@@ -1,0 +1,29 @@
+# Icarus Verilog
+sim/icarus/
+*.vvp
+
+# Simulation waveforms
+sim/waves/
+*.vcd
+*.wdb
+
+# Vivado generated workspace
+vivado/
+.Xil/
+.cache/
+.gen/
+.hw/
+.ip_user_files/
+.runs/
+.sim/
+
+# Temporary build files
+build/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Windows
+Thumbs.db
+.DS_Store
