@@ -1,7 +1,6 @@
 `include "difi_data_packetizer.v"
 `timescale 1ns / 1ps
 
-
 module tb_difi_data_packetizer;
 
     localparam integer MAX_SAMPLES = 256;
