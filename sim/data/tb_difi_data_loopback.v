@@ -4,7 +4,7 @@
 // Add both RTL modules and this testbench as separate simulation sources.
 
 
-module tb_difi_loopback;
+module tb_difi_data_loopback;
 
     localparam integer MAX_SAMPLES = 256;
     localparam integer MAX_PACKETS = 160;

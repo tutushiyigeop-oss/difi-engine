@@ -204,7 +204,7 @@ assign recv_error =
     tkeep_error||
     truncated_packet_error||
     oversized_packet_error;
-    
+
 
 // ST_RECV No Error (except "Sequence discontinuity")
 wire recv_no_error;
@@ -220,6 +220,7 @@ assign recv_no_error =
 
 // Sequence discontinuity (report only, do not discard)
 reg base_active;
+reg [31:0] base_stream_id;
 reg [3:0] base_seq_num;
 wire [3:0] expect_seq_num;
 wire seq_discontinuity_error;
@@ -229,6 +230,7 @@ assign expect_seq_num = base_seq_num + 4'd1;
 assign seq_discontinuity_error =
     recv_no_error&&
     base_active&&
+    (snapshot_received_stream_id==base_stream_id)&&
     (snapshot_pkt_seq!=expect_seq_num);
 
 
@@ -421,6 +423,7 @@ begin
         base_active <= 0;
         snapshot_pkt_seq <= 0;
         base_seq_num <= 0;
+        base_stream_id <= 0;
     end
 
     else
@@ -577,6 +580,7 @@ begin
         begin
             base_active <= 1;
             base_seq_num <= snapshot_pkt_seq;
+            base_stream_id <= snapshot_received_stream_id;
         end
     end
 end
