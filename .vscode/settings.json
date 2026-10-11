@@ -1,0 +1,5 @@
+
+{
+    "digital-ide.function.lsp.linter.verilog.diagnostor": "iverilog",
+    "digital-ide.function.lsp.completion.vlog.auto-add-include": false
+}

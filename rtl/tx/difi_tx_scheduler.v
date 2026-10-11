@@ -1,4 +1,4 @@
-`include "../include/difi_v1_1_defs.vh"
+`include "difi_v1_1_defs.vh"
 
 module difi_tx_scheduler (
     input  wire        aclk,

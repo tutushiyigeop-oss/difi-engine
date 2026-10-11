@@ -1,4 +1,4 @@
-`include "../include/difi_v1_1_defs.vh"
+`include "difi_v1_1_defs.vh"
 
 module difi_version_generator #(
     parameter [6:0] BUILD_YEAR_OFFSET = 7'd26,

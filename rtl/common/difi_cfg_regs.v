@@ -1,4 +1,4 @@
-`include "../include/difi_cfg_regmap.vh"
+`include "difi_cfg_regmap.vh"
 
 module difi_cfg_regs (
     input  wire        aclk,

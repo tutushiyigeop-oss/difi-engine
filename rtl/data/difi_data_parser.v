@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------
 // DIFI Signal Data parser: validate a full packet before releasing IQ.
 // ------------------------------------------------------------------
-`include "../include/difi_v1_1_defs.vh"
+`include "difi_v1_1_defs.vh"
 module difi_data_parser (
     input  wire        aclk,
     input  wire        aresetn,

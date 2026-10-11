@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------
 // DIFI Signal Data packetizer: 7-word prologue followed by IQ samples.
 // ------------------------------------------------------------------
-`include "../include/difi_v1_1_defs.vh"
+`include "difi_v1_1_defs.vh"
 module difi_data_packetizer (
     input  wire        aclk,
     input  wire        aresetn,

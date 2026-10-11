@@ -1,0 +1,46 @@
+
+{
+    "toolChain": "xilinx",
+    "prjName": {
+        "PL": "difi_engine"
+    },
+    "soc": {
+        "core": "none"
+    },
+    "device": "none",
+    "arch": {
+        "structure": "custom",
+        "prjPath": "D:/Study/project/DIFI/prj",
+        "hardware": {
+            "src": "D:/Study/project/DIFI/rtl",
+            "sim": "D:/Study/project/DIFI/sim",
+            "data": "D:/Study/project/DIFI/constraints"
+        },
+        "software": {
+            "src": "",
+            "data": ""
+        }
+    },
+    "iverilogCompileOptions": {
+        "standard": "2005",
+        "includes": [
+            "D:/Study/project/DIFI/rtl/include",
+            "D:/Study/project/DIFI/rtl/common",
+            "D:/Study/project/DIFI/rtl/context",
+            "D:/Study/project/DIFI/rtl/data",
+            "D:/Study/project/DIFI/rtl/rx",
+            "D:/Study/project/DIFI/rtl/tx",
+            "D:/Study/project/DIFI/rtl/version",
+
+            "D:/Study/project/DIFI/rtl/common/difi_cfg_regs.v",
+            "D:/Study/project/DIFI/rtl/context/difi_context_generator.v",
+            "D:/Study/project/DIFI/rtl/context/difi_context_parser.v",
+            "D:/Study/project/DIFI/rtl/data/difi_data_packetizer.v",
+            "D:/Study/project/DIFI/rtl/data/difi_data_parser.v",
+            "D:/Study/project/DIFI/rtl/rx/difi_rx_dispatch.v",
+            "D:/Study/project/DIFI/rtl/tx/difi_tx_scheduler.v",
+            "D:/Study/project/DIFI/rtl/version/difi_version_generator.v",
+            "D:/Study/project/DIFI/rtl/version/difi_version_parser.v"
+        ]
+    }
+}
