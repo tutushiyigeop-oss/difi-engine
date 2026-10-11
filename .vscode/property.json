@@ -40,7 +40,8 @@
             "D:/Study/project/DIFI/rtl/rx/difi_rx_dispatch.v",
             "D:/Study/project/DIFI/rtl/tx/difi_tx_scheduler.v",
             "D:/Study/project/DIFI/rtl/version/difi_version_generator.v",
-            "D:/Study/project/DIFI/rtl/version/difi_version_parser.v"
+            "D:/Study/project/DIFI/rtl/version/difi_version_parser.v",
+            "D:/Study/project/DIFI/rtl/top/difi_engine_top.v"
         ]
     }
 }
