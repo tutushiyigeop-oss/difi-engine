@@ -1,0 +1,38 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2024.2 (win64) Build 5239630 Fri Nov 08 22:35:27 MST 2024
+| Date         : Mon Oct 12 10:01:47 2026
+| Host         : YXY_laptop running 64-bit major release  (build 9200)
+| Command      : report_utilization -hierarchical -file D:/Study/project/DIFI/report/results/ooc/utilization.rpt
+| Design       : difi_engine_top
+| Device       : xc7z020clg400-2
+| Speed File   : -2
+| Design State : Synthesized
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++-----------------------+------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+|        Instance       |         Module         | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
++-----------------------+------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+| difi_engine_top       |                  (top) |       4023 |       4023 |       0 |    0 | 10446 |      0 |      0 |          0 |
+|   (difi_engine_top)   |                  (top) |          0 |          0 |       0 |    0 |     0 |      0 |      0 |          0 |
+|   u_cfg_regs          |          difi_cfg_regs |        414 |        414 |       0 |    0 |   703 |      0 |      0 |          0 |
+|   u_context_generator | difi_context_generator |        146 |        146 |       0 |    0 |   249 |      0 |      0 |          0 |
+|   u_context_parser    |    difi_context_parser |        229 |        229 |       0 |    0 |   407 |      0 |      0 |          0 |
+|   u_data_packetizer   |   difi_data_packetizer |        150 |        150 |       0 |    0 |   203 |      0 |      0 |          0 |
+|   u_data_parser       |       difi_data_parser |       2797 |       2797 |       0 |    0 |  8487 |      0 |      0 |          0 |
+|   u_rx_dispatch       |       difi_rx_dispatch |         43 |         43 |       0 |    0 |     5 |      0 |      0 |          0 |
+|   u_tx_scheduler      |      difi_tx_scheduler |         33 |         33 |       0 |    0 |     6 |      0 |      0 |          0 |
+|   u_version_generator | difi_version_generator |         90 |         90 |       0 |    0 |   140 |      0 |      0 |          0 |
+|   u_version_parser    |    difi_version_parser |        121 |        121 |       0 |    0 |   246 |      0 |      0 |          0 |
++-----------------------+------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+
+

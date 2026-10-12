@@ -70,7 +70,15 @@ reg [31:0] snapshot_time_sec;
 reg [31:0] snapshot_time_h_ps;
 reg [31:0] snapshot_time_l_ps;
 // One complete packet of IQ is buffered until validation succeeds.
-reg [31:0] snapshot_payload [0:255];
+// Synchronous read is required for Zynq-7000 Block RAM inference.
+// The memory is deliberately NOT reset: only validated packets are released.
+(* ram_style = "block" *) reg [31:0] snapshot_payload [0:255];
+reg [31:0] payload_q;
+
+wire        payload_wr_en;
+wire [7:0]  payload_wr_addr;
+wire        payload_rd_en;
+wire [7:0]  payload_rd_addr;
 
 
 // Tkeep Error
@@ -204,6 +212,40 @@ assign recv_error =
     tkeep_error||
     truncated_packet_error||
     oversized_packet_error;
+
+
+// ------------------------------------------------------------------
+// Synchronous IQ payload memory: simple-dual-port BRAM inference
+// ------------------------------------------------------------------
+// Preserve the original per-beat validation gate for RAM writes.
+assign payload_wr_en =
+    (current_state == ST_RECV) &&
+    s_axis_handshake &&
+    !recv_error &&
+    (word_count >= `DIFI_DATA_PROLOGUE_WORDS);
+
+// Only the low eight address bits are needed for a 256 x 32 memory.
+assign payload_wr_addr = word_count - `DIFI_DATA_PROLOGUE_WORDS;
+
+// One-cycle look-ahead: fetch Sample 0 on metadata acceptance, then
+// fetch Sample (n+1) as Sample n actually handshakes downstream.
+// No new RAM read during output backpressure or on the final sample.
+assign payload_rd_en =
+    m_meta_handshake ||
+    ((current_state == ST_OUTPUT) && m_axis_handshake && !m_axis_iq_tlast);
+
+assign payload_rd_addr =
+    m_meta_handshake ? 8'd0 : (payload_rd_ptr[7:0] + 8'd1);
+
+// No asynchronous reset on the RAM array or registered read data.
+always @(posedge aclk)
+begin
+    if (payload_wr_en)
+        snapshot_payload[payload_wr_addr] <= s_axis_pkt_tdata;
+
+    if (payload_rd_en)
+        payload_q <= snapshot_payload[payload_rd_addr];
+end
 
 
 // ST_RECV No Error (except "Sequence discontinuity")
@@ -382,10 +424,10 @@ begin
         m_meta_valid = 1;
     end
 
-    // The read pointer holds data and TLAST stable during backpressure.
+    // Synchronous RAM Q and the read pointer hold during backpressure.
     ST_OUTPUT:
     begin
-        m_axis_iq_tdata = snapshot_payload[payload_rd_ptr];
+        m_axis_iq_tdata = payload_q;
         m_axis_iq_tvalid = 1;
 
         if(payload_rd_ptr==(packet_size_reg - `DIFI_DATA_PROLOGUE_WORDS-16'd1))
@@ -499,10 +541,6 @@ begin
                         snapshot_time_l_ps <= s_axis_pkt_tdata;
                     end
 
-                    if(word_count>=`DIFI_DATA_PROLOGUE_WORDS)
-                    begin
-                        snapshot_payload[word_count-`DIFI_DATA_PROLOGUE_WORDS] <= s_axis_pkt_tdata;
-                    end
                 end
             end
 
