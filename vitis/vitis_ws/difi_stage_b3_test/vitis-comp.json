@@ -1,0 +1,15 @@
+{
+  "name": "difi_stage_b3_test",
+  "type": "HOST",
+  "platform": "difi_platform_stage_b3",
+  "domain": "standalone_ps7_cortexa9_0",
+  "cpuInstance": "ps7_cortexa9_0",
+  "cpuType": "cortex-a9",
+  "os": "standalone",
+  "configuration": {
+    "componentType": "HOST",
+    "hostToolchainConfigurations": []
+  },
+  "domainRealName": "standalone_ps7_cortexa9_0",
+  "applicationFlow": "EMBEDDED"
+}

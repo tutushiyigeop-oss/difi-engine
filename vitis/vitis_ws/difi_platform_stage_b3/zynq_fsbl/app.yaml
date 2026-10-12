@@ -1,0 +1,4 @@
+domain_path: D:\Study\project\DIFI\vitis\vitis_ws\difi_platform_stage_b3\zynq_fsbl\zynq_fsbl_bsp
+app_src_dir: D:\software\xilinx_2024.2\Vitis\2024.2\data\embeddedsw\lib\sw_apps\zynq_fsbl
+template: zynq_fsbl
+lang: c
