@@ -41,7 +41,9 @@
             "D:/Study/project/DIFI/rtl/tx/difi_tx_scheduler.v",
             "D:/Study/project/DIFI/rtl/version/difi_version_generator.v",
             "D:/Study/project/DIFI/rtl/version/difi_version_parser.v",
-            "D:/Study/project/DIFI/rtl/top/difi_engine_top.v"
+            "D:/Study/project/DIFI/rtl/top/difi_engine_top.v",
+            "D:/Study/project/DIFI/rtl/common/difi_periodic_trigger_gen.v",
+            "D:/Study/project/DIFI/rtl/common/difi_time_source.v"
         ]
     }
 }
