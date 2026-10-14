@@ -1,7 +1,0 @@
-[
-{
-  "directory": "D:/Study/project/DIFI/vitis/vitis_ws/difi_stage_b2_test/build",
-  "command": "D:\\software\\xilinx_2024.2\\Vitis\\2024.2\\gnu\\aarch32\\nt\\gcc-arm-none-eabi\\bin\\arm-none-eabi-gcc.exe -isystem D:/Study/project/DIFI/vitis/vitis_ws/difi_platform_stage_b2/export/difi_platform_stage_b2/sw/standalone_ps7_cortexa9_0/include -isystem D:/software/xilinx_2024.2/Vitis/2024.2/gnu/aarch32/nt/gcc-arm-none-eabi/x86_64-oesdk-mingw32/usr/lib/arm-xilinx-eabi/gcc/arm-xilinx-eabi/13.3.0/include -isystem D:/software/xilinx_2024.2/Vitis/2024.2/gnu/aarch32/nt/gcc-arm-none-eabi/x86_64-oesdk-mingw32/usr/lib/arm-xilinx-eabi/gcc/arm-xilinx-eabi/13.3.0/include-fixed -isystem D:/software/xilinx_2024.2/Vitis/2024.2/gnu/aarch32/nt/gcc-arm-none-eabi/aarch32-xilinx-eabi/usr/include  -O2 -DSDT -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard  -MMD -MP -specs=D:/Study/project/DIFI/vitis/vitis_ws/difi_platform_stage_b2/export/difi_platform_stage_b2/sw/standalone_ps7_cortexa9_0/Xilinx.spec -ID:/Study/project/DIFI/vitis/vitis_ws/difi_platform_stage_b2/export/difi_platform_stage_b2/sw/standalone_ps7_cortexa9_0/include -Wall -Wextra      -O0  -g3     -U__clang__ \"-D__FILENAME__='__FILE__'\" -o CMakeFiles\\difi_stage_b2_test.elf.dir\\difi_stage_b2_test.c.obj -c D:\\Study\\project\\DIFI\\vitis\\vitis_ws\\difi_stage_b2_test\\src\\difi_stage_b2_test.c",
-  "file": "D:\\Study\\project\\DIFI\\vitis\\vitis_ws\\difi_stage_b2_test\\src\\difi_stage_b2_test.c"
-}
-]

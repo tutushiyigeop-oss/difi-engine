@@ -1,0 +1,13 @@
+#ifndef DIFI_TIME_REGMAP_H
+#define DIFI_TIME_REGMAP_H
+// C mirror of rtl/include/difi_time_cfg_regmap.vh.
+#define DIFI_TIME_SEC_OFFSET        0x00U
+#define DIFI_TIME_PS_LO_OFFSET      0x04U
+#define DIFI_TIME_PS_HI_OFFSET      0x08U
+#define DIFI_TIME_CMD_OFFSET        0x0CU
+#define DIFI_TIME_STATUS_OFFSET     0x10U
+#define DIFI_TIME_CMD_LOAD          (1U << 0)
+#define DIFI_TIME_STATUS_VALID      (1U << 0)
+#define DIFI_TIME_STATUS_ERROR      (1U << 1)
+#define DIFI_PS_PER_SECOND          1000000000000ULL
+#endif

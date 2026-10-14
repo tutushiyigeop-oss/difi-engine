@@ -27,3 +27,23 @@ __pycache__/
 # Windows
 Thumbs.db
 .DS_Store
+
+
+# ==================================================
+# Vitis 2024.2 Workspace
+# Ignore generated files, preserve Application C/H
+# ==================================================
+
+# Ignore all files under the Vitis workspace
+/vitis/vitis_ws/**
+
+# Allow component directories to be traversed
+!/vitis/vitis_ws/*/
+
+# Allow Application src directories
+!/vitis/vitis_ws/*/src/
+!/vitis/vitis_ws/*/src/**/
+
+# Only keep user C source and header files in src
+!/vitis/vitis_ws/*/src/**/*.c
+!/vitis/vitis_ws/*/src/**/*.h

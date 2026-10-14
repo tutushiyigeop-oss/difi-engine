@@ -1,4 +1,0 @@
-domain_path: D:\Study\project\DIFI\vitis\vitis_ws\difi_platform_stage_a\export\difi_platform_stage_a\sw\standalone_ps7_cortexa9_0
-app_src_dir: D:\software\xilinx_2024.2\Vitis\2024.2\data\embeddedsw\lib\sw_apps\empty_application
-template: empty_application
-lang: c
