@@ -47,3 +47,7 @@ Thumbs.db
 # Only keep user C source and header files in src
 !/vitis/vitis_ws/*/src/**/*.c
 !/vitis/vitis_ws/*/src/**/*.h
+
+# Windows system files
+desktop.ini
+
