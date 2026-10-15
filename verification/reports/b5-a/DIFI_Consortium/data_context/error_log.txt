@@ -1,0 +1,3 @@
+Parsing pcap file: D:\Study\project\DIFI\verification\pcap\b5-a\b5-a_data_context_flow.pcap
+Start time: 2026-10-15 09:14:10
+Total packets processed: 2

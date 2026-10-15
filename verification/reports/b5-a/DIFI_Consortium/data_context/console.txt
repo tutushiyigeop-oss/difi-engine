@@ -1,0 +1,18 @@
+﻿DIFI Consortium original certify_source.py / DIFI 1.1
+PCAP: D:\Study\project\DIFI\verification\pcap\b5-a\b5-a_data_context_flow.pcap
+Validator: D:\Study\tools\DIFI-Certification-main\certify_source.py
+Validator SHA256: 4F0F9072474549BF232CC6AC0DAE45680B234C4C41555B6A8F07140EFB0D7E07
+PCAP SHA256: ED1B170E7FB50607B78142D1C85DE19985890FD08B9A483496977D0B08DDFF94
+Run at: 2026-10-15 09:14:11
+----- STDOUT -----
+Processing packets from D:\Study\project\DIFI\verification\pcap\b5-a\b5-a_data_context_flow.pcap (DIFI v1.1)...
+compliant_context_count: 1
+noncompliant_context_count: 0
+compliant_data_count: 1
+noncompliant_data_count: 0
+compliant_version_count: 0
+noncompliant_version_count: 0
+Overall Result: PASS
+
+----- STDERR (diagnostics/warnings) -----
+Process exit code: 0
