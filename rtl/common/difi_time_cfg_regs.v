@@ -58,13 +58,14 @@ module difi_time_cfg_regs (
 localparam [63:0] PS_PER_SECOND = `DIFI_TIME_PS_PER_SECOND;
 localparam [63:0] DEFAULT_SHADOW_PS = `DIFI_TIME_DEFAULT_SHADOW_PS;
 wire [31:0] status_word;
+reg        last_load_error;
 assign status_word = ({31'd0, time_valid} << `DIFI_TIME_STATUS_VALID_BIT)
                    | ({31'd0, last_load_error} << `DIFI_TIME_STATUS_ERROR_BIT);
 
 reg [31:0] shadow_sec;
 reg [31:0] shadow_ps_lo;
 reg [31:0] shadow_ps_hi;
-reg        last_load_error;
+
 
 reg        aw_pending;
 reg [7:0]  awaddr_reg;
