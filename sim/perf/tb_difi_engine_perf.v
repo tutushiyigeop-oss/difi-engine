@@ -1,8 +1,6 @@
 `timescale 1ns/1ps
-// DIFI Engine RTL throughput + first-IQ latency benchmark.
-// Verilog-2001, 100 MHz, 256 IQ samples per Data Packet.
-// This test uses an ideal, direct AXIS TX->RX connection (no DMA/FIFO/PS).
-// Startup Version/Context announcements are fully drained BEFORE timing starts.
+
+// Drain startup Version/Context packets before starting timing.
 module tb_difi_engine_perf;
 
   parameter integer MAX_PACKETS = 2000;
@@ -14,7 +12,6 @@ module tb_difi_engine_perf;
   always #5 aclk = ~aclk;
   reg aresetn;
 
-  // AXI4-Lite control (same external interface as tb_difi_engine_top.v)
   reg [7:0] s_axi_awaddr;
   reg [2:0] s_axi_awprot;
   reg s_axi_awvalid;
@@ -91,7 +88,6 @@ module tb_difi_engine_perf;
   wire rx_version_error_valid;
   wire [3:0] rx_version_error_code;
 
-  // No testbench FIFO/stall/delay: count the core's own backpressure.
   assign s_axis_rx_pkt_tdata  = m_axis_tx_pkt_tdata;
   assign s_axis_rx_pkt_tvalid = m_axis_tx_pkt_tvalid;
   assign s_axis_rx_pkt_tkeep  = m_axis_tx_pkt_tkeep;
@@ -157,7 +153,6 @@ module tb_difi_engine_perf;
     .rx_version_error_code(rx_version_error_code)
   );
 
-  // Per-packet latency: first input IQ handshake -> first output IQ handshake.
   integer packet_in_cycle [0:MAX_PACKETS-1];
   integer packet_first_out_cycle [0:MAX_PACKETS-1];
   integer packet_last_out_cycle [0:MAX_PACKETS-1];
@@ -171,7 +166,6 @@ module tb_difi_engine_perf;
     end
   endtask
 
-  // Exact AXI-Lite write handshake routine reused from existing test strategy.
   task axi_write;
     input [7:0] addr;
     input [31:0] value;
@@ -201,7 +195,6 @@ module tb_difi_engine_perf;
     end
   endtask
 
-  // Monitors sample pre-NBA handshake signals; no internal RTL instrumentation.
   always @(posedge aclk) begin
     if (!aresetn) begin
       cycle_counter <= 0;
@@ -315,17 +308,14 @@ module tb_difi_engine_perf;
 
     repeat(8) @(negedge aclk);
     aresetn=1;
-    // Existing cfg_regs reset default is 256 samples/packet.
-    // Explicitly set/commit to make test configuration reproducible.
-    axi_write(8'h18, 32'd256);  // SAMPLES_PER_PACKET shadow
-    axi_write(8'h04, 32'd1);    // COMMAND cfg_commit
-    // Allow the config acknowledgement to finish before enabling TX.
+    
+    axi_write(8'h18, 32'd256);  
+    axi_write(8'h04, 32'd1);    
+    
     repeat(12) @(negedge aclk);
-    axi_write(8'h00, 32'd1);    // CONTROL tx_enable
+    axi_write(8'h00, 32'd1);    
     @(negedge aclk); time_valid=1;
 
-    // Initial Version(changed), then Context(changed), are protocol-correct
-    // but EXCLUDED from the measured Data-only window.
     timeout=0;
     while ((context_count<1 || version_count<1 || tx_busy || m_axis_tx_pkt_tvalid) && timeout<10000) begin
       @(negedge aclk);
@@ -356,7 +346,7 @@ module tb_difi_engine_perf;
       fail("Invalid benchmark time interval");
 
     total_cycles=last_output_cycle-first_input_cycle+1;
-    // 100MHz * 4 byte/IQ / 1e6 = 400 MB/s per sample/cycle.
+    
     payload_mb_s=(total_samples*400.0)/total_cycles;
     min_latency=2147483647;
     max_latency=0;

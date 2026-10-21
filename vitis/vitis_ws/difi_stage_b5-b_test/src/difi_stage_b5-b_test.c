@@ -1,31 +1,4 @@
-/*
- * DIFI Stage B5-B: full-size, multi-packet RAW export on Zynq-7020.
- * Vitis 2024.2 Standalone / SDT. Reuses the VERIFIED B5-A bitstream/XSA.
- * Based on repository Stage B3/B4 board tests and B5-A UART-echo C program.
- *
- * PL path: DDR IQ -> AXI DMA MM2S -> DIFI TX packetizer/scheduler
- *                          -> M_AXIS_PKT -> AXI DMA S2MM -> DDR Raw Packet.
- *
- * B5-B functional scope:
- *   - Startup Version (11 words), changed Context (27 words).
- *   - 20 full-size Data packets: 7+256=263 words each (1052 B).
- *   - Verify every Data Word against a deterministic 256-IQ pattern.
- *   - Verify 4-bit Data sequence: 0..15,0..3; increasing timestamps.
- *   - Save EVERY verified packet in DDR before printing UART data blocks.
- *   - Original rtf_to_pcap.py [B5_START]/W[xxx]/[B5_END] compatible.
- *
- * Important limitations:
- *   - This is *packet-by-packet* Simple DMA, NOT gapless stream throughput.
- *   - Context/Version period registers are 0; periodic scheduling is NOT
- *     tested in this B5-B subtest (already covered by B4).  This prevents
- *     periodic packet insertion while each Simple S2MM is rearmed.
- *   - All UDP/IP/Ethernet headers later built by PC script are synthetic.
- *   - Board reset required: download the B5 bitstream before each run.
- *   - PS UART STDIN/STDOUT must be the SAME working PS UART as in B5-A.
- *     MobaXterm Local Echo = OFF, UART text manually echoed using inbyte().
- *   - Required PL wiring: DMA MM2S -> S_AXIS_IQ, M_AXIS_PKT -> DMA S2MM.
- *   - DIFI clock/time in FPGA keeps running during CPU and UART operations.
- */
+/* Stage B5-B: check startup packets and 20 Data packets. */
 
 #include <stddef.h>
 #include <string.h>
@@ -112,13 +85,13 @@ extern char inbyte(void);
 #define RF_FREQ_HZ       100000000U
 
 #define B5B_SAMPLES        256U
-#define B5B_DATA_PACKETS   20U  /* >=17 to exercise seq 15 -> 0 */
+#define B5B_DATA_PACKETS   20U  /* Use at least 17 packets to cover sequence wrap from 15 to 0. */
 #define B5B_VERSION_WORDS  11U
 #define B5B_CONTEXT_WORDS  27U
 #define B5B_DATA_WORDS     (7U + B5B_SAMPLES)
 #define B5B_CAPTURE_COUNT  (2U + B5B_DATA_PACKETS)
-#define B5B_RX_PAD_WORDS   272U /* cacheline aligned; > 263 words */
-#define B5B_POLL_LIMIT     75000000U /* iteration bound, NOT milliseconds */
+#define B5B_RX_PAD_WORDS   272U 
+#define B5B_POLL_LIMIT     75000000U /* Polling iteration limit, not milliseconds. */
 
 #if B5B_DATA_PACKETS < 17
 #error "Need at least 17 Data packets to test sequence 15->0 wrap"
@@ -128,9 +101,7 @@ static XAxiDma Dma;
 static u32 TxIQ[B5B_SAMPLES] __attribute__((aligned(64)));
 static u32 RxWords[B5B_RX_PAD_WORDS] __attribute__((aligned(64)));
 
-/* The archive is CPU-owned. DMA transfers use ONLY TxIQ and RxWords.
- * Avoid UART output between captures: large prints delay S2MM rearming.
- */
+/* DMA uses only TxIQ/RxWords; avoid large UART prints during consecutive captures. */
 static u32 SavedPackets[B5B_CAPTURE_COUNT][B5B_DATA_WORDS];
 static u16 SavedWordCounts[B5B_CAPTURE_COUNT];
 static u32 SavedCount = 0U;
@@ -157,7 +128,6 @@ static int eq(const char *label, u32 got, u32 want)
     return XST_FAILURE;
 }
 
-/* Copied from the B4/B5-A UART design: the caller can see every keystroke. */
 static void uart_getline(char *buf, unsigned cap)
 {
     unsigned n = 0U;
@@ -259,7 +229,7 @@ static int commit_config(void)
     ctrl_wr(REG_BW, BANDWIDTH_HZ);
     ctrl_wr(REG_RF_LO, RF_FREQ_HZ);
     ctrl_wr(REG_RF_HI, 0U);
-    /* Disable periodic insertion during the 20-packet Simple-DMA test. */
+    
     ctrl_wr(REG_CTX_PERIOD, 0U);
     ctrl_wr(REG_VER_PERIOD, 0U);
     ctrl_wr(REG_COMMAND, 1U);
@@ -334,7 +304,7 @@ static int rx_arm(u32 words)
 {
     int rc;
     if (words > B5B_RX_PAD_WORDS) return fail("RX request too large");
-    /* Discard all previous data before arming a new S2MM frame. */
+    /* Clear old data before starting a new capture. */
     memset(RxWords, 0xA5, sizeof(RxWords));
     Xil_DCacheFlushRange((INTPTR)RxWords, (u32)sizeof(RxWords));
     rc = XAxiDma_SimpleTransfer(&Dma, (UINTPTR)RxWords,
@@ -354,7 +324,7 @@ static void make_iq(u32 round)
         u32 qn = (0xA000U + 3U*i + 0x0011U*round) & 0xFFFFU;
         TxIQ[i] = (in << 16) | qn;
     }
-    /* Explicit corner samples for signed I16/Q16; repeated in each round. */
+    
     TxIQ[0] = 0x0001FFFFU;
     TxIQ[1] = 0x7FFF8000U;
     TxIQ[2] = 0xFFFE0003U;
@@ -377,7 +347,7 @@ static int verify_common(u32 type, u32 length, u32 sid, u32 seq)
 {
     u32 w0 = RxWords[0];
     u32 expected = (type << 28) | 0x08600000U | ((seq & 15U) << 16) | length;
-    /* Version/Context TSM=1 (0x01000000); Data TSM=0. */
+    
     if (type == 4U || type == 5U) expected |= 0x01000000U;
     if (eq("Word0 header/type/count/length", w0, expected) ||
         eq("Stream ID", RxWords[1], sid) ||
@@ -485,14 +455,12 @@ int main(void)
     ctrl_wr(REG_CONTROL, 0U);
     if (configure_utc() || commit_config()) goto finish;
 
-    /* S2MM FIRST; then enable TX to get startup Version. */
     if (rx_arm(B5B_VERSION_WORDS)) goto finish;
     ctrl_wr(REG_CONTROL, 1U);
     if (dma_wait(XAXIDMA_DEVICE_TO_DMA, "Version S2MM") || verify_version())
         goto finish;
     xil_printf("[PASS] Version startup: 11 words, seq=0\r\n");
 
-    /* Changed Context follows Version.  It can stall at TX TREADY=0. */
     if (rx_arm(B5B_CONTEXT_WORDS) ||
         dma_wait(XAXIDMA_DEVICE_TO_DMA, "Context S2MM") || verify_context())
         goto finish;
@@ -500,7 +468,7 @@ int main(void)
 
     for (round=0U; round<B5B_DATA_PACKETS; ++round) {
         make_iq(round);
-        /* Every 263-word Data Packet receives its OWN S2MM transaction. */
+        
         if (rx_arm(B5B_DATA_WORDS)) goto finish;
         rc = XAxiDma_SimpleTransfer(&Dma, (UINTPTR)TxIQ,
                                      B5B_SAMPLES * 4U, XAXIDMA_DMA_TO_DEVICE);

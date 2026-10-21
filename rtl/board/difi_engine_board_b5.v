@@ -1,21 +1,9 @@
-// -----------------------------------------------------------------------------
-// DIFI 1.1 B5 raw-packet export board shell (Zynq-7020, Verilog-2001)
-//
-// Based on difi_engine_board.v (B4, feature/rtl-integration, 2026-10-14).
-// This is a SEPARATE module.  Keep the original B4 source unchanged.
-//
-// B4: DMA MM2S IQ -> Engine TX -> Engine RX -> DMA S2MM decoded IQ
-// B5: DMA MM2S IQ -> Engine TX -------------> DMA S2MM DIFI Packet
-//
-// Board ports use S_AXIS_IQ for IQ input and M_AXIS_PKT for DIFI packet output.
-// Unlike the B4 loopback, B5 exports complete DIFI packet words directly.
-// One complete packet per S2MM Simple DMA transfer, delimited by TLAST.
-// The DIFI core, AXI-Lite maps and common blocks are unchanged.
-//
-// IMPORTANT: NO buffering of the TX AXIS packet stream in this shell.
-// The AXI DMA S2MM must support backpressure between packets.
-// RX parsers are intentionally disconnected; RX metadata counters stay zero.
-// -----------------------------------------------------------------------------
+// Each S2MM transfer receives one complete packet ending with TLAST.
+
+// This module does not buffer TX packets; S2MM must support stalls.
+
+// RX is disconnected, so RX counters stay zero.
+
 module difi_board_raw_packet_export #(
     parameter integer CLK_FREQ_HZ = 100_000_000
 )(
@@ -26,7 +14,6 @@ module difi_board_raw_packet_export #(
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME aresetn, POLARITY ACTIVE_LOW" *)
     input wire aresetn,
 
-    // S_AXI_CTRL: original DIFI configuration slave, offset 0x00..0xFF
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_CTRL AWADDR" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXI_CTRL, PROTOCOL AXI4LITE, DATA_WIDTH 32, ADDR_WIDTH 8" *)
     input  wire [7:0]  s_axi_awaddr,
@@ -67,7 +54,6 @@ module difi_board_raw_packet_export #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_CTRL RREADY" *)
     input  wire        s_axi_rready,
 
-    // S_AXI_TIME: separate v1.7 time initialization slave
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_TIME AWADDR" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXI_TIME, PROTOCOL AXI4LITE, DATA_WIDTH 32, ADDR_WIDTH 8" *)
     input  wire [7:0]  s_axi_time_awaddr,
@@ -108,7 +94,7 @@ module difi_board_raw_packet_export #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_TIME RREADY" *)
     input  wire        s_axi_time_rready,
 
-    // Original MM2S IQ input; TKEEP/TLAST are unused by the IQ packetizer.
+    // Input IQ TKEEP/TLAST do not define packet boundaries.
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TDATA" *)
     input wire [31:0] s_axis_iq_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TVALID" *)
@@ -120,7 +106,6 @@ module difi_board_raw_packet_export #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TLAST" *)
     input wire        s_axis_iq_tlast,
 
-    // B5 raw DIFI packet AXI4-Stream to DMA S2MM (not decoded IQ).
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_PKT TDATA" *)
     output wire [31:0] m_axis_pkt_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_PKT TVALID" *)
@@ -132,14 +117,10 @@ module difi_board_raw_packet_export #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_PKT TLAST" *)
     output wire        m_axis_pkt_tlast,
 
-    // Unchanged two-channel AXI GPIO debug port.
     input wire [4:0]   dbg_page,
     output reg [31:0] dbg_rdata
 );
 
-// -----------------------------------------------------------------------------
-// 1. Time configuration, time source, and periodic triggers (same as B4).
-// -----------------------------------------------------------------------------
 wire [31:0] time_sec;
 wire [63:0] time_ps;
 wire        time_valid;
@@ -196,9 +177,6 @@ difi_periodic_trigger_gen #(.CLK_FREQ_HZ(CLK_FREQ_HZ))
     .version_periodic_trigger(version_periodic_trigger)
 );
 
-// -----------------------------------------------------------------------------
-// 2. Raw export. TX -> S2MM; RX Packet input disabled.
-// -----------------------------------------------------------------------------
 wire [31:0] tx_pkt_tdata;
 wire        tx_pkt_tvalid;
 wire        tx_pkt_tready;
@@ -212,8 +190,6 @@ assign m_axis_pkt_tkeep  = tx_pkt_tkeep;
 assign m_axis_pkt_tlast  = tx_pkt_tlast;
 assign tx_pkt_tready    = m_axis_pkt_tready;
 
-// RX metadata/error wires stay connected to the legacy GPIO monitor.
-// They do not fire in B5 since the RX stream is inactive.
 wire data_meta_valid;
 wire [31:0] data_meta_sid, data_meta_sec;
 wire [3:0] data_meta_seq;
@@ -259,7 +235,6 @@ difi_engine_top u_engine (
     .m_axis_tx_pkt_tkeep(tx_pkt_tkeep),
     .m_axis_tx_pkt_tlast(tx_pkt_tlast),
 
-    // A deliberately empty RX stream: B5 tests TX interoperability only.
     .s_axis_rx_pkt_tdata(32'd0),
     .s_axis_rx_pkt_tvalid(1'b0),
     .s_axis_rx_pkt_tready(),
@@ -296,11 +271,8 @@ difi_engine_top u_engine (
     .rx_version_error_code(e_ver_code)
 );
 
-// -----------------------------------------------------------------------------
-// 3. B4-compatible AXI GPIO monitor (5-bit page and 32-bit snapshot).
-// Page 29/30 count *actual TX Packet AXIS handshakes* in both B4 and B5.
-// RX-related pages 1..28 remain zero in B5 by design.
-// -----------------------------------------------------------------------------
+// B5 RX monitor pages 1..28 stay zero.
+
 reg [31:0] tx_packet_count, tx_beat_count;
 reg [31:0] cnt_data, cnt_ctx, cnt_ver;
 reg [31:0] cnt_e_dispatch, cnt_e_data, cnt_e_ctx, cnt_e_ver;
@@ -392,7 +364,7 @@ end
 always @(*) begin
     dbg_rdata = 32'd0;
     case (dbg_page)
-        5'd0:  dbg_rdata = 32'hD1F100B5; // B5 build signature
+        5'd0:  dbg_rdata = 32'hD1F100B5; 
         5'd1:  dbg_rdata = cnt_data;
         5'd2:  dbg_rdata = cnt_ctx;
         5'd3:  dbg_rdata = cnt_ver;

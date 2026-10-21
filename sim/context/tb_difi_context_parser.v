@@ -3,12 +3,9 @@
 
 module tb_difi_context_parser;
     localparam integer CONTEXT_WORDS = 27;
-    localparam integer MAX_WORDS     = 400; // also exercises prolonged ST_DROP
+    localparam integer MAX_WORDS     = 400; 
     localparam integer WAIT_LIMIT    = 20000;
 
-    // ------------------------------------------------------------------
-    // 1. DUT and clock
-    // ------------------------------------------------------------------
     reg         aclk, aresetn;
     reg  [31:0] s_axis_pkt_tdata;
     reg         s_axis_pkt_tvalid;
@@ -62,9 +59,6 @@ module tb_difi_context_parser;
     initial aclk = 1'b0;
     always #5 aclk = ~aclk;
 
-    // ------------------------------------------------------------------
-    // 2. Independent packet generator and golden metadata
-    // ------------------------------------------------------------------
     reg [31:0] tx_word [0:MAX_WORDS-1];
     reg [3:0]  tx_keep [0:MAX_WORDS-1];
     reg        tx_last [0:MAX_WORDS-1];
@@ -97,7 +91,6 @@ module tb_difi_context_parser;
     reg [31:0] held_fs_hz;
     reg previous_err;
 
-    // Only this negedge process owns m_ctx_ready.
     reg stall_meta;
     integer meta_stall_cycles;
     integer meta_stall_hits;
@@ -121,9 +114,6 @@ module tb_difi_context_parser;
         end
     endtask
 
-    // Build one completely legal 27-word Signal Context packet.
-    // Frequency inputs use human-readable integer Hz/sample/s; the builder
-    // independently converts them to DIFI 44.20 raw fields.
     task make_packet;
         input [31:0] sid;
         input [31:0] sec;
@@ -182,10 +172,6 @@ module tb_difi_context_parser;
         end
     endtask
 
-
-    // Frozen protocol Appendix-C vector: this checks the TB packet builder
-    // itself before the DUT sees the packet, so TC01 is not merely a
-    // generator-vs-parser self-consistency test.
     task check_reference_context_vector;
         integer k;
         reg [31:0] expected;
@@ -234,8 +220,6 @@ module tb_difi_context_parser;
         end
     endtask
 
-    // error_expected: 0 = no error, 1 = fatal error/no metadata,
-    //                 2 = nonfatal sequence error + valid metadata.
     task arm_case;
         input integer error_expected;
         input [3:0] error_expected_code;
@@ -278,16 +262,13 @@ module tb_difi_context_parser;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 3. Scoreboard. Observe all real transfers on posedge.
-    // ------------------------------------------------------------------
     always @(posedge aclk) begin
         if (!aresetn) begin
             hold_meta = 1'b0;
             hold_rx = 1'b0;
             previous_err = 1'b0;
         end else begin
-            // The source must not change an AXIS beat while DUT backpressures it.
+            
             if (hold_rx) begin
                 if (s_axis_pkt_tvalid !== 1'b1 ||
                     s_axis_pkt_tdata  !== held_rx_data ||
@@ -303,7 +284,6 @@ module tb_difi_context_parser;
                 held_rx_last = s_axis_pkt_tlast;
             end
 
-            // Metadata must remain bit-for-bit stable while VALID=1/READY=0.
             if (hold_meta) begin
                 if (m_ctx_valid !== 1'b1 ||
                     m_ctx_stream_id      !== held_sid ||
@@ -397,7 +377,6 @@ module tb_difi_context_parser;
         end
     end
 
-    // Selectively backpressure Context metadata.
     always @(negedge aclk) begin
         if (!aresetn) begin
             m_ctx_ready = 1'b1;
@@ -410,9 +389,6 @@ module tb_difi_context_parser;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 4. AXIS source: drive on falling edges and hold until handshake.
-    // ------------------------------------------------------------------
     task send_word;
         input [31:0] data;
         input [3:0] keep;
@@ -475,7 +451,6 @@ module tb_difi_context_parser;
             if (waits >= WAIT_LIMIT)
                 fail("Timeout waiting for expected metadata/error");
 
-            // Guard against late duplicate outputs/events.
             repeat (5) @(negedge aclk);
             if (rx_seen != tx_len || rx_last_seen != 1 ||
                 meta_seen != golden_meta_count ||
@@ -537,7 +512,6 @@ module tb_difi_context_parser;
         end
     endtask
 
-    // run_bad assumes make_packet + corruption have already prepared tx_word[].
     task run_bad;
         input [3:0] err;
         input [31:0] sid;
@@ -570,10 +544,6 @@ module tb_difi_context_parser;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 5. Test plan
-    // Covers the frozen v1.1 Context Parser matrix plus AXIS robustness.
-    // ------------------------------------------------------------------
     integer j, p, bad_at, old_err;
     integer fs_i, bw_i;
     reg [63:0] raw64;
@@ -671,7 +641,7 @@ module tb_difi_context_parser;
         tx_word[2] = tx_word[2] ^ 32'h0000_0001;
         run_bad(`DIFI_ERR_CLASS,32'd1,32'd321,4'd3,64'd0,1'b0,
                 32'd10000000,64'd1000000000,32'd20000000);
-        // Baseline is still Seq=2, so Seq=4 must report a discontinuity.
+        
         run_seq_issue(32'd1,32'd322,4'd4,64'd0,1'b0,
                       32'd10000000,64'd1000000000,32'd20000000);
         run_good(32'd1,32'd323,4'd5,64'd0,1'b0,
@@ -689,12 +659,12 @@ module tb_difi_context_parser;
         cfg_stream_filter_enable=0;
         run_good(32'h0000_1234,32'd331,4'd9,64'd0,1'b1,
                  32'd10000000,64'd1000000000,32'd20000000,0);
-        // New SID: no false Sequence error; baseline is re-created for SID B.
+        
         run_good(32'hABCD_0002,32'd332,4'd2,64'd0,1'b0,
                  32'd10000000,64'd1000000000,32'd20000000,0);
         run_good(32'hABCD_0002,32'd333,4'd3,64'd0,1'b0,
                  32'd10000000,64'd1000000000,32'd20000000,0);
-        // Switching back to SID A also re-bases current single-stream tracking.
+        
         run_good(32'h0000_1234,32'd334,4'd10,64'd0,1'b0,
                  32'd10000000,64'd1000000000,32'd20000000,0);
         cfg_stream_filter_enable=1;
@@ -753,10 +723,10 @@ module tb_difi_context_parser;
             tx_last[0]=1'b1;
             case (p)
                 0: begin end
-                1: tx_word[0] = tx_word[0] ^ 32'h1000_0000; // Type beats TLAST
-                2: tx_word[0] = tx_word[0] ^ 32'h0800_0000; // Header beats TLAST
-                3: tx_word[0] = (tx_word[0] & 32'hFFFF_0000); // TLAST beats Size
-                4: tx_keep[0] = 4'b0111; // TLAST beats TKEEP
+                1: tx_word[0] = tx_word[0] ^ 32'h1000_0000; 
+                2: tx_word[0] = tx_word[0] ^ 32'h0800_0000; 
+                3: tx_word[0] = (tx_word[0] & 32'hFFFF_0000); 
+                4: tx_keep[0] = 4'b0111; 
             endcase
             if (p==1)
                 run_bad(`DIFI_ERR_UNSUPPORTED_TYPE,32'd1,32'd403,4'd0,64'd0,1'b1,
@@ -811,31 +781,31 @@ module tb_difi_context_parser;
         current_tc=17;
         $display("\n=== TC17: same-beat error priority ===");
         reset_dut;
-        // Early TLAST must beat SID/TKEEP.
+        // Early TLAST takes priority over SID/TKEEP errors.
         make_packet(32'd1,32'd407,4'd0,64'd0,1'b1,
                     32'd10000000,64'd1000000000,32'd20000000);
         tx_word[1]=32'd2; tx_keep[1]=4'b0011; tx_last[1]=1; tx_len=2;
         run_bad(`DIFI_ERR_TRUNCATED,32'd1,32'd407,4'd0,64'd0,1'b1,
                 32'd10000000,64'd1000000000,32'd20000000);
-        // Early TLAST must beat Class/TKEEP.
+        // Early TLAST takes priority over class/TKEEP errors.
         make_packet(32'd1,32'd408,4'd0,64'd0,1'b1,
                     32'd10000000,64'd1000000000,32'd20000000);
         tx_word[2]=32'd0; tx_keep[2]=4'b0011; tx_last[2]=1; tx_len=3;
         run_bad(`DIFI_ERR_TRUNCATED,32'd1,32'd408,4'd0,64'd0,1'b1,
                 32'd10000000,64'd1000000000,32'd20000000);
-        // Early TLAST must beat Context-field/TKEEP.
+        // Early TLAST takes priority over Context-field/TKEEP errors.
         make_packet(32'd1,32'd409,4'd0,64'd0,1'b1,
                     32'd10000000,64'd1000000000,32'd20000000);
         tx_word[7]=32'd0; tx_keep[7]=4'b0011; tx_last[7]=1; tx_len=8;
         run_bad(`DIFI_ERR_TRUNCATED,32'd1,32'd409,4'd0,64'd0,1'b1,
                 32'd10000000,64'd1000000000,32'd20000000);
-        // TKEEP/size priority beats a Context-field error without early TLAST.
+        // Without early TLAST, TKEEP/length errors take priority over Context-field errors.
         make_packet(32'd1,32'd410,4'd0,64'd0,1'b1,
                     32'd10000000,64'd1000000000,32'd20000000);
         tx_word[7]=32'd0; tx_keep[7]=4'b0011;
         run_bad(`DIFI_ERR_SIZE,32'd1,32'd410,4'd0,64'd0,1'b1,
                 32'd10000000,64'd1000000000,32'd20000000);
-        // Missing TLAST at Word26 beats a bad Word26 DPF field.
+        
         make_packet(32'd1,32'd411,4'd0,64'd0,1'b1,
                     32'd10000000,64'd1000000000,32'd20000000);
         tx_word[26]=32'hDEAD_BEEF;
@@ -886,8 +856,8 @@ module tb_difi_context_parser;
             make_packet(32'd1,32'd440,4'd0,64'd0,1'b1,
                         32'd10000000,64'd1000000000,32'd20000000);
             case (p)
-                0:  tx_word[7]  = 32'h1234_5678; // CIF0
-                1:  tx_word[8]  = tx_word[8] ^ 32'h1; // Reference Point
+                0:  tx_word[7]  = 32'h1234_5678; 
+                1:  tx_word[8]  = tx_word[8] ^ 32'h1; 
                 2:  tx_word[11] = 32'h1;
                 3:  tx_word[12] = 32'h1;
                 4:  tx_word[15] = 32'h1;
@@ -920,26 +890,26 @@ module tb_difi_context_parser;
         current_tc=22;
         $display("\n=== TC22: invalid Bandwidth raw value/range/relationship ===");
         reset_dut;
-        // Fractional-Hz bits set.
+        
         make_packet(32'd1,32'd460,4'd0,64'd0,1'b1,
                     32'd10000000,64'd1000000000,32'd20000000);
         tx_word[10]=tx_word[10] | 32'h1;
         run_bad(`DIFI_ERR_CONTEXT_FIELD,32'd1,32'd460,4'd0,64'd0,1'b1,
                 32'd10000000,64'd1000000000,32'd20000000);
-        // BW = 0.
+        
         make_packet(32'd1,32'd461,4'd0,64'd0,1'b1,
                     32'd10000000,64'd1000000000,32'd20000000);
         tx_word[9]=0; tx_word[10]=0;
         run_bad(`DIFI_ERR_CONTEXT_FIELD,32'd1,32'd461,4'd0,64'd0,1'b1,
                 32'd10000000,64'd1000000000,32'd20000000);
-        // BW after >>20 exceeds 32 bits: raw = 2^32 << 20 = 2^52.
+        
         make_packet(32'd1,32'd462,4'd0,64'd0,1'b1,
                     32'd10000000,64'd1000000000,32'd20000000);
         raw64=64'h0010_0000_0000_0000;
         tx_word[9]=raw64[63:32]; tx_word[10]=raw64[31:0];
         run_bad(`DIFI_ERR_CONTEXT_FIELD,32'd1,32'd462,4'd0,64'd0,1'b1,
                 32'd10000000,64'd1000000000,32'd20000000);
-        // BW > Fs.
+        
         make_packet(32'd1,32'd463,4'd0,64'd0,1'b1,
                     32'd20000000,64'd1000000000,32'd10000000);
         run_bad(`DIFI_ERR_CONTEXT_FIELD,32'd1,32'd463,4'd0,64'd0,1'b1,
@@ -996,7 +966,7 @@ module tb_difi_context_parser;
         arm_case(0,4'd0,32'h11,32'd500,4'd7,64'd9876,1'b1,
                  32'd10000000,64'd1800000000,32'd20000000,0);
         send_word(tx_word[0],tx_keep[0],tx_last[0]);
-        // Retire the accepted Word0 before changing config / sending Word1.
+        
         @(negedge aclk);
         s_axis_pkt_tvalid=1'b0;
         cfg_stream_filter_enable=0;
@@ -1006,7 +976,6 @@ module tb_difi_context_parser;
         stop_input;
         finish_case;
 
-        // Reverse direction: disabled at Word0 must stay disabled for this packet.
         reset_dut;
         cfg_stream_filter_enable=0;
         cfg_expected_stream_id=32'h0000_0001;
@@ -1084,7 +1053,7 @@ module tb_difi_context_parser;
         meta_stall_cycles=1000;
         transmit_prepared;
         @(negedge aclk);
-        // Present a real pending next Word0; DUT must backpressure it in ST_META.
+        
         s_axis_pkt_tvalid=1;
         s_axis_pkt_tdata=`DIFI_CONTEXT_HEADER_BASE;
         s_axis_pkt_tkeep=`DIFI_TKEEP_FULL;
@@ -1094,7 +1063,7 @@ module tb_difi_context_parser;
             if (m_ctx_valid !== 1 || m_ctx_ready !== 0 || s_axis_pkt_tready !== 0)
                 fail("Pending Metadata or next Word0 was not held before reset");
         end
-        reset_dut; // aborts both pending transactions
+        reset_dut; 
         run_good(32'd1,32'd541,4'd1,64'd0,1'b0,
                  32'd10000000,64'd1000000000,32'd20000000,0);
 

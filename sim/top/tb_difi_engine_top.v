@@ -1,8 +1,6 @@
 `timescale 1ns/1ps
 `include "difi_v1_1_defs.vh"
-// DIFI v1.5 full-engine regression; Verilog-2001.
-// No RTL mocks: one cfg_regs, 3 TX, scheduler, dispatch, 3 RX parsers.
-// Separate packet-level golden model and independent RX injection path.
+
 module tb_difi_engine_top;
 
     reg aclk;
@@ -168,11 +166,7 @@ difi_engine_top dut (
     .rx_version_error_valid(rx_version_error_valid),
     .rx_version_error_code(rx_version_error_code)
 );
-// -----------------------------------------------------------------------------
-// TB infrastructure.  Main path: TX -> optional beat stalls -> RX.
-// Injection path uses the same RX input, with TX disabled/idle.
-// TX/RX are NOT tied inside difi_engine_top itself.
-// -----------------------------------------------------------------------------
+
 localparam integer MAX_EXPECT = 96;
 localparam integer MAX_IQ = 256;
 localparam integer MAX_CYCLES = 180000;
@@ -203,9 +197,7 @@ reg [31:0] inject_word [0:300];
 reg [3:0] inject_keep [0:300];
 reg inject_last [0:300];
 integer inject_len;
-// One-beat *testbench-only* AXIS elastic buffer: ensures that injected
-// backpressure never creates an illegal TVALID drop at the RX interface.
-// It also permits deliberate inter-beat stalls without altering the DUT.
+
 reg link_valid;
 reg [31:0] link_data;
 reg [3:0] link_keep;
@@ -249,7 +241,6 @@ assign m_data_meta_ready   = !stress_ready || ((cycles%11)>=5);
 assign m_ctx_ready         = !stress_ready || ((cycles%13)>=6);
 assign m_ver_ready         = !stress_ready || ((cycles%9)>=3);
 
-// Packet reference model: expectations may be TX+RX or RX only.
 reg [3:0]  ex_kind [0:MAX_EXPECT-1];
 reg [31:0] ex_sid  [0:MAX_EXPECT-1];
 reg [3:0]  ex_seq  [0:MAX_EXPECT-1];
@@ -478,7 +469,7 @@ task expect_ver;
   input [31:0] sid;
   input should_parse;
   begin
-    // Defaults of difi_version_generator in the repository: 2026, day 252.
+    
     add_expect(K_VER,sid,time_sec,seq_ver,time_ps,0,0,changed,
                0,0,32'h34FC0400,0,1'b1,should_parse);
     seq_ver=seq_ver+4'd1;
@@ -519,10 +510,6 @@ task check_error;
   end
 endtask
 
-// -----------------------------------------------------------------------------
-// Handshake monitors: all golden checks independent of DUT internal payload.
-// Sample before NBA state updates; stimulus changes on negedge.
-// -----------------------------------------------------------------------------
 always @(posedge aclk) begin : scoreboard
   integer id, expected_len;
   if(!aresetn)begin
@@ -535,7 +522,7 @@ always @(posedge aclk) begin : scoreboard
     tx_start_data=0;tx_start_ctx=0;tx_start_ver=0;
     ack_count=0;change_done_count=0;
   end else begin
-    // TX AXIS invariants, including a stalled TLAST.
+    
     if(held_tx)begin
       checks=checks+1;
       if(m_axis_tx_pkt_tvalid!==1'b1 ||
@@ -551,7 +538,6 @@ always @(posedge aclk) begin : scoreboard
       held_tx_last=m_axis_tx_pkt_tlast;
     end
 
-    // Verify stall stability at both sides of the link and at all RX outputs.
     if(held_rx)begin
       checks=checks+1;
       if(!s_axis_rx_pkt_tvalid ||
@@ -698,10 +684,6 @@ initial begin
   fail("Global simulation watchdog timed out");
 end
 
-// -----------------------------------------------------------------------------
-// Stimulus/AXI4-Lite bus functional models (AW and W independent ready).
-// Every wait is bounded; no waveform-only pass criteria.
-// -----------------------------------------------------------------------------
 task axi_write;
   input [7:0] addr;
   input [31:0] value;
@@ -774,7 +756,7 @@ task wait_all;
       t=t+1;
     end
     if(!finished)fail("Timeout waiting for expected TX/RX completions");
-    repeat(8) @(negedge aclk); // catch delayed duplicate events
+    repeat(8) @(negedge aclk); 
     if(tx_seen!=ex_tx_count || data_meta_seen!=ex_data_count ||
        ctx_seen!=ex_ctx_count || ver_seen!=ex_ver_count ||
        iq_packets_seen!=ex_data_count || err_seen!=err_expected)
@@ -967,7 +949,7 @@ endtask
 
 integer i,base,old_ack,old_done;
 initial begin
-  // Reset and defaults.
+  
   aresetn=0;
   s_axi_awaddr=0;s_axi_awprot=0;s_axi_awvalid=0;
   s_axi_wdata=0;s_axi_wstrb=0;s_axi_wvalid=0;s_axi_bready=0;
@@ -996,7 +978,7 @@ initial begin
   eq32(cfg_context_period_ms,1000,"Default context period");
   eq32(cfg_version_period_ms,1000,"Default version period");
   axi_write(REG_CONTROL,1,4'h1,OKAY);
-  quiet_for(25); // tx_enable alone may not send with invalid time.
+  quiet_for(25); 
   if(tx_seen!=0 || tx_busy)fail("TX started before valid Time Source");
 
   current_tc=2;
@@ -1033,7 +1015,7 @@ initial begin
   axi_write(REG_RF_HI,0,4'hF,OKAY);
   axi_write(REG_CTX_PERIOD,500,4'hF,OKAY);
   axi_write(REG_VER_PERIOD,0,4'hF,OKAY);
-  axi_read(REG_ACTIVE_DATA_SID,1); // shadow must not leak into active.
+  axi_read(REG_ACTIVE_DATA_SID,1); 
   old_ack=ack_count;
   expect_ctx(1,32'h1111,1000000,2000000,100000000,1);
   axi_write(REG_COMMAND,1,4'h1,OKAY);
@@ -1060,7 +1042,7 @@ initial begin
 
   current_tc=7;
   $display("[TC07] Busy Data ownership + Commit; wait boundary; Changed Context");
-  axi_write(REG_SAMPLES,1,4'hF,OKAY); // shadow changes before in-flight packet.
+  axi_write(REG_SAMPLES,1,4'hF,OKAY); 
   base=tx_seen;
   expect_data(4,21,32'h1111,1);
   expect_ctx(1,32'h1111,1000000,2000000,100000000,1);
@@ -1101,7 +1083,7 @@ initial begin
   expect_data(1,31,32'h1111,1);
   expect_ctx(0,32'h1111,1000000,2000000,100000000,1);
   expect_ver(0,32'h2222,1);
-  // Stall on the Data packet while injecting multiple periodic events.
+  
   fork
     begin send_iq(1,31,0); end
     begin
@@ -1121,12 +1103,12 @@ initial begin
   current_tc=10;
   $display("[TC10] RX filter mismatch drops IQ, independent of TX packet correctness");
   axi_write(REG_RX_DATA_SID,32'h9999,4'hF,OKAY);
-  expect_data(1,40,32'h1111,0); // TX expected, RX must reject.
+  expect_data(1,40,32'h1111,0); 
   expect_error(SRC_DATA,`DIFI_ERR_STREAM_ID);
   send_iq(1,40,0);
   wait_all;
   axi_write(REG_RX_DATA_SID,32'h1111,4'hF,OKAY);
-  // Lost sequence due to rejected packet: next valid Data is nonfatally reported.
+  
   expect_data(1,41,32'h1111,1);
   expect_error(SRC_DATA,`DIFI_ERR_SEQ);
   send_iq(1,41,0);
@@ -1144,7 +1126,7 @@ initial begin
 
   current_tc=12;
   $display("[TC12] Data/Context/Version independent 4-bit sequence wrap");
-  // 16 iterations with each type, checking whole words and metadata.
+  
   for(i=0;i<16;i=i+1)begin
     expect_data(1,50+i,32'h1111,1);
     send_iq(1,50+i,0);
@@ -1221,7 +1203,7 @@ initial begin
   $display("[TC16] Invalid Commit rejected; Active and schedule unchanged");
   axi_write(REG_SAMPLES,0,4'hF,OKAY);
   axi_write(REG_COMMAND,1,4'h1,SLVERR);
-  axi_read(REG_LAST_ERR,1); // invalid samples: highest-priority commit error
+  axi_read(REG_LAST_ERR,1); 
   axi_read(REG_ACTIVE_SAMPLES,2);
   quiet_for(12);
   if(tx_seen!=ex_tx_count || dut.context_change_pending)
@@ -1259,31 +1241,31 @@ initial begin
   quiet_for(10);
   if(tx_busy)fail("TX not idle before external RX injection");
   @(negedge aclk);loopback_en=0;
-  // Unknown packet type -> Dispatch only (one error on TLAST).
+  
   make_inject_data(1,90,32'h1111,4'd0);
   inject_word[0]=32'hF8600008;
   expect_error(SRC_DISPATCH,`DIFI_ERR_UNSUPPORTED_TYPE);
   inject_prepared;
   wait_all;
-  // Data bad Word0 fixed fields -> HEADER.
+  
   make_inject_data(1,90,32'h1111,4'd0);
-  inject_word[0]=inject_word[0] | 32'h01000000; // invalid TSM bit
+  inject_word[0]=inject_word[0] | 32'h01000000; 
   expect_error(SRC_DATA,`DIFI_ERR_HEADER);
   inject_prepared;
   wait_all;
-  // Data TKEEP mismatch.
+  
   make_inject_data(1,90,32'h1111,4'd0);
   inject_keep[3]=4'b0111;
   expect_error(SRC_DATA,`DIFI_ERR_SIZE);
   inject_prepared;
   wait_all;
-  // Invalid declared Data Size in Word0.
+  
   make_inject_data(1,90,32'h1111,4'd0);
   inject_word[0]=(inject_word[0] & 32'hFFFF0000) | 32'd2;
   expect_error(SRC_DATA,`DIFI_ERR_SIZE);
   inject_prepared;
   wait_all;
-  // Missing TLAST at the declared final beat -> oversized frame.
+  
   make_inject_data(1,90,32'h1111,4'd0);
   inject_last[7]=0;
   inject_word[8]=32'h12345678;
@@ -1293,13 +1275,13 @@ initial begin
   expect_error(SRC_DATA,`DIFI_ERR_SIZE);
   inject_prepared;
   wait_all;
-  // Data wrong Class ID.
+  
   make_inject_data(1,90,32'h1111,4'd0);
   inject_word[2]=32'h12345678;
   expect_error(SRC_DATA,`DIFI_ERR_CLASS);
   inject_prepared;
   wait_all;
-  // Data early TLAST.
+  
   make_inject_data(1,90,32'h1111,4'd0);
   inject_len=4;
   inject_last[3]=1;
@@ -1319,7 +1301,7 @@ initial begin
   expect_error(SRC_VERSION,`DIFI_ERR_VERSION_FIELD);
   inject_prepared;
   wait_all;
-  // Independent RX Stream ID filtering in Context and Version.
+  
   make_inject_ctx(32'h9999,4'd0);
   expect_error(SRC_CONTEXT,`DIFI_ERR_STREAM_ID);
   inject_prepared;
@@ -1331,7 +1313,7 @@ initial begin
 
   current_tc=20;
   $display("[TC20] Nonfatal Version sequence discontinuity and valid recovery");
-  // Previous valid Version baseline is TX seq_ver-1. Deliberately skip several.
+  
   make_inject_ver(32'h2222,seq_ver+4'd3);
   add_expect(K_VER,32'h2222,32'd4050,seq_ver+4'd3,64'd0,0,0,0,
              0,0,32'h34FC0400,0,0,1);
@@ -1355,7 +1337,7 @@ initial begin
   make_inject_data(2,92,32'h1111,seq_data+4'd6);
   add_expect(K_DATA,32'h1111,32'd4050,seq_data+4'd6,64'd0,2,92,0,
              0,0,0,0,0,1);
-  // Second payload must match tag 92; continuous metadata/IQ processing.
+  
   inject_prepared;
   wait_all;
 

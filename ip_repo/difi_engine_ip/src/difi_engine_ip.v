@@ -1,14 +1,9 @@
-// DIFI 1.1 Managed IP - structural wrapper (initial candidate).
-// Bundles the frozen engine with three existing Common RTL blocks.
-// No internal TX->RX loopback, DMA, UDP, reset CDC, FIFO, or GPIO debug.
-// Single aclk/aresetn domain; CLK_FREQ_HZ must match physical PL clock.
-// NOTE: time source expects 10^12 to be divisible by CLK_FREQ_HZ;
-//       period generator expects CLK_FREQ_HZ to be divisible by 1000.
-// S_AXIS_IQ TKEEP/TLAST are accepted for AXIS integration but intentionally
-// unused: the packetizer uses cfg_samples_per_packet to define IQ count.
-// M_AXIS_IQ TKEEP = 4'b1111 for each emitted 32-bit IQ word.
-// Metadata READY signals must be driven by consumers (tie high if unused).
-// This draft has not yet passed Vivado compile/implementation regression.
+// CLK_FREQ_HZ must match the actual PL clock.
+
+// Use cfg_samples_per_packet to define input packet boundaries.
+
+// Connect metadata READY at the receiver; tie it high if unused.
+
 module difi_engine_ip #(
     parameter integer CLK_FREQ_HZ = 100_000_000
 ) (
@@ -136,7 +131,7 @@ module difi_engine_ip #(
     output wire [3:0] m_axis_iq_tkeep,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TLAST" *)
     output wire m_axis_iq_tlast,
-    // IQ source availability, consistent with frozen Core contract
+    
     input wire data_available,
     output wire tx_busy,
     output wire m_data_meta_valid,
@@ -174,7 +169,6 @@ module difi_engine_ip #(
     output wire [3:0] rx_version_error_code
 );
 
-// Clock/time/period internal wiring; no modification of Engine Top.
 wire [31:0] time_sec;
 wire [63:0] time_ps;
 wire time_valid;
@@ -186,7 +180,6 @@ wire time_cfg_load;
 wire [31:0] time_cfg_sec;
 wire [63:0] time_cfg_ps;
 
-// Receive-side IQ words are always full width.
 assign m_axis_iq_tkeep = 4'b1111;
 
 difi_time_cfg_regs u_time_cfg_regs (

@@ -1,8 +1,4 @@
 `timescale 1ns / 1ps
-// Packetizer -> Parser integration testbench (Verilog-2001).
-// The golden packet and IQ values are generated independently of either DUT.
-// Add both RTL modules and this testbench as separate simulation sources.
-
 
 module tb_difi_data_loopback;
 
@@ -10,9 +6,6 @@ module tb_difi_data_loopback;
     localparam integer MAX_PACKETS = 160;
     localparam integer WAIT_LIMIT  = 100000;
 
-    // ------------------------------------------------------------------
-    // 1. DUT connections: NO intermediate FIFO or behavioral packet model.
-    // ------------------------------------------------------------------
     reg         aclk, aresetn;
     reg         pkt_start;
     wire        pkt_busy, pkt_done;
@@ -88,11 +81,8 @@ module tb_difi_data_loopback;
     );
 
     initial aclk = 1'b0;
-    always #5 aclk = ~aclk; // 100 MHz
+    always #5 aclk = ~aclk; 
 
-    // ------------------------------------------------------------------
-    // 2. Golden transactions: expected values NEVER read from DUT internals.
-    // ------------------------------------------------------------------
     integer golden_n       [0:MAX_PACKETS-1];
     reg [31:0] golden_sid   [0:MAX_PACKETS-1];
     reg [31:0] golden_sec   [0:MAX_PACKETS-1];
@@ -108,7 +98,6 @@ module tb_difi_data_loopback;
     integer meta_id, out_id, out_sample;
     integer done_id;
 
-    // Coverage counters are incremented only for REAL stalled VALID beats.
     integer src_stall_total, link_stall_total;
     integer meta_stall_total, iq_stall_total;
     integer meta_stall_now, iq_stall_now;
@@ -165,7 +154,6 @@ module tb_difi_data_loopback;
         end
     endfunction
 
-    // Independent fixed DIFI reference header (no DUT macro used here).
     function [31:0] reference_word;
         input integer packet, word;
         begin
@@ -208,9 +196,6 @@ module tb_difi_data_loopback;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 3. Edge-based scoreboard and AXI stability assertions.
-    // ------------------------------------------------------------------
     always @(posedge aclk) begin
         if (!aresetn) begin
             previous_done = 1'b0;
@@ -224,7 +209,7 @@ module tb_difi_data_loopback;
             if (error_valid !== 1'b0)
                 fail("Parser raised an error on a packetizer-generated packet");
 
-            // Every AXI source must hold VALID and its payload during a stall.
+            // Hold VALID and data while reception is stalled.
             if (hold_src && (s_axis_iq_tvalid !== 1'b1 ||
                              s_axis_iq_tdata !== saved_src))
                 fail("Source IQ changed while stalled");
@@ -370,11 +355,6 @@ module tb_difi_data_loopback;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 4. Single-owner READY driver: controlled deterministic backpressure.
-    // Modes: 0=none, 1=targeted, 2=long, 3=periodic, 4=manual META,
-    //        5=manual first IQ. Both receivers are driven only here.
-    // ------------------------------------------------------------------
     always @(negedge aclk) begin
         if (!aresetn) begin
             m_meta_ready     = 1'b1;
@@ -409,9 +389,6 @@ module tb_difi_data_loopback;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 5. Stimulus: drive ONLY on falling edges, sample ONLY on handshakes.
-    // ------------------------------------------------------------------
     task send_sample;
         input integer packet, sample, gap_mode, gate_first;
         integer gap, guard;
@@ -476,12 +453,12 @@ module tb_difi_data_loopback;
             for (j = 0; j < n; j = j + 1) begin
                 send_sample(id,j,gaps,gate_time);
                 if (j == 0 && change_cfg != 0) begin
-                    // Packetizer snapshots these on the FIRST IQ handshake.
+                    
                     cfg_data_stream_id     = sid ^ 32'h00FF_00FF;
                     cfg_samples_per_packet = 16'd1;
                     time_sec               = sec + 32'd99;
                     time_ps                = ps + 64'd12345;
-                    // Parser snapshots its filter on the WORD0 handshake.
+                    
                     guard = 0;
                     while (link_id == id && link_word == 0 && guard < WAIT_LIMIT) begin
                         @(negedge aclk);
@@ -543,9 +520,6 @@ module tb_difi_data_loopback;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 6. Main test plan: directed, overlapped, and deterministic stress.
-    // ------------------------------------------------------------------
     integer p, k;
     integer link_stalls_before;
     initial begin
@@ -643,7 +617,7 @@ module tb_difi_data_loopback;
         $display("\n=== TC09: genuine packet-to-packet overlap / no intermediate FIFO ===");
         link_stalls_before = link_stall_total;
         run_packet(256,32'd1,32'd800,64'd100,90,0,1,0,0,0);
-        // Start the next packet when the first parser is still outputting IQ.
+        
         run_packet(16,32'd1,32'd801,64'd101,91,0,0,0,0,0);
         run_packet(4,32'd1,32'd802,64'd102,92,0,0,0,0,0);
         wait_drain;
@@ -725,7 +699,6 @@ module tb_difi_data_loopback;
         $finish;
     end
 
-    // Global deadlock protection, including accidentally unbounded wait loops.
     initial begin
         #5000000;
         fail("Global simulation timeout");

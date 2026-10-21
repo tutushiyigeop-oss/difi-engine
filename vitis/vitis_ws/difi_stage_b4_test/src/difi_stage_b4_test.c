@@ -1,15 +1,4 @@
-/*
- * DIFI single-stage integrated board acceptance test, Zynq XC7Z020.
- * Vitis 2024.2 standalone / SDT or legacy BSP.
- * Based on the repository's VERIFIED Stage B3 Simple-DMA + AXI-GPIO example.
- *
- * PS UART current UTC -> S_AXI_TIME -> Time Source; 2 independent AXI4-Lite
- * slaves; Context/Version periodic scheduling; IQ DMA MM2S -> TX -> RX -> S2MM.
- *
- * Before building: set DIFI_CTRL_BASE and DIFI_TIME_BASE in
- * difi_board_addresses.h using new XSA Address Editor assignments.
- * This is not precision time synchronization (UART / software latency).
- */
+/* Stage B4: set UTC over UART and check periodic packets. */
 #include <stddef.h>
 #include "xparameters.h"
 #include "xaxidma.h"
@@ -23,7 +12,6 @@
 #include "difi_board_addresses.h"
 #include "difi_time_regmap.h"
 
-// Standalone BSP's STDIN input function, configured as PS UART in platform.
 extern char inbyte(void);
 
 #if defined(SDT)
@@ -34,7 +22,6 @@ extern char inbyte(void);
 #define GPIO_IDENTIFIER  XPAR_GPIO_0_DEVICE_ID
 #endif
 
-// S_AXI_CTRL: offsets from frozen rtl/include/difi_cfg_regmap.vh.
 #define R_CONTROL       0x00U
 #define R_COMMAND       0x04U
 #define R_STATUS        0x08U
@@ -72,7 +59,6 @@ extern char inbyte(void);
 #define TIMEOUT_MS      10000U
 #define DMA_SPIN_LIMIT  100000000U
 
-// GPIO CH1 page selector -> CH2 32-bit monitor. Same 1..30 as B3.
 #define PG_MAGIC       0U
 #define PG_DATA_CNT    1U
 #define PG_CTX_CNT     2U
@@ -116,7 +102,7 @@ static void time_wr(u32 off, u32 val) { Xil_Out32((UINTPTR)DIFI_TIME_BASE + off,
 static u32 time_rd(u32 off) { return Xil_In32((UINTPTR)DIFI_TIME_BASE + off); }
 static u32 mon(u32 p) {
     XGpio_DiscreteWrite(&Gpio, 1U, p & 31U);
-    (void)XGpio_DiscreteRead(&Gpio, 1U); // MMIO barrier / page settle
+    (void)XGpio_DiscreteRead(&Gpio, 1U); // Wait for the selected read page to take effect.
     return XGpio_DiscreteRead(&Gpio, 2U);
 }
 static int fail(const char *why) {
@@ -151,10 +137,7 @@ static int no_errors(void) {
     return XST_SUCCESS;
 }
 
-/* Receive line "UTC <unix_seconds> <nanoseconds_within_second>" from PC.
- * No scanf/printf 64-bit dependency; input decimal fits in u32.
- * The 'inbyte' STDIN UART is blocking by design until PC delivers UTC.
- */
+/* UART format: UTC <seconds> <nanoseconds within the second>. Wait for input with blocking reads. */
 static int parse_decimal(const char **p, u32 *out) {
     u64 v = 0ULL;
     int found = 0;
@@ -179,17 +162,7 @@ static int parse_utc(const char *line, u32 *sec, u32 *ns) {
     if (*p != '\0' || *ns >= 1000000000U) return XST_FAILURE;
     return XST_SUCCESS;
 }
-/*
- * UART line input with character echo for serial terminals.
- * - Printable characters are echoed as typed.
- * - Backspace/DEL removes one stored character and erases it on screen.
- * - CR or LF terminates the line, with exactly one visible CRLF.
- * - CRLF sent by a terminal is treated as one line ending (not two inputs).
- * - Existing UTC command parsing and all board-test logic are unchanged.
- *
- * Turn OFF terminal-side Local Echo when using this routine, otherwise
- * characters may appear twice.
- */
+
 static void uart_getline(char *buf, unsigned cap) {
     unsigned n = 0U;
     static int skip_lf_after_cr = 0;
@@ -200,8 +173,6 @@ static void uart_getline(char *buf, unsigned cap) {
     for (;;) {
         c = inbyte();
 
-        /* A previous CR may be immediately followed by LF (CRLF mode).
-         * Discard that LF when reading the next line. */
         if (skip_lf_after_cr) {
             skip_lf_after_cr = 0;
             if (c == '\n') continue;
@@ -222,7 +193,6 @@ static void uart_getline(char *buf, unsigned cap) {
             continue;
         }
 
-        /* Ignore control characters other than TAB. */
         if ((unsigned char)c < 32U && c != '\t') continue;
 
         if (n + 1U < cap) {
@@ -247,7 +217,7 @@ static int configure_utc_from_uart(u32 *base_sec) {
         xil_printf("[WARN] Invalid UTC line; retry\r\n");
     }
     ps = (u64)ns * 1000ULL;
-    // Shadow fields; command atomically snapshots all three to Time Source.
+    
     time_wr(DIFI_TIME_SEC_OFFSET, sec);
     time_wr(DIFI_TIME_PS_LO_OFFSET, (u32)ps);
     time_wr(DIFI_TIME_PS_HI_OFFSET, (u32)(ps >> 32));
@@ -256,7 +226,7 @@ static int configure_utc_from_uart(u32 *base_sec) {
         check_u32("TIME_PS_HI shadow",time_rd(DIFI_TIME_PS_HI_OFFSET),(u32)(ps>>32)))
         return XST_FAILURE;
     time_wr(DIFI_TIME_CMD_OFFSET, DIFI_TIME_CMD_LOAD);
-    // AXI writes are ordered; poll until the source sees the load event.
+    
     {
         u32 k;
         for (k=0U;k<50000U;++k) {
@@ -404,8 +374,8 @@ int main(void) {
     XAxiDma_IntrDisable(&Dma,XAXIDMA_IRQ_ALL_MASK,XAXIDMA_DEVICE_TO_DMA);
     if (XGpio_Initialize(&Gpio,GPIO_IDENTIFIER)!=XST_SUCCESS)
         return fail("AXI GPIO initialization failed");
-    XGpio_SetDataDirection(&Gpio,1U,0U);          // CH1 5-bit output
-    XGpio_SetDataDirection(&Gpio,2U,0xFFFFFFFFU); // CH2 32-bit input
+    XGpio_SetDataDirection(&Gpio,1U,0U);          
+    XGpio_SetDataDirection(&Gpio,2U,0xFFFFFFFFU); 
     ctrl_wr(R_CONTROL,0U);
     if (check_u32("board ID",mon(PG_MAGIC),0xD1F10001U) ||
         check_u32("board tail ID",mon(31U),0xD1F1F01FU))
@@ -416,7 +386,7 @@ int main(void) {
         return fail("TX monitor counters not reset");
     xil_printf("[PASS] board ID and all monitor reset counters\r\n");
 
-    // The only source of real UTC in this test is the PC input via UART.
+    // The PC supplies real UTC over UART.
     if (configure_utc_from_uart(&utc_sec)) return XST_FAILURE;
     if (configure_protocol()) return XST_FAILURE;
     ctrl_wr(R_CONTROL,1U);
@@ -441,8 +411,8 @@ int main(void) {
     if (loopback_round(0U,utc_sec) || loopback_round(1U,utc_sec))
         return XST_FAILURE;
 
-    // Count >=2 proves at least one real periodic packet per type (not only
-    // startup packets). Allow 10 s, more than the 2 s / 3 s configurations.
+    // Receive at least 2 packets of each type to confirm periodic packets follow startup.
+    
     xil_printf("[WAIT] Observe periodic Context=%ums Version=%ums ...\r\n",
        (unsigned)CTX_PERIOD_MS,(unsigned)VER_PERIOD_MS);
     if (await_count(PG_CTX_CNT,2U,TIMEOUT_MS) ||

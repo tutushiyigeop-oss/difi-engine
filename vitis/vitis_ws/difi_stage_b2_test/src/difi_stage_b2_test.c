@@ -1,14 +1,4 @@
-/*
- * DIFI Stage B2: Real Zynq-7020 RX board test, Vivado/Vitis 2024.2.
- * Packet DDR => AXI DMA MM2S => DIFI RX Dispatch/Parsers.
- * Valid Data => IQ AXIS => AXI DMA S2MM => DDR.
- * RX Metadata/Error snapshots => B2 board adapter => AXI GPIO dual channel.
- *
- * IMPORTANT: Use the Stage B2 XSA/bitstream. Stage A/B1 XSA WILL NOT WORK.
- * AXI GPIO CH1 = 5-bit output to dbg_page; CH2 = 32-bit input dbg_rdata.
- * Current AXI4-Lite base 0x40000000, GPIO 0x41200000 (verify Address Editor).
- * TX must remain disabled (CONTROL=0); no GPIO start pulses in Stage B2.
- */
+/* Stage B2: send DIFI packets through DMA and check the parsed IQ. */
 #include <stddef.h>
 #include "xparameters.h"
 #include "xaxidma.h"
@@ -50,13 +40,12 @@
 #define POLL_LIMIT      50000000U
 #define EVENT_POLL      1000000U
 
-/* Both buffers are cacheline aligned and reside in DMA-addressable DDR. */
+/* Place buffers in DMA-accessible DDR and align them to cache lines. */
 static u32 TxWords[272] __attribute__((aligned(64)));
 static u32 RxIQ[272] __attribute__((aligned(64)));
 static XAxiDma Dma;
 static XGpio Gpio;
 
-/* Monitoring page numbers implemented in difi_engine_board_b2.v */
 #define PG_MAGIC     0U
 #define PG_DATA_CNT  1U
 #define PG_CTX_CNT   2U
@@ -90,7 +79,7 @@ static XGpio Gpio;
 static u32 read_page(u32 page)
 {
     XGpio_DiscreteWrite(&Gpio, 1U, page & 31U);
-    (void)XGpio_DiscreteRead(&Gpio, 1U); /* order GPIO page write before read */
+    (void)XGpio_DiscreteRead(&Gpio, 1U); /* Switch the page before reading. */
     return XGpio_DiscreteRead(&Gpio, 2U);
 }
 
@@ -282,7 +271,7 @@ static int test_data(void)
 static int test_invalid_type(void)
 {
     prepare_buf();
-    TxWords[0] = 0xF8600008U; /* Not one of DIFI types 1/4/5 */
+    TxWords[0] = 0xF8600008U; 
     if (tx_packet(BAD_WORDS,"InvalidType") != XST_SUCCESS ||
         wait_page(PG_E_DISP,1U,"Dispatch error") != XST_SUCCESS) return XST_FAILURE;
     if (expect32("dispatch error code",read_page(PG_LAST_ERR),0x00000101U) ||
@@ -311,10 +300,10 @@ int main(void)
     XAxiDma_IntrDisable(&Dma,XAXIDMA_IRQ_ALL_MASK,XAXIDMA_DEVICE_TO_DMA);
     rc = XGpio_Initialize(&Gpio, GPIO_IDENTIFIER);
     if (rc != XST_SUCCESS) { xil_printf("[FAIL] GPIO init %d\r\n",rc); return XST_FAILURE; }
-    XGpio_SetDataDirection(&Gpio,1U,0U);            /* debug page output */
-    XGpio_SetDataDirection(&Gpio,2U,0xFFFFFFFFU);   /* monitor data input */
+    XGpio_SetDataDirection(&Gpio,1U,0U);            
+    XGpio_SetDataDirection(&Gpio,2U,0xFFFFFFFFU);   
 
-    Xil_Out32((UINTPTR)DIFI_CTRL_BASE+CTRL_REG_CONTROL,0U); /* TX off */
+    Xil_Out32((UINTPTR)DIFI_CTRL_BASE+CTRL_REG_CONTROL,0U); 
     if (expect32("monitor ID",read_page(PG_MAGIC),0xB2000002U)) {
         xil_printf("[HINT] Check B2 bitstream, AXI GPIO dual channel pin wiring.\r\n");
         return XST_FAILURE;

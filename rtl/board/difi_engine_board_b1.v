@@ -1,16 +1,5 @@
-// -----------------------------------------------------------------------------
-// DIFI 1.1 Digital IF Engine - Stage B1 Zynq TX board adapter
-// Target: Zynq-7000, one 100-MHz PL clock, Vivado 2024.2, Verilog-2001.
-//
-// Stage B1:
-//   DDR -> AXI DMA MM2S -> IQ -> full DIFI Engine TX -> AXI DMA S2MM -> DDR
-//   PS M_AXI_GP0 -> AXI interconnect -> this module's S_AXI_CTRL -> cfg_regs
-//
-// RX path intentionally quiescent for B1; Stage B2 will expose RX separately.
-// No internal TX->RX loopback, no timer/clock discipline, no UDP/Ethernet.
-// IMPORTANT: each DIFI packet has its own TLAST. The PS must rearm DMA
-// S2MM once per packet (Version=44 B, Context=108 B, Data=1052 B by default).
-// -----------------------------------------------------------------------------
+// Each DIFI packet ends with TLAST; the PS must rearm S2MM for each packet.
+
 module difi_engine_board_b1 (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 aclk CLK" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME aclk, ASSOCIATED_BUSIF S_AXIS_IQ:M_AXIS_PKT:S_AXI_CTRL, ASSOCIATED_RESET aresetn" *)
@@ -19,7 +8,6 @@ module difi_engine_board_b1 (
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME aresetn, POLARITY ACTIVE_LOW" *)
     input wire aresetn,
 
-    // 32-bit AXI4-Lite slave interface, 256-byte register space.
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_CTRL AWADDR" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXI_CTRL, PROTOCOL AXI4LITE, DATA_WIDTH 32, ADDR_WIDTH 8" *)
     input  wire [7:0]  s_axi_awaddr,
@@ -60,7 +48,6 @@ module difi_engine_board_b1 (
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_CTRL RREADY" *)
     input  wire        s_axi_rready,
 
-    // IQ source: from AXI DMA M_AXIS_MM2S.
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TDATA" *)
     input  wire [31:0] s_axis_iq_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TVALID" *)
@@ -72,7 +59,6 @@ module difi_engine_board_b1 (
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TLAST" *)
     input  wire        s_axis_iq_tlast,
 
-    // DIFI TX packets: to AXI DMA S_AXIS_S2MM.
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_PKT TDATA" *)
     output wire [31:0] m_axis_pkt_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_PKT TVALID" *)
@@ -87,14 +73,10 @@ module difi_engine_board_b1 (
     output wire tx_busy
 );
 
-    // Stage B1 has a SYNTHETIC constant timestamp, not a real UTC clock.
-    localparam [31:0] TEST_TIME_SEC = 32'd1700000000; // 0x6553F100
+    // This test uses fixed time, not real UTC.
+    localparam [31:0] TEST_TIME_SEC = 32'd1700000000; 
     localparam [63:0] TEST_TIME_PS  = 64'd0;
 
-    // AXI DMA holds TVALID and TDATA until the source beat is handshaken.
-    // Thus TVALID is a safe packet-level "data available" indication here.
-    // Do not use the input IQ TLAST for DIFI framing; cfg_samples_per_packet
-    // controls the number of samples per DIFI Data packet.
     wire data_available = s_axis_iq_tvalid;
     wire [31:0] unused_context_period_ms;
     wire [31:0] unused_version_period_ms;
@@ -142,7 +124,6 @@ module difi_engine_board_b1 (
         .m_axis_tx_pkt_tkeep(m_axis_pkt_tkeep),
         .m_axis_tx_pkt_tlast(m_axis_pkt_tlast),
 
-        // RX is not used in B1. B2 will expose actual RX packet/IQ ports.
         .s_axis_rx_pkt_tdata(32'd0),
         .s_axis_rx_pkt_tvalid(1'b0),
         .s_axis_rx_pkt_tready(),
@@ -188,7 +169,7 @@ module difi_engine_board_b1 (
         .rx_version_error_code()
     );
 
-    // s_axis_iq_tkeep, s_axis_iq_tlast are deliberately unused for B1.
-    // Only integer IQ words (4 valid bytes) and 256 samples per DIFI Data
-    // packet are supported by the matching first-stage PS test program.
+    // B1 does not use input IQ TKEEP/TLAST.
+    // Each IQ word is 4 bytes, with a fixed 256 samples per packet.
+    
 endmodule

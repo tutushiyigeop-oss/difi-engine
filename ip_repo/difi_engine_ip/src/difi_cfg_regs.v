@@ -4,36 +4,30 @@ module difi_cfg_regs (
     input  wire        aclk,
     input  wire        aresetn,
 
-    // AXI4-Lite Write Address
     input  wire [7:0]  s_axi_awaddr,
     input  wire [2:0]  s_axi_awprot,
     input  wire        s_axi_awvalid,
     output wire        s_axi_awready,
 
-    // AXI4-Lite Write Data
     input  wire [31:0] s_axi_wdata,
     input  wire [3:0]  s_axi_wstrb,
     input  wire        s_axi_wvalid,
     output wire        s_axi_wready,
 
-    // AXI4-Lite Write Response
     output wire [1:0]  s_axi_bresp,
     output wire        s_axi_bvalid,
     input  wire        s_axi_bready,
 
-    // AXI4-Lite Read Address
     input  wire [7:0]  s_axi_araddr,
     input  wire [2:0]  s_axi_arprot,
     input  wire        s_axi_arvalid,
     output wire        s_axi_arready,
 
-    // AXI4-Lite Read Data
     output wire [31:0] s_axi_rdata,
     output wire [1:0]  s_axi_rresp,
     output wire        s_axi_rvalid,
     input  wire        s_axi_rready,
 
-    // Control / Commit
     output wire        tx_enable,
     output wire        cfg_commit_req,
     input  wire        cfg_commit_ack,
@@ -41,11 +35,9 @@ module difi_cfg_regs (
     output wire        context_change_pending,
     input  wire        context_change_done,
 
-    // Live Status
     input  wire        tx_busy,
     input  wire        time_valid,
 
-    // TX Active Configuration
     output wire [31:0] cfg_data_stream_id,
     output wire [31:0] cfg_version_stream_id,
     output wire [15:0] cfg_samples_per_packet,
@@ -55,15 +47,12 @@ module difi_cfg_regs (
     output wire [31:0] cfg_context_period_ms,
     output wire [31:0] cfg_version_period_ms,
 
-    // RX Filter Configuration
     output wire        cfg_rx_data_filter_enable,
     output wire [31:0] cfg_rx_expected_data_stream_id,
     output wire        cfg_rx_version_filter_enable,
     output wire [31:0] cfg_rx_expected_version_stream_id
 );
 
-
-// FSM State Defination
 reg [1:0] write_current_state;
 reg [1:0] write_next_state;
 localparam ST_W_COLLECT = 2'd0;
@@ -75,8 +64,6 @@ reg read_next_state;
 localparam ST_R_IDLE = 1'd0;
 localparam ST_R_RESPONSE = 1'd1;
 
-
-// AXI4-Lite
 reg [7:0] awaddr_reg;
 reg aw_pending;
 reg [31:0] wdata_reg;
@@ -132,8 +119,6 @@ function [31:0] apply_wstrb;
     end
 endfunction
 
-
-// TX Shadow / Active reg
 reg [31:0] shadow_data_sid;
 reg [31:0] active_data_sid;
 
@@ -167,8 +152,6 @@ assign cfg_rf_freq_hz = active_rf_freq;
 assign cfg_context_period_ms = active_context_period;
 assign cfg_version_period_ms = active_version_period;
 
-
-// RX Config / In time control reg
 reg tx_enable_reg;
 reg [1:0] rx_filter_ctrl_reg;
 reg [31:0] rx_expected_data_sid_reg;
@@ -179,18 +162,12 @@ assign cfg_rx_version_filter_enable = rx_filter_ctrl_reg[1];
 assign cfg_rx_expected_data_stream_id = rx_expected_data_sid_reg;
 assign cfg_rx_expected_version_stream_id = rx_expected_version_sid_reg;
 
-
-// Commit / Context control reg
 reg cfg_commit_req_reg;
 reg context_change_pending_reg;
 reg [31:0] last_commit_error_reg;
 assign cfg_commit_req = cfg_commit_req_reg;
 assign context_change_pending = context_change_pending_reg;
 
-
-// ------------------------------------------------------------------
-// 1. State register
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)
@@ -206,10 +183,6 @@ begin
     end
 end
 
-
-// ------------------------------------------------------------------
-// 2. Next-state logic
-// ------------------------------------------------------------------
 always @(*) 
 begin
     write_next_state = write_current_state;
@@ -267,15 +240,6 @@ begin
     endcase
 end
 
-
-// ------------------------------------------------------------------
-// 3. 
-// ------------------------------------------------------------------
-
-
-// ------------------------------------------------------------------
-// 4. 
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if(!aresetn)
@@ -314,7 +278,6 @@ begin
         rresp_reg <= 0;
         rvalid_reg <= 0;
         
-
     end
 
     else
@@ -339,7 +302,7 @@ begin
         ST_W_EXECUTE:
         begin
             case (awaddr_reg)
-            // 0x00
+            
             `DIFI_REG_CONTROL:
             begin
                 if(wstrb_reg[0])
@@ -350,7 +313,6 @@ begin
                 bresp_reg <= `BRESP_OKAY;
             end
 
-            // 0x04
             `DIFI_REG_COMMAND:
             begin
                 if(wstrb_reg[0]&&wdata_reg[0])
@@ -402,19 +364,16 @@ begin
                 end
             end
 
-            // 0x08
             `DIFI_REG_STATUS:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x0C
             `DIFI_REG_LAST_COMMIT_ERROR:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x10
             `DIFI_REG_DATA_STREAM_ID:
             begin
                 if(cfg_commit_req_reg)
@@ -429,7 +388,6 @@ begin
                 end
             end
 
-            // 0x14
             `DIFI_REG_VERSION_STREAM_ID:
             begin
                 if(cfg_commit_req_reg)
@@ -444,7 +402,6 @@ begin
                 end
             end
 
-            // 0x18
             `DIFI_REG_SAMPLES_PER_PACKET:
             begin
                 if(cfg_commit_req_reg)
@@ -459,7 +416,6 @@ begin
                 end
             end
 
-            // 0x1C
             `DIFI_REG_SAMPLE_RATE_HZ:
             begin
                 if(cfg_commit_req_reg)
@@ -474,7 +430,6 @@ begin
                 end
             end
 
-            // 0x20
             `DIFI_REG_BANDWIDTH_HZ:
             begin
                 if(cfg_commit_req_reg)
@@ -489,7 +444,6 @@ begin
                 end
             end
 
-            // 0x24
             `DIFI_REG_RF_FREQ_LOW:
             begin
                 if(cfg_commit_req_reg)
@@ -504,7 +458,6 @@ begin
                 end
             end
 
-            // 0x28
             `DIFI_REG_RF_FREQ_HIGH:
             begin
                 if(cfg_commit_req_reg)
@@ -519,7 +472,6 @@ begin
                 end
             end
 
-            // 0x2C
             `DIFI_REG_CONTEXT_PERIOD_MS:
             begin
                 if(cfg_commit_req_reg)
@@ -534,7 +486,6 @@ begin
                 end
             end
 
-            // 0x30
             `DIFI_REG_VERSION_PERIOD_MS:
             begin
                 if(cfg_commit_req_reg)
@@ -549,7 +500,6 @@ begin
                 end
             end
 
-            // 0x34
             `DIFI_REG_RX_FILTER_CTRL:
             begin
                 if(wstrb_reg[0])
@@ -560,69 +510,58 @@ begin
                 bresp_reg <= `BRESP_OKAY;
             end
 
-            // 0x38
             `DIFI_REG_RX_DATA_SID:
             begin
                 rx_expected_data_sid_reg <= apply_wstrb(rx_expected_data_sid_reg,wdata_reg,wstrb_reg);
                 bresp_reg <= `BRESP_OKAY;
             end
 
-            // 0x3C
             `DIFI_REG_RX_VERSION_SID:
             begin
                 rx_expected_version_sid_reg <= apply_wstrb(rx_expected_version_sid_reg,wdata_reg,wstrb_reg);
                 bresp_reg <= `BRESP_OKAY;
             end
 
-            // 0x40
             `DIFI_REG_ACTIVE_DATA_SID:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x44
             `DIFI_REG_ACTIVE_VERSION_SID:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x48
             `DIFI_REG_ACTIVE_SAMPLES:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x4C
             `DIFI_REG_ACTIVE_SAMPLE_RATE:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x50
             `DIFI_REG_ACTIVE_BANDWIDTH:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x54
             `DIFI_REG_ACTIVE_RF_LOW:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x58
             `DIFI_REG_ACTIVE_RF_HIGH:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x5C
             `DIFI_REG_ACTIVE_CTX_PERIOD:
             begin
                 bresp_reg <= `BRESP_SLVERR;
             end
 
-            // 0x60
             `DIFI_REG_ACTIVE_VER_PERIOD:
             begin
                 bresp_reg <= `BRESP_SLVERR;
@@ -655,7 +594,7 @@ begin
             if(ar_handshake)
             begin
                 case (s_axi_araddr)
-                // 0x00
+                
                 `DIFI_REG_CONTROL:
                 begin
                     rdata_reg <= {31'd0, tx_enable_reg};
@@ -663,168 +602,144 @@ begin
 
                 end
 
-                // 0x04
                 `DIFI_REG_COMMAND:
                 begin
                     rdata_reg <= 0;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x08
                 `DIFI_REG_STATUS:
                 begin
                     rdata_reg <= {26'd0,(last_commit_error_reg!=0),time_valid,tx_enable_reg,tx_busy,context_change_pending_reg,cfg_commit_req_reg};
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x0C
                 `DIFI_REG_LAST_COMMIT_ERROR:
                 begin
                     rdata_reg <= last_commit_error_reg;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x10
                 `DIFI_REG_DATA_STREAM_ID:
                 begin
                     rdata_reg <= shadow_data_sid;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x14
                 `DIFI_REG_VERSION_STREAM_ID:
                 begin
                     rdata_reg <= shadow_version_sid;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x18
                 `DIFI_REG_SAMPLES_PER_PACKET:
                 begin
                     rdata_reg <= {16'd0,shadow_samples};
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x1C
                 `DIFI_REG_SAMPLE_RATE_HZ:
                 begin
                     rdata_reg <= shadow_sample_rate;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x20
                 `DIFI_REG_BANDWIDTH_HZ:
                 begin
                     rdata_reg <= shadow_bandwidth;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x24
                 `DIFI_REG_RF_FREQ_LOW:
                 begin
                     rdata_reg <= shadow_rf_freq[31:0];
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x28
                 `DIFI_REG_RF_FREQ_HIGH:
                 begin
                     rdata_reg <= shadow_rf_freq[63:32];
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x2C
                 `DIFI_REG_CONTEXT_PERIOD_MS:
                 begin
                     rdata_reg <= shadow_context_period;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x30
                 `DIFI_REG_VERSION_PERIOD_MS:
                 begin
                     rdata_reg <= shadow_version_period;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x34
                 `DIFI_REG_RX_FILTER_CTRL:
                 begin
                     rdata_reg <= {30'd0,rx_filter_ctrl_reg[1:0]};
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x38
                 `DIFI_REG_RX_DATA_SID:
                 begin
                     rdata_reg <= rx_expected_data_sid_reg;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x3C
                 `DIFI_REG_RX_VERSION_SID:
                 begin
                     rdata_reg <= rx_expected_version_sid_reg;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x40
                 `DIFI_REG_ACTIVE_DATA_SID:
                 begin
                     rdata_reg <= active_data_sid;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x44
                 `DIFI_REG_ACTIVE_VERSION_SID:
                 begin
                     rdata_reg <= active_version_sid;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x48
                 `DIFI_REG_ACTIVE_SAMPLES:
                 begin
                     rdata_reg <= {16'd0,active_samples};
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x4C
                 `DIFI_REG_ACTIVE_SAMPLE_RATE:
                 begin
                     rdata_reg <= active_sample_rate;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x50
                 `DIFI_REG_ACTIVE_BANDWIDTH:
                 begin
                     rdata_reg <= active_bandwidth;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x54
                 `DIFI_REG_ACTIVE_RF_LOW:
                 begin
                     rdata_reg <= active_rf_freq[31:0];
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x58
                 `DIFI_REG_ACTIVE_RF_HIGH:
                 begin
                     rdata_reg <= active_rf_freq[63:32];
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x5C
                 `DIFI_REG_ACTIVE_CTX_PERIOD:
                 begin
                     rdata_reg <= active_context_period;
                     rresp_reg <= `RRESP_OKAY;
                 end
 
-                // 0x60
                 `DIFI_REG_ACTIVE_VER_PERIOD:
                 begin
                     rdata_reg <= active_version_period;

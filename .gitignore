@@ -8,7 +8,7 @@ sim/waves/
 *.wdb
 
 # Vivado generated workspace
-vivado/
+/vivado/
 .Xil/
 .cache/
 .gen/

@@ -1,22 +1,4 @@
-/*
- * DIFI Stage B1: Zynq-7020 + Vivado/Vitis 2024.2 Standalone
- *
- * Hardware (Stage B1):
- *   PS DDR -> AXI DMA MM2S -> difi_engine_board_b1/S_AXIS_IQ
- *   difi_engine_board_b1/M_AXIS_PKT -> AXI DMA S2MM -> PS DDR
- *   PS M_AXI_GP0 -> difi_engine_board_b1/S_AXI_CTRL (AXI4-Lite)
- *
- * IMPORTANT:
- *   1. Program the *Stage B1* bitstream (fresh PL reset) before running.
- *   2. Update/rebuild Vitis Platform from the *Stage B1* XSA.
- *   3. S2MM is rearmed for each separate TLAST-terminated packet.
- *   4. No GPIO start pulse: TX Scheduler starts after CONTROL.TX_ENABLE.
- *   5. This is a fixed-timestamp, TX-only board smoke test.
- *
- * Address from user's Stage B1 Vivado Address Editor on 2026-10-12:
- *   DIFI AXI4-Lite base = 0x40000000
- * Override with -DDIFI_CTRL_BASE=... if its base is later changed.
- */
+/* Stage B1: check configuration and Version, Context, and Data packets. */
 
 #include <stddef.h>
 #include "xparameters.h"
@@ -156,7 +138,7 @@ static int commit_configuration(void)
 {
     u32 i;
     u32 status;
-    /* Configuration is performed while TX is disabled. */
+    
     reg_write(REG_CONTROL, 0U);
     status = reg_read(REG_STATUS);
     xil_printf("[CFG] Initial STATUS=0x%08x\r\n", (unsigned)status);
@@ -176,7 +158,7 @@ static int commit_configuration(void)
     reg_write(REG_BANDWIDTH, TEST_BANDWIDTH_HZ);
     reg_write(REG_RF_LOW, TEST_RF_FREQ_HZ);
     reg_write(REG_RF_HIGH, 0U);
-    reg_write(REG_COMMAND, 1U); /* Request Shadow->Active commit. */
+    reg_write(REG_COMMAND, 1U); 
 
     for (i = 0; i < COMMIT_POLL_LIMIT; ++i) {
         status = reg_read(REG_STATUS);
@@ -217,7 +199,6 @@ static void prepare_iq(void)
     Xil_DCacheFlushRange((INTPTR)TxWords, (u32)sizeof(TxWords));
 }
 
-/* Each S2MM transfer consumes ONE TLAST-terminated packet. */
 static int arm_rx(u32 packet_words, const char *name)
 {
     u32 i;
@@ -263,7 +244,7 @@ static int verify_version(void)
     for (i = 0; i < 10U; ++i) {
         errors += (u32)check_word("Version", i, RxWords[i], expected[i]);
     }
-    /* Build year/day can change; check fixed Revision/Type/ICD only. */
+    /* The build date may vary; check only Revision, Type, and ICD. */
     if ((RxWords[10] & 0xFFFFU) != 0x0400U) {
         errors += (u32)check_word("Version", 10, RxWords[10] & 0xFFFFU, 0x0400U);
     }
@@ -289,7 +270,7 @@ static int verify_context(void)
     expected[2] = 0x006A621EU;
     expected[3] = 0x00000001U;
     expected[4] = TEST_TIME_SEC;
-    expected[7] = 0xFBB98000U; /* changed=1 on first Context */
+    expected[7] = 0xFBB98000U; 
     expected[8] = 0x00000064U;
     expected[9] = (u32)(bw_scaled >> 32);
     expected[10] = (u32)bw_scaled;
@@ -365,13 +346,11 @@ int main(void)
     xil_printf("[INIT] TX DDR=0x%08x RX DDR=0x%08x\r\n",
                (unsigned)(UINTPTR)TxWords, (unsigned)(UINTPTR)RxWords);
 
-    /* First confirm the register interface and atomic configuration. */
     if (commit_configuration() != XST_SUCCESS) {
         goto failed;
     }
     prepare_iq();
 
-    /* Version and Context are emitted first, even with no input IQ. */
     if (arm_rx(VERSION_WORDS, "Version") != XST_SUCCESS) goto failed;
     reg_write(REG_CONTROL, 1U);
     status = reg_read(REG_STATUS);
@@ -387,7 +366,6 @@ int main(void)
     if (finish_rx("Context") != XST_SUCCESS) goto failed;
     if (verify_context() != XST_SUCCESS) goto failed;
 
-    /* Only now present IQ to the scheduler. */
     if (arm_rx(DATA_WORDS, "Data") != XST_SUCCESS) goto failed;
     rc = XAxiDma_SimpleTransfer(&Dma, (UINTPTR)TxWords,
                                 IQ_SAMPLES * 4U, XAXIDMA_DMA_TO_DEVICE);

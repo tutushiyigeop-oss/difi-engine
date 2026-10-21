@@ -3,7 +3,6 @@ import argparse
 import socket
 import time
 
-
 def main():
     parser = argparse.ArgumentParser(description="PC <-> Zynq UDP Echo test")
     parser.add_argument("--local-ip", default="192.168.1.20",
@@ -45,7 +44,6 @@ def main():
 
     print("\nALL 4 UDP ECHO TESTS PASSED")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

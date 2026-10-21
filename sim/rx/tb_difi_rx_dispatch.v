@@ -10,9 +10,6 @@ module tb_difi_rx_dispatch;
     localparam [1:0] ROUTE_VERSION = 2'd2;
     localparam [1:0] ROUTE_DROP    = 2'd3;
 
-    // ------------------------------------------------------------------
-    // 1. DUT and clock
-    // ------------------------------------------------------------------
     reg         aclk, aresetn;
 
     reg  [31:0] s_axis_pkt_tdata;
@@ -82,9 +79,6 @@ module tb_difi_rx_dispatch;
     initial aclk = 1'b0;
     always #5 aclk = ~aclk;
 
-    // ------------------------------------------------------------------
-    // 2. Prepared input stream and golden route information
-    // ------------------------------------------------------------------
     reg [31:0] tx_word  [0:MAX_WORDS-1];
     reg [3:0]  tx_keep  [0:MAX_WORDS-1];
     reg        tx_last  [0:MAX_WORDS-1];
@@ -105,13 +99,11 @@ module tb_difi_rx_dispatch;
     integer data_seen, context_seen, version_seen, drop_seen;
     integer drop_last_seen, err_seen;
 
-    // AXIS source hold checker.
     reg        hold_rx;
     reg [31:0] held_rx_data;
     reg [3:0]  held_rx_keep;
     reg        held_rx_last;
 
-    // Selected output hold checkers.
     reg        hold_data, hold_context, hold_version;
     reg [31:0] held_data_data, held_context_data, held_version_data;
     reg [3:0]  held_data_keep, held_context_keep, held_version_keep;
@@ -119,7 +111,6 @@ module tb_difi_rx_dispatch;
 
     reg previous_err;
 
-    // Up to three deterministic downstream stalls can be injected.
     integer stall_at0, stall_cycles0;
     integer stall_at1, stall_cycles1;
     integer stall_at2, stall_cycles2;
@@ -152,8 +143,6 @@ module tb_difi_rx_dispatch;
         end
     endtask
 
-    // Append one packet. The body is deliberately arbitrary because Dispatch
-    // must inspect only Word0 Packet Type and then lock the route until TLAST.
     task append_packet;
         input [1:0] route;
         input integer words;
@@ -176,8 +165,7 @@ module tb_difi_rx_dispatch;
 
             case (route)
                 ROUTE_DATA: begin
-                    // Legal-looking Data Word0. Packet length itself is not
-                    // checked by Dispatch; it is only convenient for waveforms.
+                    
                     tx_word[base] = 32'h1860_0000 | words[15:0];
                     golden_data_count = golden_data_count + words;
                 end
@@ -206,8 +194,6 @@ module tb_difi_rx_dispatch;
         end
     endtask
 
-    // Same as ROUTE_DROP, but lets the test exercise several unsupported
-    // Word0 Packet Type values rather than only 4'hF.
     task append_unsupported_packet;
         input [3:0] packet_type;
         input integer words;
@@ -248,9 +234,6 @@ module tb_difi_rx_dispatch;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 3. Scoreboard and protocol assertions
-    // ------------------------------------------------------------------
     always @(posedge aclk) begin
         if (!aresetn) begin
             hold_rx = 1'b0;
@@ -259,7 +242,7 @@ module tb_difi_rx_dispatch;
             hold_version = 1'b0;
             previous_err = 1'b0;
         end else begin
-            // The AXIS source must hold one beat while Dispatch backpressures it.
+            
             if (hold_rx) begin
                 if (s_axis_pkt_tvalid !== 1'b1 ||
                     s_axis_pkt_tdata  !== held_rx_data ||
@@ -275,8 +258,6 @@ module tb_difi_rx_dispatch;
                 held_rx_last = s_axis_pkt_tlast;
             end
 
-            // Dispatch must also preserve the selected output beat while that
-            // Parser deasserts TREADY.
             if (hold_data) begin
                 if (m_data_tvalid !== 1'b1 ||
                     m_data_tdata  !== held_data_data ||
@@ -318,7 +299,6 @@ module tb_difi_rx_dispatch;
                 held_version_last = m_version_tlast;
             end
 
-            // No two Parsers may ever receive TVALID for the same beat.
             if ((m_data_tvalid && m_context_tvalid) ||
                 (m_data_tvalid && m_version_tvalid) ||
                 (m_context_tvalid && m_version_tvalid))
@@ -334,8 +314,6 @@ module tb_difi_rx_dispatch;
                 fail("error_valid not a one-cycle pulse");
             previous_err = error_valid;
 
-            // Whenever a routed output is valid, it must be the current source
-            // beat bit-for-bit, including TKEEP and TLAST.
             if (m_data_tvalid === 1'b1) begin
                 if (!watch_active || rx_seen >= tx_len)
                     fail("Data TVALID outside prepared stream");
@@ -423,10 +401,6 @@ module tb_difi_rx_dispatch;
             if (version_fire)
                 version_seen = version_seen + 1;
 
-            // Unsupported-Type is a packet-level Dispatch event. The intended
-            // implementation reports it once, after the unsupported packet has
-            // been fully drained to its real TLAST. This assertion catches the
-            // older behavior that pulsed error_valid merely by peeking Word0 in IDLE.
             if (error_valid === 1'b1) begin
                 if (err_seen >= golden_err_count)
                     fail("Unexpected/duplicate Dispatch error event");
@@ -439,9 +413,6 @@ module tb_difi_rx_dispatch;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 4. AXIS source and deterministic backpressure helpers
-    // ------------------------------------------------------------------
     task set_route_ready;
         input [1:0] route;
         input value;
@@ -540,7 +511,6 @@ module tb_difi_rx_dispatch;
             if (waits >= WAIT_LIMIT)
                 fail("Timeout waiting for expected transfers/error events");
 
-            // Guard against late duplicate routing or errors.
             repeat (5) @(negedge aclk);
 
             if (rx_seen != tx_len ||
@@ -562,7 +532,6 @@ module tb_difi_rx_dispatch;
             stall_at0 = -1; stall_at1 = -1; stall_at2 = -1;
             gap_mode = 0;
 
-            // Restore all Parser readies for the next case.
             m_data_tready    = 1'b1;
             m_context_tready = 1'b1;
             m_version_tready = 1'b1;
@@ -600,11 +569,6 @@ module tb_difi_rx_dispatch;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 5. Test plan
-    // Focus: complete Word0-preserving route, route lock, TREADY propagation,
-    // Parser backpressure, TLAST boundary switching, unsupported drop/recovery.
-    // ------------------------------------------------------------------
     integer base;
 
     initial begin
@@ -666,13 +630,11 @@ module tb_difi_rx_dispatch;
         reset_dut;
         clear_stream;
         append_packet(ROUTE_DATA,9,8'h44);
-        // Payload deliberately looks like other packet types. Dispatch must not
-        // re-decode them once the Data route is locked.
+        
         tx_word[1][31:28] = 4'h4;
         tx_word[2][31:28] = 4'h5;
         tx_word[3][31:28] = 4'hF;
-        // Dispatch is not a parser: even malformed TKEEP must be passed through
-        // unchanged to the selected parser.
+        
         tx_keep[4] = 4'b0111;
         tx_keep[5] = 4'b0011;
         arm_case;
@@ -687,7 +649,7 @@ module tb_difi_rx_dispatch;
         stall_at0 = 0; stall_cycles0 = 3;
         stall_at1 = 4; stall_cycles1 = 2;
         stall_at2 = 7; stall_cycles2 = 4;
-        // Unselected parser readiness must not affect the selected Data route.
+        
         m_context_tready = 1'b0;
         m_version_tready = 1'b0;
         execute_case;
@@ -712,8 +674,7 @@ module tb_difi_rx_dispatch;
         append_packet(ROUTE_CONTEXT,27,8'h72);
         append_packet(ROUTE_VERSION,11,8'h73);
         arm_case;
-        // First Word of Context and Version are already presented immediately
-        // after the prior packet TLAST; Dispatch must re-decode only at boundary.
+        
         stall_at0 = 8;  stall_cycles0 = 2;
         stall_at1 = 35; stall_cycles1 = 3;
         execute_case;
@@ -732,7 +693,7 @@ module tb_difi_rx_dispatch;
         reset_dut;
         clear_stream;
         append_unsupported_packet(4'hE,7,8'h91);
-        // The dropped packet body deliberately contains supported-looking types.
+        
         tx_word[1][31:28] = 4'h1;
         tx_word[2][31:28] = 4'h4;
         tx_word[3][31:28] = 4'h5;

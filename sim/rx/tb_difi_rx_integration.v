@@ -1,8 +1,6 @@
 `timescale 1ns / 1ps
 `include "difi_v1_1_defs.vh"
 
-// Integration test: a REAL difi_rx_dispatch feeding all three REAL parsers.
-// Verilog-2001; no TX generator, mock parser, or hierarchical force is used.
 module tb_difi_rx_integration;
     localparam integer MAX_WORDS = 263;
     localparam integer TIMEOUT   = 20000;
@@ -61,7 +59,6 @@ module tb_difi_rx_integration;
     wire version_error_valid;
     wire [3:0] version_error_code;
 
-    // Wire the actual dispatch outputs to the actual parser inputs.
     difi_rx_dispatch u_dispatch (
         .aclk(aclk), .aresetn(aresetn),
         .s_axis_pkt_tdata(s_axis_pkt_tdata),
@@ -128,7 +125,6 @@ module tb_difi_rx_integration;
         .error_valid(version_error_valid), .error_code(version_error_code)
     );
 
-    // Packet stimulus and an independent, transaction-level scoreboard.
     reg [31:0] words [0:MAX_WORDS-1];
     reg [3:0] keeps [0:MAX_WORDS-1];
     reg lasts [0:MAX_WORDS-1];
@@ -256,7 +252,6 @@ module tb_difi_rx_integration;
         end
     endtask
 
-    // For malformed packets, no Parser metadata or IQ may escape.
     task reject_packet;
         input [2:0] source;
         input [3:0] code;
@@ -280,8 +275,6 @@ module tb_difi_rx_integration;
         end
     endtask
 
-    // Input is held unchanged until a positive-edge TVALID && TREADY.
-    // The optional deterministic bubbles exercise the AXIS valid/ready path.
     task send_word;
         input [31:0] word_value;
         input [3:0] keep_value;
@@ -319,8 +312,6 @@ module tb_difi_rx_integration;
         end
     endtask
 
-    // No case is declared PASS just because the input finished transferring.
-    // Wait for the parser's eventual metadata and (for Data) complete IQ burst.
     task finish_case;
         integer n;
         begin
@@ -335,7 +326,7 @@ module tb_difi_rx_integration;
                 n=n+1;
             end
             if (n>=TIMEOUT) die("Timeout waiting for parser outputs/events");
-            // Catch any duplicate/late valid/error event.
+            
             repeat (8) @(negedge aclk);
             if (seen_input!=tx_len || seen_last!=1 ||
                 seen_data_meta!=want_data_meta ||
@@ -350,8 +341,6 @@ module tb_difi_rx_integration;
         end
     endtask
 
-    // All monitoring is at the active clock edge. Metadata may be delayed by
-    // downstream ready, and IQ MUST follow the Data metadata handshake.
     always @(posedge aclk) begin
         if (aresetn && active_case) begin
             if (want_data_meta==0 && data_meta_valid)
@@ -451,8 +440,6 @@ module tb_difi_rx_integration;
         end
     end
 
-    // Deterministic backpressure on all three metadata sinks and IQ sink.
-    // This tests real parser->dispatch ready propagation, not mocked ready.
     always @(negedge aclk) begin
         if (!aresetn) begin
             cycles=0;
@@ -488,7 +475,6 @@ module tb_difi_rx_integration;
         repeat (5) @(negedge aclk);
         aresetn=1;
 
-        // Three real parsers in an interleaved flow; each keeps its own Seq baseline.
         build_context(32'd1,32'd100,32'h00BEBC20,32'd25000000,
                       4'd0,64'd123456,64'd2450000000,1'b1);
         want_error_source=ERR_NONE; arm_case(1,1); transmit; finish_case;
@@ -509,30 +495,29 @@ module tb_difi_rx_integration;
         build_version(32'd2,32'd105,4'd1,64'd444,1'b0);
         want_error_source=ERR_NONE; arm_case(6,1); transmit; finish_case;
 
-        // Unsupported Type is drained ONLY by Dispatch.
         init_words(3);
         words[0]=32'hF860_0003; words[1]=32'h1234_5678; words[2]=0;
         reject_packet(ERR_DISPATCH,`DIFI_ERR_UNSUPPORTED_TYPE);
         arm_case(7,1); transmit; finish_case;
 
         build_data(3,12,32'd1,32'd106,4'd2,64'd555);
-        words[0]=words[0] ^ 32'h0800_0000; // C=0 -> Header error
+        words[0]=words[0] ^ 32'h0800_0000; 
         reject_packet(ERR_DATA,`DIFI_ERR_HEADER);
         arm_case(8,1); transmit; finish_case;
 
         build_context(32'd1,32'd107,32'h00BEBC20,32'd25000000,
                       4'd2,64'd0,64'd2450000000,1'b0);
-        words[25]=words[25] ^ 32'h0000_0001; // illegal Payload Format
+        words[25]=words[25] ^ 32'h0000_0001; 
         reject_packet(ERR_CONTEXT,`DIFI_ERR_CONTEXT_FIELD);
         arm_case(9,1); transmit; finish_case;
 
         build_version(32'd2,32'd108,4'd2,64'd0,1'b0);
-        words[8]=words[8] ^ 32'h0000_0001; // invalid CIF1
+        words[8]=words[8] ^ 32'h0000_0001; 
         reject_packet(ERR_VERSION,`DIFI_ERR_VERSION_FIELD);
         arm_case(10,1); transmit; finish_case;
 
-        // Fatal invalid packets must not advance the individual Seq baselines.
-        // Previous *accepted* Data Seq=1; Seq=4 is nonfatal discontinuity.
+        // Invalid packets do not update each packet type's sequence baseline.
+        
         build_data(5,13,32'd1,32'd109,4'd4,64'd111);
         want_error_source=ERR_DATA; want_error_code=`DIFI_ERR_SEQ;
         arm_case(11,1); transmit; finish_case;
@@ -559,17 +544,16 @@ module tb_difi_rx_integration;
         want_error_source=ERR_NONE; arm_case(16,1); transmit; finish_case;
 
         build_version(32'd2,32'd115,4'd2,64'd0,1'b0);
-        keeps[5]=4'b0111; // malformed TKEEP, classified as Size error
+        keeps[5]=4'b0111; 
         reject_packet(ERR_VERSION,`DIFI_ERR_SIZE);
         arm_case(17,1); transmit; finish_case;
 
         build_data(3,17,32'd1,32'd116,4'd7,64'd555);
-        tx_len=9; lasts[8]=1; // advertised 10 words, TLAST at word 8
+        tx_len=9; lasts[8]=1; 
         lasts[9]=0;
         reject_packet(ERR_DATA,`DIFI_ERR_TRUNCATED);
         arm_case(18,1); transmit; finish_case;
 
-        // Final recovery, proving malformed packets do not poison boundaries.
         build_data(4,18,32'd1,32'd117,4'd7,64'd666);
         want_error_source=ERR_NONE; arm_case(19,1); transmit; finish_case;
 

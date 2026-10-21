@@ -1,28 +1,5 @@
 `timescale 1ns/1ps
-// -----------------------------------------------------------------------------
-// Self-checking testbench for the corrected difi_time_source.v (Verilog-2001)
-//
-// From the repository root:
-//   iverilog -g2005 -s tb_difi_time_source -o tb_difi_time_source.vvp \
-//     rtl/common/difi_time_source.v sim/common/tb_difi_time_source.v
-//   vvp tb_difi_time_source.vvp
-//
-// Optional: run at an accelerated clock frequency to check multiple seconds:
-//   iverilog -g2005 -s tb_difi_time_source \
-//     -Ptb_difi_time_source.TB_CLK_FREQ_HZ=10000 \
-//     -o tb_difi_time_source.vvp \
-//     rtl/common/difi_time_source.v sim/common/tb_difi_time_source.v
-//   vvp tb_difi_time_source.vvp
-//
-// NOTE: #5 simulation clock spacing is unrelated to DUT's CLK_FREQ_HZ
-// parameter. The latter defines the physical picoseconds per clock edge.
-// A reference model stores the loaded second and picosecond values and
-// an independent elapsed-picosecond accumulator. It then uses division and
-// remainder on the fractional-plus-elapsed value, and adds the whole seconds
-// to the loaded epoch. This avoids multiplying a maximum 32-bit second value
-// by 10^12 in the scoreboard (which gave an incorrect golden value in vvp).
-// Every rising clock edge is checked automatically after NBA updates.
-// -----------------------------------------------------------------------------
+
 module tb_difi_time_source;
 
 parameter integer TB_CLK_FREQ_HZ = 100_000_000;
@@ -38,7 +15,6 @@ wire [31:0] time_sec;
 wire [63:0] time_ps;
 wire        time_valid;
 
-// Device under test
 difi_time_source #(
     .CLK_FREQ_HZ(TB_CLK_FREQ_HZ)
 ) dut (
@@ -52,12 +28,10 @@ difi_time_source #(
     .time_valid    (time_valid)
 );
 
-// 100 MHz SIMULATION clock: actual DIFI time increment is controlled by
-// TB_CLK_FREQ_HZ, not by #5 delays in the simulator.
 always #5 aclk = ~aclk;
 
-// Golden model: store the initial epoch and elapsed picoseconds separately.
-// The reference arithmetic does not use the DUT's second-carry decision.
+// The reference model stores the start time and elapsed picoseconds separately.
+
 reg [31:0] golden_base_sec;
 reg [63:0] golden_base_ps;
 reg [95:0] golden_elapsed_ps;
@@ -70,8 +44,6 @@ integer checked_cycles;
 integer test_count;
 reg     monitor_enable;
 
-// Fail immediately on an incorrect value, even BETWEEN named test cases.
-// $finish_and_return is an Icarus Verilog extension to set nonzero exit code.
 task fail_test;
     input [8*128-1:0] message;
     begin
@@ -88,9 +60,6 @@ task fail_test;
     end
 endtask
 
-// Golden model advances once at each posedge. A reload replaces the epoch;
-// subsequent elapsed time is accumulated independently of DUT's counters.
-// The 32-bit addition for expected_sec intentionally models its wraparound.
 always @(posedge aclk or negedge aresetn)
 begin
     if (!aresetn)
@@ -109,7 +78,7 @@ begin
     end
     else if (golden_valid)
     begin
-        // Reject invalid loads while still advancing elapsed time.
+        
         golden_elapsed_ps = golden_elapsed_ps + {32'd0, TB_PS_PER_CLK};
     end
 
@@ -118,7 +87,6 @@ begin
                  + (golden_fractional_total / PS_PER_SECOND);
     expected_ps  = golden_fractional_total % PS_PER_SECOND;
 
-    // Allow DUT's nonblocking assignments to settle.
     #1;
     if (monitor_enable)
     begin
@@ -133,7 +101,7 @@ begin
     end
 end
 
-// Stimulus is driven only at falling edges, avoiding races with DUT sampling.
+// Drive inputs on falling edges to avoid the sampling edge.
 task wait_cycles;
     input integer count;
     begin
@@ -141,7 +109,6 @@ task wait_cycles;
     end
 endtask
 
-// Assert values explicitly at the current simulation time.
 task expect_time;
     input [31:0] sec;
     input [63:0] ps;
@@ -163,8 +130,6 @@ task pass_case;
     end
 endtask
 
-// One load pulse, sampled at exactly one rising edge. Task returns at the
-// falling edge immediately following that rising edge (no extra time step).
 task pulse_load;
     input [31:0] sec;
     input [63:0] ps;
@@ -178,7 +143,6 @@ task pulse_load;
     end
 endtask
 
-// Verify each step independently, including a wrap of the 32-bit seconds.
 task assert_continuous_ticks;
     input integer n;
     reg [31:0] last_sec;
@@ -232,7 +196,6 @@ begin
     test_count     = 0;
     monitor_enable = 1'b1;
 
-    // This module intentionally does not support fractional ps per clock.
     if ((TB_CLK_FREQ_HZ <= 0) ||
         ((PS_PER_SECOND % TB_CLK_FREQ_HZ) != 0) ||
         (TB_PS_PER_CLK == 0) ||
@@ -245,34 +208,29 @@ begin
     $display("DIFI Time Source self-checking TB");
     $display("CLK_FREQ_HZ=%0d, PS_PER_CLK=%0d", TB_CLK_FREQ_HZ, TB_PS_PER_CLK);
 
-    // T01: asynchronous reset drives all three outputs low.
     wait_cycles(3);
     expect_time(32'd0, 64'd0, 1'b0, "T01 initial reset values");
     pass_case("Asynchronous reset values");
 
-    // T02: no initialization -> no counting, time_valid stays low.
     aresetn = 1'b1;
     wait_cycles(7);
     expect_time(32'd0, 64'd0, 1'b0, "T02 uninitialized output stability");
-    // An illegal attempt before first initialization must also keep valid=0.
+    
     pulse_load(32'd77, PS_PER_SECOND);
     expect_time(32'd0, 64'd0, 1'b0,
                 "T02 invalid initial load must not assert valid");
     pass_case("Uninitialized clock remains invalid, even after illegal load");
 
-    // T03: legal load latches sec/ps without adding a clock increment.
     pulse_load(32'd123, 64'd250_000_000_123);
     expect_time(32'd123, 64'd250_000_000_123, 1'b1,
                 "T03 exact timestamp initialization");
     pass_case("Atomic legal load, time_valid asserts");
 
-    // T04: every rising edge adds exactly PS_PER_CLK picoseconds.
     wait_cycles(7);
     expect_time(32'd123, 64'd250_000_000_123 + 7*TB_PS_PER_CLK,
                 1'b1, "T04 fixed picosecond increment");
     pass_case("Precise per-cycle picosecond increment");
 
-    // T05: exactly hitting the second boundary -> ps becomes 0.
     pulse_load(32'd40, PS_PER_SECOND - TB_PS_PER_CLK);
     expect_time(32'd40, PS_PER_SECOND - TB_PS_PER_CLK, 1'b1,
                 "T05 before exact carry");
@@ -280,25 +238,21 @@ begin
     expect_time(32'd41, 64'd0, 1'b1, "T05 exact second carry");
     pass_case("Exact second carry: zero remainder");
 
-    // T06: overshooting the boundary retains the nonzero remainder.
     pulse_load(32'd50, PS_PER_SECOND - (TB_PS_PER_CLK / 2));
     wait_cycles(1);
     expect_time(32'd51, TB_PS_PER_CLK - (TB_PS_PER_CLK / 2),
                 1'b1, "T06 second carry with remainder");
     pass_case("Second carry preserves sub-second remainder");
 
-    // T07: illegal load may not replace initialized sec/ps.
-    // The time source must KEEP RUNNING during this invalid request.
+    // An invalid load request must not interrupt timekeeping.
     @(negedge aclk);
     time_load     = 1'b1;
     load_time_sec = 32'd999;
-    load_time_ps  = PS_PER_SECOND;  // invalid: exactly 1 second
+    load_time_ps  = PS_PER_SECOND;  
     assert_continuous_ticks(3);
     time_load = 1'b0;
     pass_case("Illegal load rejected; original timestamp retained");
 
-    // T08: a second illegal load (strictly over the limit) still must not
-    // pause counting; tests the corrected RTL's invalid-load behavior.
     @(negedge aclk);
     time_load     = 1'b1;
     load_time_sec = 32'd888;
@@ -307,7 +261,6 @@ begin
     time_load = 1'b0;
     pass_case("Repeated illegal loads do not pause the clock");
 
-    // T09: valid reload while running replaces old time at that edge.
     pulse_load(32'd11, 64'd333_000_000_007);
     expect_time(32'd11, 64'd333_000_000_007, 1'b1,
                 "T09 hot reload must replace old time exactly");
@@ -316,11 +269,8 @@ begin
                 1'b1, "T09 counting after hot reload");
     pass_case("Hot reload atomically replaces an existing timestamp");
 
-    // T10: valid load at the edge when previous time would carry;
-    // load MUST win, and the new ps must not be incremented at this edge.
     pulse_load(32'd70, PS_PER_SECOND - TB_PS_PER_CLK);
-    // pulse_load returns at the very next negedge after initialization.
-    // Assert a new load NOW so it coincides with the would-be carry edge.
+    
     time_load     = 1'b1;
     load_time_sec = 32'd200;
     load_time_ps  = 64'd12_345;
@@ -330,18 +280,12 @@ begin
                 "T10 load must win over a pending carry");
     pass_case("Valid load has priority over second carry");
 
-    // T11: long continuous run spanning one carry; check exact per-cycle
-    // increments as well as the independent golden model every cycle.
     pulse_load(32'd1000, PS_PER_SECOND - 30*TB_PS_PER_CLK);
     assert_continuous_ticks(250);
     expect_time(32'd1001, 220*TB_PS_PER_CLK, 1'b1,
                 "T11 uninterrupted sequence across second rollover");
     pass_case("250 consecutive precise increments and a rollover");
 
-    // T12: assert reset DURING normal operation, asynchronously between
-    // rising clock edges, then verify no counting resumes until reloaded.
-    // Here we are at a negedge; asserting reset one nanosecond later is
-    // safely earlier than the next posedge.
     #1;
     aresetn = 1'b0;
     #1;
@@ -354,14 +298,12 @@ begin
                 "T12 remain invalid following reset");
     pass_case("Mid-operation asynchronous reset and invalid state");
 
-    // T13: largest legal fractional timestamp, then rollover to ps=STEP-1.
     pulse_load(32'd320, PS_PER_SECOND - 64'd1);
     wait_cycles(1);
     expect_time(32'd321, TB_PS_PER_CLK - 64'd1, 1'b1,
                 "T13 maximum legal fractional timestamp");
     pass_case("Boundary value: load_ps = 10^12-1");
 
-    // T14: 32-bit seconds wrap, while the fractional part stays correct.
     pulse_load(32'hffff_ffff, PS_PER_SECOND - TB_PS_PER_CLK);
     assert_continuous_ticks(3);
     expect_time(32'd0, 2*TB_PS_PER_CLK, 1'b1,
@@ -375,7 +317,6 @@ begin
     $finish;
 end
 
-// Hard timeout: protects against a hung stimulus or missing clock.
 initial
 begin
     #100000;

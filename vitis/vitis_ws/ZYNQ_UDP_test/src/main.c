@@ -1,10 +1,4 @@
-/*
- * Zynq-7000 GEM0 / lwIP 2.2.0 RAW API UDP echo test
- * Target: Vitis 2024.2, ps7_cortexa9_0, standalone (SDT BSP).
- * Purpose: PC <-> PS networking only. No PL DMA or DIFI logic is used.
- *
- * No additional user .c/.h files are required. The BSP must include lwip220.
- */
+/* UDP echo test for Zynq GEM0. */
 
 #include "xparameters.h"
 #include "xparameters_ps.h"
@@ -30,7 +24,6 @@
 #error "PS GEM0 is missing from xparameters.h. Enable ENET0 and re-export the XSA."
 #endif
 
-/* Adjust the board IPv4 address here if necessary. */
 #define BOARD_IP_A      192
 #define BOARD_IP_B      168
 #define BOARD_IP_C      1
@@ -38,13 +31,6 @@
 #define UDP_ECHO_PORT   4991U
 #define MAX_ECHO_BYTES  1400U
 
-/*
- * Zynq-7000 CPU frequency as configured in Vivado PS Clock Configuration.
- * Common XC7Z020 default is about 666.67 MHz; SCU private timer runs at CPU/2.
- * Adjust this value if your hardware uses a different ARM CPU clock.
- * Avoid xparameters_ps.h CPU clock alias: in some 2024.2 SDT BSPs it
- * expands to an undefined legacy XPAR_CPU_CORTEXA9_0_CPU_CLK_FREQ_HZ.
- */
 #define PS_CPU_CLOCK_HZ   666666667U
 #define TIMER_TICKS_PER_SEC 20U
 
@@ -80,7 +66,7 @@ static int init_interrupts_and_timer(void)
     }
 
     XScuTimer_EnableAutoReload(&scu_timer);
-    /* On Zynq-7000, the private timer runs at CPU clock / 2. */
+    /* The private timer runs at half the CPU clock. */
     XScuTimer_LoadTimer(&scu_timer,
                         PS_CPU_CLOCK_HZ / (2U * TIMER_TICKS_PER_SEC));
     XScuTimer_ClearInterruptStatus(&scu_timer);
@@ -131,7 +117,6 @@ static void udp_receive(void *arg, struct udp_pcb *pcb, struct pbuf *p,
         return;
     }
 
-    /* A distinct TX pbuf works for chained RX pbufs and binary payloads. */
     reply = pbuf_alloc(PBUF_TRANSPORT, p->tot_len, PBUF_RAM);
     if (reply == NULL) {
         xil_printf("ERROR: cannot allocate TX pbuf\r\n");
@@ -186,7 +171,7 @@ int main(void)
 
     xil_printf("\r\n=== Zynq-7000 standalone UDP Echo ===\r\n");
 
-    /* Initialize GIC before GEM adapter installs IRQ handler. */
+    /* Initialize GIC before setting up network interrupts. */
     if (init_interrupts_and_timer() != XST_SUCCESS) {
         return XST_FAILURE;
     }
@@ -208,7 +193,7 @@ int main(void)
         return XST_FAILURE;
     }
 
-    /* Unmask IRQs only after the network adapter and UDP PCB are ready. */
+    /* Enable interrupts only after the network adapter and UDP are ready. */
     Xil_ExceptionEnableMask(XIL_EXCEPTION_IRQ);
     XScuTimer_EnableInterrupt(&scu_timer);
     XScuTimer_Start(&scu_timer);
@@ -224,22 +209,22 @@ int main(void)
     last_arp  = 0U;
 
     for (;;) {
-        /* Required: dispatch packets queued by the interrupt-driven GEM. */
+        
         xemacif_input(&board_netif);
 
         now = ticks_50ms;
-        /* lwIP timers execute in the main context, never in an IRQ. */
+        /* Run lwIP timers in the main loop. */
         if ((unsigned int)(now - last_fast) >= 5U) {
             last_fast = now;
-            tcp_fasttmr();           /* 250 ms */
+            tcp_fasttmr();           
         }
         if ((unsigned int)(now - last_slow) >= 10U) {
             last_slow = now;
-            tcp_slowtmr();           /* 500 ms */
+            tcp_slowtmr();           
         }
         if ((unsigned int)(now - last_arp) >= 100U) {
             last_arp = now;
-            etharp_tmr();            /* 5 seconds */
+            etharp_tmr();            
         }
     }
 }

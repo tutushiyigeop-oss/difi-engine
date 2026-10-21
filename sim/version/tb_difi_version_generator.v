@@ -1,27 +1,13 @@
 `timescale 1ns / 1ps
 
-// Self-checking testbench for difi_version_generator.
-// Style intentionally follows tb_difi_context_generator:
-//   - independent golden packet (does not reuse DUT protocol macros)
-//   - posedge scoreboard / negedge stimulus
-//   - deterministic AXI4-Stream backpressure
-//   - snapshot, sequence, completion and reset checks
-//
-// This bench checks the 11-word Version Context packet itself.
-// It does NOT check Scheduler / cfg_regs / UDP integration.
 module tb_difi_version_generator;
 
     localparam integer WORDS      = 11;
     localparam integer WAIT_LIMIT = 10000;
 
-    // Use the frozen Appendix-C build-date fixture explicitly here.
-    // These are also passed into the DUT so Word10 is deterministic.
     localparam [6:0] TB_BUILD_YEAR_OFFSET = 7'd26;
     localparam [8:0] TB_BUILD_DAY_OF_YEAR = 9'd252;
 
-    // ------------------------------------------------------------------
-    // 1. DUT, clock, AXIS, controls
-    // ------------------------------------------------------------------
     reg         aclk;
     reg         aresetn;
     reg         pkt_start;
@@ -70,10 +56,6 @@ module tb_difi_version_generator;
     initial aclk = 1'b0;
     always #5 aclk = ~aclk;
 
-
-    // ------------------------------------------------------------------
-    // 2. Independent golden packet / testcase bookkeeping
-    // ------------------------------------------------------------------
     reg [31:0] golden_word [0:WORDS-1];
 
     reg [3:0] model_seq;
@@ -107,7 +89,6 @@ module tb_difi_version_generator;
 
     integer k;
 
-
     task fail;
         input [8*240-1:0] message;
         begin
@@ -122,8 +103,6 @@ module tb_difi_version_generator;
         end
     endtask
 
-
-    // Build all 11 expected words independently from DUT `define values.
     task make_golden;
         input [31:0] sid;
         input [31:0] sec;
@@ -155,10 +134,6 @@ module tb_difi_version_generator;
         end
     endtask
 
-
-    // Frozen reference fixture for:
-    //   seq=0, VERSION_STREAM_ID=2, sec=100, ps=0,
-    //   first Version after reset, build date 2026-09-09.
     task check_reference_fixture;
         reg [31:0] literal [0:WORDS-1];
         integer n;
@@ -185,13 +160,6 @@ module tb_difi_version_generator;
         end
     endtask
 
-
-    // ------------------------------------------------------------------
-    // 3. Scoreboard
-    //    Sample transfers on posedge (before DUT NBA updates).
-    //    pkt_done is therefore expected on the NEXT posedge after the
-    //    Word10 handshake.
-    // ------------------------------------------------------------------
     always @(posedge aclk) begin
         if (!aresetn) begin
             held_beat      = 1'b0;
@@ -200,7 +168,6 @@ module tb_difi_version_generator;
         end else begin
             cycles = cycles + 1;
 
-            // Basic signal sanity.
             if (m_axis_pkt_tkeep !== 4'hF)
                 fail("TKEEP must always be 4'b1111");
             if (pkt_busy !== 1'b0 && pkt_busy !== 1'b1)
@@ -214,7 +181,6 @@ module tb_difi_version_generator;
                 fail("pkt_done must be a one-clock pulse");
             previous_done = pkt_done;
 
-            // Completion may occur only after a previous Word10 handshake.
             if (completion_due) begin
                 if (pkt_done !== 1'b1)
                     fail("Missing pkt_done immediately after Word10 handshake");
@@ -227,7 +193,7 @@ module tb_difi_version_generator;
                 fail("Early, duplicate, or unarmed pkt_done pulse");
             end
 
-            // A start is accepted only while idle and with valid time.
+            // Accept a start request only when idle and time is valid.
             if (pkt_start === 1'b1 && time_valid === 1'b1 &&
                 pkt_busy === 1'b0) begin
                 if (!watch_active || starts_seen != 0)
@@ -245,7 +211,6 @@ module tb_difi_version_generator;
                 fail("TVALID/TLAST asserted while generator is idle");
             end
 
-            // A stalled AXIS beat must remain completely stable.
             if (held_beat) begin
                 if (m_axis_pkt_tvalid !== 1'b1 ||
                     m_axis_pkt_tdata !== held_data ||
@@ -254,7 +219,6 @@ module tb_difi_version_generator;
                     fail("AXIS beat changed while backpressured");
             end
 
-            // Compare every presented word, not only handshaken words.
             if (m_axis_pkt_tvalid === 1'b1) begin
                 if (!watch_active || word_seen >= WORDS)
                     fail("Unarmed or extra output word");
@@ -301,17 +265,6 @@ module tb_difi_version_generator;
         end
     end
 
-
-    // ------------------------------------------------------------------
-    // 4. Sole owner of TREADY: deterministic backpressure patterns
-    //
-    // 0: always ready
-    // 1: stall selected important words (0 / 7 / 10)
-    // 2: stall every word for 2 cycles
-    // 3: long stall on Word10 (plus a short Word0 stall)
-    // 4: indefinitely stall stall_word (used by reset test)
-    // 5: deterministic pseudo-random / bursty stalls
-    // ------------------------------------------------------------------
     always @(negedge aclk) begin
         #1;
         if (!aresetn) begin
@@ -373,10 +326,6 @@ module tb_difi_version_generator;
         end
     end
 
-
-    // ------------------------------------------------------------------
-    // 5. Stimulus helper tasks
-    // ------------------------------------------------------------------
     task begin_packet;
         input [31:0] sid;
         input [31:0] sec;
@@ -410,7 +359,6 @@ module tb_difi_version_generator;
             make_golden(sid, sec, ps, golden_changed);
             watch_active = 1'b1;
 
-            // Inputs are stable before the accepting posedge.
             #2 pkt_start = 1'b1;
             @(posedge aclk);
             @(negedge aclk);
@@ -418,13 +366,12 @@ module tb_difi_version_generator;
         end
     endtask
 
-
     task wait_until_word;
         input integer target;
         integer waited;
         begin
             waited = 0;
-            // target handshakes completed => target is the next presented word.
+            
             while (word_seen < target && waited < WAIT_LIMIT) begin
                 @(negedge aclk);
                 waited = waited + 1;
@@ -433,7 +380,6 @@ module tb_difi_version_generator;
                 fail("Timeout waiting for word index");
         end
     endtask
-
 
     task finish_packet;
         integer waited;
@@ -493,7 +439,6 @@ module tb_difi_version_generator;
         end
     endtask
 
-
     task run_packet;
         input [31:0] sid;
         input [31:0] sec;
@@ -504,7 +449,6 @@ module tb_difi_version_generator;
             finish_packet;
         end
     endtask
-
 
     task reset_dut;
         integer n;
@@ -538,7 +482,6 @@ module tb_difi_version_generator;
         end
     endtask
 
-
     task abort_at_word;
         input integer index;
         integer waited;
@@ -563,7 +506,6 @@ module tb_difi_version_generator;
 
             reset_dut;
 
-            // Reset starts a fresh Version lifetime: seq=0 and changed=1 again.
             run_packet(32'h0000_0002,
                        32'd800 + index,
                        64'd0,
@@ -571,10 +513,6 @@ module tb_difi_version_generator;
         end
     endtask
 
-
-    // ------------------------------------------------------------------
-    // 6. Directed test plan
-    // ------------------------------------------------------------------
     integer p;
     reg [31:0] sid_var;
     reg [63:0] ps_var;
@@ -624,8 +562,6 @@ module tb_difi_version_generator;
         aresetn = 1'b1;
         repeat (2) @(negedge aclk);
 
-
-        // --------------------------------------------------------------
         current_tc = 1;
         $display("\n=== TC01: complete 11-word known-answer first-Version vector ===");
         begin_packet(32'h0000_0002,
@@ -635,15 +571,11 @@ module tb_difi_version_generator;
         check_reference_fixture;
         finish_packet;
 
-
-        // --------------------------------------------------------------
         current_tc = 2;
         $display("\n=== TC02: subsequent Version packets use no-change and increment seq ===");
         run_packet(32'h0000_0002, 32'd101, 64'd1, 0);
         run_packet(32'h0000_0002, 32'd102, 64'd999999999999, 0);
 
-
-        // --------------------------------------------------------------
         current_tc = 3;
         $display("\n=== TC03: time_valid=0 rejects start and does not queue it ===");
         @(negedge aclk);
@@ -673,8 +605,6 @@ module tb_difi_version_generator;
         $display("[PASS] TC03 invalid-time start was rejected");
         passed = passed + 1;
 
-
-        // --------------------------------------------------------------
         current_tc = 4;
         $display("\n=== TC04: SID/time are snapshotted exactly at accepted start ===");
         begin_packet(32'h1122_3344,
@@ -682,22 +612,17 @@ module tb_difi_version_generator;
                      64'h0000_00AA_BBCC_DDEE,
                      1);
 
-        // begin_packet returns after the accepting edge. Word0 is stalled,
-        // so mutate all live inputs immediately. Current packet must not change.
         cfg_version_stream_id = 32'hDEAD_BEEF;
         time_sec = 32'hFFFF_FFFF;
         time_ps = 64'h0000_00FF_FFFF_FFFF;
         time_valid = 1'b0;
         finish_packet;
 
-        // The next packet must use the new live values when started normally.
         run_packet(32'hDEAD_BEEF,
                    32'hFFFF_FFFF,
                    64'd999999999999,
                    0);
 
-
-        // --------------------------------------------------------------
         current_tc = 5;
         $display("\n=== TC05: selected Word0/CIF0/Word10 backpressure ===");
         run_packet(32'hA5A5_0001,
@@ -705,8 +630,6 @@ module tb_difi_version_generator;
                    64'd456789000001,
                    1);
 
-
-        // --------------------------------------------------------------
         current_tc = 6;
         $display("\n=== TC06: every one of 11 words stalled for 2 cycles ===");
         run_packet(32'hA5A5_0002,
@@ -714,8 +637,6 @@ module tb_difi_version_generator;
                    64'd999999999999,
                    2);
 
-
-        // --------------------------------------------------------------
         current_tc = 7;
         $display("\n=== TC07: Word10 held under backpressure for >=40 cycles ===");
         run_packet(32'hA5A5_0003,
@@ -723,8 +644,6 @@ module tb_difi_version_generator;
                    64'd123456789,
                    3);
 
-
-        // --------------------------------------------------------------
         current_tc = 8;
         $display("\n=== TC08: pkt_start while busy is ignored ===");
         begin_packet(32'hCAFE_0001,
@@ -740,23 +659,16 @@ module tb_difi_version_generator;
         pkt_start = 1'b0;
         finish_packet;
 
-        // No phantom packet may appear after returning idle.
         repeat (5) @(negedge aclk);
         if (pkt_busy !== 1'b0 || m_axis_pkt_tvalid !== 1'b0 ||
             pkt_done !== 1'b0)
             fail("Busy-time pkt_start created a phantom packet");
 
-
-        // --------------------------------------------------------------
         current_tc = 9;
         $display("\n=== TC09: VERSION_STREAM_ID change affects next packet but does NOT reassert changed ===");
         run_packet(32'h0000_1001, 32'd500, 64'd20, 0);
         run_packet(32'h0000_2002, 32'd501, 64'd21, 0);
-        // golden_changed is already 0 after the first completed Version packet.
-        // Therefore both packets above must carry CIF0 = 0x00000002.
-
-
-        // --------------------------------------------------------------
+        
         current_tc = 10;
         $display("\n=== TC10: independent Version sequence wraps 15 -> 0 ===");
         reset_dut;
@@ -767,15 +679,11 @@ module tb_difi_version_generator;
                        0);
         end
 
-
-        // --------------------------------------------------------------
         current_tc = 11;
         $display("\n=== TC11: reset while final Word10 is stalled; no stale done, fresh first-Version after reset ===");
         reset_dut;
         abort_at_word(10);
 
-
-        // --------------------------------------------------------------
         current_tc = 12;
         $display("\n=== TC12: 24 reproducible packets with variable SID/time and bursty stalls ===");
         reset_dut;
@@ -788,14 +696,11 @@ module tb_difi_version_generator;
                        (p[0] == 1'b0) ? 5 : 0);
         end
 
-
         $display("\nALL ENABLED TESTS PASSED: %0d checks, %0d complete packets, %0d AXIS stall cycles",
                  passed, total_packets, total_stalls);
         $finish;
     end
 
-
-    // Global deadlock guard.
     initial begin
         #10000000;
         fail("Global deadlock timeout");

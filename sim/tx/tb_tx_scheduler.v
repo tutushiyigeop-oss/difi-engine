@@ -2,28 +2,16 @@
 
 module tb_difi_tx_scheduler;
 
-
-// ==================================================================
-// 1. Constants
-// ==================================================================
 localparam [3:0] TYPE_DATA    = 4'h1;
 localparam [3:0] TYPE_CONTEXT = 4'h4;
 localparam [3:0] TYPE_VERSION = 4'h5;
 
-
-// ==================================================================
-// 2. Clock / Reset
-// ==================================================================
 reg aclk;
 reg aresetn;
 
 initial aclk = 1'b0;
-always #5 aclk = ~aclk;       // 100 MHz
+always #5 aclk = ~aclk;       
 
-
-// ==================================================================
-// 3. Scheduler control
-// ==================================================================
 reg  tx_enable;
 reg  time_valid;
 reg  data_available;
@@ -39,17 +27,9 @@ reg  version_periodic_trigger;
 
 wire tx_busy;
 
-
-// ==================================================================
-// 4. Time Source
-// ==================================================================
 reg [31:0] time_sec;
 reg [63:0] time_ps;
 
-
-// ==================================================================
-// 5. Data Packetizer signals
-// ==================================================================
 wire        data_pkt_start;
 wire        data_pkt_busy;
 wire        data_pkt_done;
@@ -70,10 +50,6 @@ wire        data_axis_tready;
 wire [3:0]  data_axis_tkeep;
 wire        data_axis_tlast;
 
-
-// ==================================================================
-// 6. Context Generator signals
-// ==================================================================
 wire        context_pkt_start;
 wire        context_pkt_busy;
 wire        context_pkt_done;
@@ -90,10 +66,6 @@ wire        context_axis_tready;
 wire [3:0]  context_axis_tkeep;
 wire        context_axis_tlast;
 
-
-// ==================================================================
-// 7. Version Generator signals
-// ==================================================================
 wire        version_pkt_start;
 wire        version_pkt_busy;
 wire        version_pkt_done;
@@ -106,10 +78,6 @@ wire        version_axis_tready;
 wire [3:0]  version_axis_tkeep;
 wire        version_axis_tlast;
 
-
-// ==================================================================
-// 8. Merged Scheduler AXIS
-// ==================================================================
 wire [31:0] m_axis_pkt_tdata;
 wire        m_axis_pkt_tvalid;
 reg         m_axis_pkt_tready;
@@ -122,10 +90,6 @@ assign merged_fire =
     m_axis_pkt_tvalid &&
     m_axis_pkt_tready;
 
-
-// ==================================================================
-// 9. IQ Source
-// ==================================================================
 assign s_axis_iq_tdata  = iq_counter;
 assign s_axis_iq_tvalid = iq_feed_enable;
 
@@ -142,10 +106,6 @@ begin
     end
 end
 
-
-// ==================================================================
-// 10. Simple cfg_regs model for context_change_pending
-// ==================================================================
 always @(posedge aclk or negedge aresetn)
 begin
     if (!aresetn)
@@ -158,16 +118,11 @@ begin
         if (context_change_done)
             context_change_pending <= 1'b0;
 
-        // SET priority
         if (context_change_set)
             context_change_pending <= 1'b1;
     end
 end
 
-
-// ==================================================================
-// 11. Data Packetizer
-// ==================================================================
 difi_data_packetizer u_data_packetizer (
     .aclk                   (aclk),
     .aresetn                (aresetn),
@@ -194,10 +149,6 @@ difi_data_packetizer u_data_packetizer (
     .m_axis_pkt_tlast       (data_axis_tlast)
 );
 
-
-// ==================================================================
-// 12. Context Generator
-// ==================================================================
 difi_context_generator u_context_generator (
     .aclk                        (aclk),
     .aresetn                     (aresetn),
@@ -225,10 +176,6 @@ difi_context_generator u_context_generator (
     .m_axis_pkt_tlast            (context_axis_tlast)
 );
 
-
-// ==================================================================
-// 13. Version Generator
-// ==================================================================
 difi_version_generator u_version_generator (
     .aclk                    (aclk),
     .aresetn                 (aresetn),
@@ -250,10 +197,6 @@ difi_version_generator u_version_generator (
     .m_axis_pkt_tlast        (version_axis_tlast)
 );
 
-
-// ==================================================================
-// 14. TX Scheduler
-// ==================================================================
 difi_tx_scheduler dut (
     .aclk                     (aclk),
     .aresetn                  (aresetn),
@@ -309,10 +252,6 @@ difi_tx_scheduler dut (
     .tx_busy                  (tx_busy)
 );
 
-
-// ==================================================================
-// 15. Test bookkeeping
-// ==================================================================
 integer current_tc;
 integer pass_count;
 
@@ -331,10 +270,6 @@ reg        held_last;
 
 reg previous_ack;
 
-
-// ==================================================================
-// 16. FAIL helper
-// ==================================================================
 task fail;
     input [8*160-1:0] reason;
 
@@ -350,7 +285,6 @@ task fail;
     end
 endtask
 
-
 task pass;
     input [8*120-1:0] text;
 
@@ -365,12 +299,6 @@ task pass;
     end
 endtask
 
-
-// ==================================================================
-// 17. Packet output monitor
-//
-// Record Packet Type from Word0.
-// ==================================================================
 always @(posedge aclk)
 begin
     if (!aresetn)
@@ -412,10 +340,6 @@ begin
     end
 end
 
-
-// ==================================================================
-// 18. AXIS backpressure stability monitor
-// ==================================================================
 always @(posedge aclk)
 begin
     if (!aresetn)
@@ -453,10 +377,6 @@ begin
     end
 end
 
-
-// ==================================================================
-// 19. Basic Scheduler assertions
-// ==================================================================
 always @(posedge aclk)
 begin
     if (!aresetn)
@@ -516,10 +436,6 @@ begin
     end
 end
 
-
-// ==================================================================
-// 20. Utility tasks
-// ==================================================================
 task pulse_context_change;
 begin
     @(negedge aclk);
@@ -529,7 +445,6 @@ begin
     context_change_set = 1'b0;
 end
 endtask
-
 
 task pulse_context_periodic;
 begin
@@ -541,7 +456,6 @@ begin
 end
 endtask
 
-
 task pulse_version_periodic;
 begin
     @(negedge aclk);
@@ -551,7 +465,6 @@ begin
     version_periodic_trigger = 1'b0;
 end
 endtask
-
 
 task wait_packet_count;
     input integer target;
@@ -581,7 +494,6 @@ begin
 end
 endtask
 
-
 task wait_data_busy;
     integer timeout;
 
@@ -608,7 +520,6 @@ begin
 end
 endtask
 
-
 task request_one_data;
 begin
     @(negedge aclk);
@@ -618,12 +529,10 @@ begin
 
     wait_data_busy;
 
-    // Scheduler has granted this Data packet.
     data_available =
         1'b0;
 end
 endtask
-
 
 task wait_commit_ack;
     integer timeout;
@@ -651,7 +560,6 @@ begin
 end
 endtask
 
-
 task expect_no_new_packet;
     input integer old_count;
     input integer cycles;
@@ -673,18 +581,11 @@ begin
 end
 endtask
 
-
-// ==================================================================
-// 21. Main Test
-// ==================================================================
 integer base;
 
 initial
 begin
 
-    // --------------------------------------------------------------
-    // Initial values
-    // --------------------------------------------------------------
     aresetn = 1'b0;
 
     tx_enable      = 1'b0;
@@ -719,10 +620,6 @@ begin
     held_valid              = 1'b0;
     previous_ack            = 1'b0;
 
-
-    // --------------------------------------------------------------
-    // Reset
-    // --------------------------------------------------------------
     repeat (5)
         @(negedge aclk);
 
@@ -731,12 +628,6 @@ begin
     repeat (2)
         @(negedge aclk);
 
-
-    // ==============================================================
-    // TC01
-    // Startup:
-    // Version -> Context(change) -> Data
-    // ==============================================================
     current_tc = 1;
 
     $display(
@@ -772,11 +663,6 @@ begin
         "Version -> Context -> Data"
     );
 
-
-    // ==============================================================
-    // TC02
-    // tx_enable / time_valid gating
-    // ==============================================================
     current_tc = 2;
 
     $display(
@@ -827,18 +713,8 @@ begin
         "TX/time gates work"
     );
 
-
-    // ==============================================================
-    // TC03
-    //
-    // During Data:
-    // Context trigger twice + Version trigger once
-    //
-    // Expected:
-    // Data -> Context -> Version
-    //
-    // Repeated Context triggers must coalesce.
-    // ==============================================================
+    // Merge repeated Context triggers.
+    
     current_tc = 3;
 
     $display(
@@ -872,7 +748,6 @@ begin
         );
     end
 
-    // No second Context should remain from the repeated trigger.
     expect_no_new_packet(
         base + 3,
         10
@@ -882,17 +757,6 @@ begin
         "pending, coalescing and priority work"
     );
 
-
-    // ==============================================================
-    // TC04
-    //
-    // Stall the final beat of a Data packet.
-    // A Context trigger arrives while stalled.
-    //
-    // Expected:
-    // ownership remains Data until TLAST handshake,
-    // then Context is sent.
-    // ==============================================================
     current_tc = 4;
 
     $display(
@@ -907,9 +771,6 @@ begin
 
     request_one_data;
 
-
-    // Data packet has 7 + 16 = 23 words.
-    // Wait until 22 words have already handshaken.
     while (
         !packet_active ||
         current_packet_type != TYPE_DATA ||
@@ -919,18 +780,13 @@ begin
         @(negedge aclk);
     end
 
-
-    // Stall before final Word handshake.
     m_axis_pkt_tready =
         1'b0;
 
-
     pulse_context_periodic;
-
 
     repeat (4)
         @(negedge aclk);
-
 
     if (
         m_axis_pkt_tvalid !== 1'b1 ||
@@ -942,16 +798,12 @@ begin
         );
     end
 
-
-    // Release TLAST beat.
     m_axis_pkt_tready =
         1'b1;
-
 
     wait_packet_count(
         base + 2
     );
-
 
     if (
         packet_type_log[base]     != TYPE_DATA ||
@@ -963,22 +815,12 @@ begin
         );
     end
 
-
     pass(
         "TLAST stall keeps ownership locked"
     );
 
-
-    // ==============================================================
-    // TC05
-    //
-    // cfg_commit_req arrives while Data is active.
-    //
-    // ACK must wait for Data packet boundary.
-    // After commit:
-    //
-    // Context(change) -> Data
-    // ==============================================================
+    // Allow ACK only after the current Data packet ends.
+    
     current_tc = 5;
 
     $display(
@@ -993,14 +835,11 @@ begin
 
     request_one_data;
 
-
     @(negedge aclk);
 
     cfg_commit_req =
         1'b1;
 
-
-    // ACK may not happen while Data owns TX.
     repeat (5)
     begin
         @(negedge aclk);
@@ -1013,17 +852,12 @@ begin
         end
     end
 
-
-    // First packet is Data.
     wait_packet_count(
         base + 1
     );
 
-
     wait_commit_ack;
 
-
-    // Emulate cfg_regs shadow -> active.
     @(negedge aclk);
 
     cfg_commit_req =
@@ -1032,22 +866,16 @@ begin
     context_change_set =
         1'b1;
 
-
     @(negedge aclk);
 
     context_change_set =
         1'b0;
 
-
-    // Request next Data immediately.
-    // Context(change) must still win.
     request_one_data;
-
 
     wait_packet_count(
         base + 3
     );
-
 
     if (
         packet_type_log[base]     != TYPE_DATA ||
@@ -1060,20 +888,12 @@ begin
         );
     end
 
-
     pass(
         "commit waits boundary and announces Context first"
     );
 
-
-    // ==============================================================
-    // TC06
-    //
-    // tx_enable goes low while Data owns TX.
-    //
-    // Current Data must finish.
-    // Version pending waits until TX re-enabled.
-    // ==============================================================
+    // Keep the pending Version until TX is enabled again.
+    
     current_tc = 6;
 
     $display(
@@ -1088,21 +908,16 @@ begin
 
     request_one_data;
 
-
     @(negedge aclk);
 
     tx_enable =
         1'b0;
 
-
     pulse_version_periodic;
 
-
-    // Current Data must still complete.
     wait_packet_count(
         base + 1
     );
-
 
     if (
         packet_type_log[base] !=
@@ -1114,22 +929,17 @@ begin
         );
     end
 
-
-    // Version cannot start while disabled.
     expect_no_new_packet(
         base + 1,
         8
     );
 
-
     tx_enable =
         1'b1;
-
 
     wait_packet_count(
         base + 2
     );
-
 
     if (
         packet_type_log[base + 1] !=
@@ -1141,18 +951,10 @@ begin
         );
     end
 
-
     pass(
         "tx_enable only blocks new packets"
     );
 
-
-    // ==============================================================
-    // TC07
-    //
-    // cfg_commit_ack must still work with:
-    // tx_enable=0 and time_valid=0.
-    // ==============================================================
     current_tc = 7;
 
     $display(
@@ -1171,9 +973,7 @@ begin
     cfg_commit_req =
         1'b1;
 
-
     wait_commit_ack;
-
 
     if (
         packet_count != base
@@ -1184,16 +984,13 @@ begin
         );
     end
 
-
     @(negedge aclk);
 
     cfg_commit_req =
         1'b0;
 
-
     repeat (2)
         @(negedge aclk);
-
 
     if (cfg_commit_ack)
     begin
@@ -1202,29 +999,22 @@ begin
         );
     end
 
-
     time_valid =
         1'b1;
 
     tx_enable =
         1'b1;
 
-
     pass(
         "commit ACK works independently"
     );
 
-
-    // ==============================================================
-    // Final
-    // ==============================================================
     if (pass_count != 7)
     begin
         fail(
             "Unexpected pass count"
         );
     end
-
 
     $display(
         "\nALL TESTS PASSED: TC01-TC07"
@@ -1238,10 +1028,6 @@ begin
     $finish;
 end
 
-
-// ==================================================================
-// 22. Global timeout
-// ==================================================================
 initial
 begin
     #200000;
@@ -1250,6 +1036,5 @@ begin
         "Global simulation timeout"
     );
 end
-
 
 endmodule

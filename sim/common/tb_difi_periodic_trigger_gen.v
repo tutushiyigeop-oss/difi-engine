@@ -1,16 +1,5 @@
 `timescale 1ns/1ps
-// -----------------------------------------------------------------------------
-// Self-checking testbench for the corrected difi_periodic_trigger_gen.v
-// Verilog-2001. Example (from repository root):
-//   iverilog -g2005 -s tb_difi_periodic_trigger_gen \
-//     -o tb_difi_periodic_trigger_gen.vvp \
-//     rtl/common/difi_periodic_trigger_gen.v \
-//     sim/common/tb_difi_periodic_trigger_gen.v
-//   vvp tb_difi_periodic_trigger_gen.vvp
-//
-// Accelerated simulation: 10 kHz clock => 10 clock cycles per millisecond.
-// The scoreboard observes each clock and checks BOTH pulse value and timing.
-// -----------------------------------------------------------------------------
+
 module tb_difi_periodic_trigger_gen;
 
 parameter integer TB_CLK_FREQ_HZ = 10_000;
@@ -34,11 +23,8 @@ difi_periodic_trigger_gen #(
     .version_periodic_trigger (version_periodic_trigger)
 );
 
-// 10-ns simulation clock; DUT frequency is intentionally scaled down.
 always #5 aclk = ~aclk;
 
-// Independent cycle-by-cycle reference model. In contrast with the DUT's
-// counter reaching (period - 1), it tracks completed millisecond ticks.
 integer ref_div_phase;
 reg     ref_tick;
 reg [31:0] ref_prev_cfg_ctx;
@@ -75,7 +61,7 @@ always @(posedge aclk or negedge aresetn) begin
         exp_ctx_pulse = 1'b0;
         exp_ver_pulse = 1'b0;
 
-        // A newly committed active period takes priority over a due tick.
+        // A new period setting takes priority over the current due event.
         if ((cfg_context_period_ms == 32'd0) ||
             (cfg_context_period_ms != ref_prev_cfg_ctx)) begin
             ref_elapsed_ctx_ms = 32'd0;
@@ -102,7 +88,7 @@ always @(posedge aclk or negedge aresetn) begin
         ref_prev_cfg_ver = cfg_version_period_ms;
     end
 
-    // The #1 delay places checking after the DUT's nonblocking assignments.
+    // Delay #1 to check after register updates.
     #1;
     if (monitor_enable) begin
         if ((context_periodic_trigger !== exp_ctx_pulse) ||
@@ -130,7 +116,7 @@ always @(posedge aclk or negedge aresetn) begin
     end
 end
 
-// Testbench stimulus changes only on falling edges to avoid sampling races.
+// Drive inputs on falling edges to avoid the sampling edge.
 task wait_clocks;
     input integer n;
     begin
@@ -149,8 +135,6 @@ task reset_dut;
     end
 endtask
 
-// At the negedge immediately following an ms tick, the next tick is
-// CLKS_PER_MS rising edges away. Useful for exact event-count assertions.
 task set_cfg_at_ms_boundary;
     input [31:0] ctx_ms;
     input [31:0] ver_ms;
@@ -163,8 +147,6 @@ task set_cfg_at_ms_boundary;
     end
 endtask
 
-// Change configuration on the falling edge JUST BEFORE the next ms tick.
-// The tick and the configuration change will coincide at the next posedge.
 task set_cfg_before_ms_tick;
     input [31:0] ctx_ms;
     input [31:0] ver_ms;
@@ -232,7 +214,6 @@ initial begin
     wait_clocks(3*CLKS_PER_MS+3);
     expect_pulse_delta("T01 reset/default period 0", 0, 0, 0, 0, 0, 0);
 
-    // T02: Independent 2-ms / 3-ms periods, including simultaneous tick at 6 ms.
     reset_dut;
     set_cfg_at_ms_boundary(32'd2, 32'd3);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
@@ -247,7 +228,6 @@ initial begin
     checks_passed=checks_passed+1;
     $display("[PASS] T03 single-clock pulse width");
 
-    // T04: 1-ms period; disable ctx immediately after a high pulse.
     reset_dut;
     set_cfg_at_ms_boundary(32'd1, 32'd0);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
@@ -257,7 +237,7 @@ initial begin
         $display("[FAIL] T04 fifth 1-ms trigger not present before disable");
         $finish;
     end
-    cfg_context_period_ms = 32'd0; // Change at negedge right after high pulse
+    cfg_context_period_ms = 32'd0; 
     wait_clocks(1);
     if (context_periodic_trigger !== 1'b0) begin
         $display("[FAIL] T05 disable must clear a previously high pulse");
@@ -266,7 +246,6 @@ initial begin
     wait_clocks(5*CLKS_PER_MS);
     expect_pulse_delta("T05 disable directly after trigger", c0,v0,b0,5,0,0);
 
-    // T06: 8ms -> 3ms when old elapsed 5ms. No premature trigger.
     reset_dut;
     set_cfg_at_ms_boundary(32'd8, 32'd0);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
@@ -281,7 +260,6 @@ initial begin
     wait_clocks(3*CLKS_PER_MS-1);
     expect_pulse_delta("T06 period change restarts count", c0,v0,b0,1,0,0);
 
-    // T07: 1 -> 5 -> 1. First five-ms cycle must begin afresh.
     reset_dut;
     set_cfg_at_ms_boundary(32'd1, 32'd0);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
@@ -296,7 +274,6 @@ initial begin
     wait_clocks(2*CLKS_PER_MS);
     expect_pulse_delta("T07 5->1ms restart", c0,v0,b0,6,0,0);
 
-    // T08: Changing context only must not reset the version counter.
     reset_dut;
     set_cfg_at_ms_boundary(32'd2, 32'd3);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
@@ -305,7 +282,6 @@ initial begin
     wait_clocks(6*CLKS_PER_MS);
     expect_pulse_delta("T08 independent configuration changes", c0,v0,b0,2,3,0);
 
-    // T09: Configuration change on the exact ms-tick edge must win.
     reset_dut;
     set_cfg_before_ms_tick(32'd2, 32'd2);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
@@ -314,30 +290,26 @@ initial begin
     wait_clocks(1);
     expect_pulse_delta("T09 due on next tick", c0,v0,b0,1,1,1);
 
-    // T10: Reset at a partial period discards partial count.
     reset_dut;
     set_cfg_at_ms_boundary(32'd4, 32'd6);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
     wait_clocks(3*CLKS_PER_MS);
     expect_pulse_delta("T10 partial count before reset", c0,v0,b0,0,0,0);
-    aresetn = 1'b0;  // Keep both active config inputs unchanged
+    aresetn = 1'b0;  
     wait_clocks(3);
     aresetn = 1'b1;
-    // A newly reset ms divider starts at zero. The first nonzero period
-    // is captured before the first ms tick.
+    
     wait_clocks(4*CLKS_PER_MS);
     expect_pulse_delta("T10 ctx period restarts after reset", c0,v0,b0,1,0,0);
     wait_clocks(2*CLKS_PER_MS);
     expect_pulse_delta("T10 ver period restarts after reset", c0,v0,b0,1,1,0);
 
-    // T11: Large 32-bit setting must not cause overflow / false triggers.
     reset_dut;
     set_cfg_at_ms_boundary(32'hFFFF_FFFF, 32'hFFFF_FFFF);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
     wait_clocks(10*CLKS_PER_MS);
     expect_pulse_delta("T11 32-bit maximum periods", c0,v0,b0,0,0,0);
 
-    // T12: Version disable does not stop context ticking.
     reset_dut;
     set_cfg_at_ms_boundary(32'd2, 32'd2);
     c0=ctx_pulses; v0=ver_pulses; b0=simultaneous_pulses;
@@ -353,7 +325,6 @@ initial begin
     $finish;
 end
 
-// Avoid a silent infinite simulation if a test hangs.
 initial begin
     #200000;
     $display("[FAIL] Global simulation timeout");

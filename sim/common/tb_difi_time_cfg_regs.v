@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 `include "difi_time_cfg_regmap.vh"
-// Self-checking AXI4-Lite UTC control + real Time Source interaction.
+
 module tb_difi_time_cfg_regs;
 
 reg aclk = 1'b0;
@@ -138,7 +138,7 @@ task axi_read;
 endtask
 
 initial begin
-    // No wave generation by default; can enable for debug.
+    
     repeat (4) @(negedge aclk);
     aresetn = 1;
     repeat (3) @(negedge aclk);
@@ -146,7 +146,6 @@ initial begin
     axi_read(`DIFI_TIME_REG_STATUS, 32'd0, 2'b00);
     $display("[PASS] reset and invalid initial time");
 
-    // Verify independent AW/W channel arrival orders and byte strobes.
     axi_write(`DIFI_TIME_REG_SEC, 32'd100, 4'hf, 0, 2'b00);
     axi_write(`DIFI_TIME_REG_PS_LO, 32'hAAAA_BBBB, 4'hf, 1, 2'b00);
     axi_write(`DIFI_TIME_REG_PS_LO, 32'h0000_1122, 4'b0011, 2, 2'b00);
@@ -155,7 +154,7 @@ initial begin
     axi_write(`DIFI_TIME_REG_PS_HI, 32'd0, 4'hf, 0, 2'b00);
     $display("[PASS] AW/W any order; partial WSTRB");
 
-    // W1P command uses a snapshot of complete shadow fields.
+    // The command snapshots all time fields together.
     axi_write(`DIFI_TIME_REG_COMMAND, 32'd1, 4'hf, 2, 2'b00);
     repeat (3) @(negedge aclk);
     expect(time_valid && time_sec == 100, "UTC init became valid");
@@ -164,7 +163,6 @@ initial begin
     axi_read(`DIFI_TIME_REG_COMMAND, 32'd0, 2'b00);
     $display("[PASS] atomic UTC initialization and one-cycle load");
 
-    // Illegal ps=10^12: 0x000000E8_D4A51000.
     axi_write(`DIFI_TIME_REG_PS_LO, 32'hD4A51000, 4'hf, 0, 2'b00);
     axi_write(`DIFI_TIME_REG_PS_HI, 32'h000000E8, 4'hf, 0, 2'b00);
     axi_write(`DIFI_TIME_REG_COMMAND, 32'd1, 4'hf, 0, 2'b10);
@@ -173,9 +171,8 @@ initial begin
     axi_read(`DIFI_TIME_REG_STATUS, 32'h3, 2'b00);
     $display("[PASS] bad picoseconds rejected without stopping time");
 
-    // Restore legal near-carry time; load should clear sticky error.
     axi_write(`DIFI_TIME_REG_SEC, 32'd321, 4'hf, 0, 2'b00);
-    // Easier unambiguous near-second value via explicit 64-bit slices.
+    
     axi_write(`DIFI_TIME_REG_PS_LO, (64'd999999990000 & 64'hFFFFFFFF), 4'hf, 0, 2'b00);
     axi_write(`DIFI_TIME_REG_PS_HI, (64'd999999990000 >> 32), 4'hf, 0, 2'b00);
     axi_write(`DIFI_TIME_REG_COMMAND, 32'd1, 4'hf, 0, 2'b00);
@@ -185,7 +182,6 @@ initial begin
     axi_read(`DIFI_TIME_REG_STATUS, 32'h1, 2'b00);
     $display("[PASS] reload and second carry, previous error cleared");
 
-    // Verify erroneous control/strobes and unmapped accesses.
     axi_write(`DIFI_TIME_REG_COMMAND, 32'd1, 4'b0000, 0, 2'b00);
     axi_write(`DIFI_TIME_REG_COMMAND, 32'd0, 4'hf, 0, 2'b00);
     repeat (3) @(negedge aclk);
@@ -195,7 +191,7 @@ initial begin
     axi_read(8'hFC, 32'd0, 2'b11);
     $display("[PASS] write to RO, unaligned and unmapped responses");
 
-    // B-channel backpressure must hold BVALID/BRESP.
+    // Hold BVALID/BRESP while the response is stalled.
     bready = 0;
     send_aw(`DIFI_TIME_REG_SEC);
     send_w(32'd321, 4'hf);
@@ -209,7 +205,7 @@ initial begin
     repeat (2) @(negedge aclk);
     expect(!bvalid, "B clears after handshake");
 
-    // R-channel backpressure must hold RVALID/RDATA/RRESP.
+    // Hold RVALID/RDATA/RRESP while reads are stalled.
     rready = 0;
     @(negedge aclk);
     araddr = `DIFI_TIME_REG_SEC;

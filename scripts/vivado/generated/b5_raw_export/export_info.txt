@@ -1,0 +1,24 @@
+Target: b5_raw_export
+BD: difi_system
+Top: difi_system_wrapper
+Part: xc7z020clg400-2
+Vivado version: 2024.2
+Original project: difi_zynq_stage_b5_UDP
+Original XDC paths (copies are saved alongside bd.tcl):
+Original IP repositories (for auditing custom IP dependencies):
+BD cells and VLNVs:
+  /axi_dma_0 | xilinx.com:ip:axi_dma:7.1
+  /axi_gpio_0 | xilinx.com:ip:axi_gpio:2.0
+  /axi_mem_intercon | xilinx.com:ip:axi_interconnect:2.1
+  /axi_mem_intercon/m00_couplers | 
+  /axi_mem_intercon/m00_couplers/auto_pc | xilinx.com:ip:axi_protocol_converter:2.1
+  /axi_mem_intercon/s00_couplers | 
+  /axi_mem_intercon/s00_couplers/auto_us | xilinx.com:ip:axi_dwidth_converter:2.1
+  /axi_mem_intercon/s01_couplers | 
+  /axi_mem_intercon/s01_couplers/auto_us | xilinx.com:ip:axi_dwidth_converter:2.1
+  /axi_mem_intercon/xbar | xilinx.com:ip:axi_crossbar:2.1
+  /axi_smc | xilinx.com:ip:smartconnect:1.0
+  /difi_board_raw_packe_0 | xilinx.com:module_ref:difi_board_raw_packet_export:1.0
+  /proc_sys_reset_0 | xilinx.com:ip:proc_sys_reset:5.0
+  /processing_system7_0 | xilinx.com:ip:processing_system7:5.5
+  /xlconstant_0 | xilinx.com:ip:xlconstant:1.1

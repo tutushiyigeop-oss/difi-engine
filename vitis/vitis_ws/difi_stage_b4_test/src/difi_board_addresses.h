@@ -1,4 +1,3 @@
-
 #ifndef DIFI_BOARD_ADDRESSES_H
 #define DIFI_BOARD_ADDRESSES_H
 

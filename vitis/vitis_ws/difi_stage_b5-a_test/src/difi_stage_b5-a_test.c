@@ -1,21 +1,4 @@
-/*
- * B5 Zynq-7020 DIFI 1.1 RAW PACKET EXPORT - Vitis 2024.2 standalone
- *
- * Board RTL: difi_board_raw_packet_export.v (NOT original B4 wrapper)
- * No dependency on platform.h/platform.c or xtime_l.h.
- * UART input/echo follows the verified B4 final test: inbyte() + xil_printf().
- * DIFI:     TX -> DMA S2MM, with RX packet input disabled.
- *
- * Captures, in order: Version (11 words), Changed Context (27 words),
- * Data (7+4=11 words).  Stops at three packets; no UDP yet.
- *
- * IMPORTANT: Confirm CTRL/TIME/DMA addresses against YOUR exported XSA.
- * Time is supplied by UART: UTC <seconds> <nanoseconds> (without quotes).
- * Disable terminal-side Local Echo; the application echoes typed characters.
- * Supports simple (non-scatter/gather), non-Micro AXI DMA, 32-bit AXIS.
- * The S2MM buffer is rearmed between packets.  AXI TVALID must be held
- * stable by the upstream while DMA TREADY is low.
- */
+/* Stage B5-A: capture raw DIFI packets and print them over UART for script checks. */
 #include "xparameters.h"
 #include "xaxidma.h"
 #include "xil_cache.h"
@@ -25,15 +8,9 @@
 
 #include <string.h>
 
-/* Verified B4 project: vitis/.../difi_stage_final_test/src/difi_full_board_test.c
- * Standalone BSP UART input is blocking; stdout uses xil_printf().
- * STDIN and STDOUT must both be assigned to PS UART in BSP settings.
- */
+/* Set both BSP STDIN and STDOUT to PS UART. */
 extern char inbyte(void);
 
-/* B4 UART log reported these TWO distinct AXI4-Lite physical addresses.
- * Explicitly override these macros if the new XSA Address Editor differs.
- */
 #ifndef B5_CTRL_BASE
 #define B5_CTRL_BASE ((UINTPTR)0x40000000U)
 #endif
@@ -41,9 +18,7 @@ extern char inbyte(void);
 #define B5_TIME_BASE ((UINTPTR)0x40001000U)
 #endif
 
-/* For SDT Vitis BSPs, XAxiDma_LookupConfig() uses base address.
- * For classic BSPs, it uses DEVICE_ID.  Names are generated from XSA.
- */
+/* SDT looks up DMA by base address; legacy BSPs use the device ID. */
 #ifdef SDT
   #ifndef B5_DMA_BASE
     #if defined(XPAR_XAXIDMA_0_BASEADDR)
@@ -68,7 +43,6 @@ extern char inbyte(void);
   #endif
 #endif
 
-/* S_AXI_CTRL register offsets (difi_cfg_regmap.vh). */
 #define CTRL_CONTROL          0x00U
 #define CTRL_COMMAND          0x04U
 #define CTRL_STATUS           0x08U
@@ -86,7 +60,6 @@ extern char inbyte(void);
 #define CTRL_ACTIVE_CTX_PER   0x5CU
 #define CTRL_ACTIVE_VER_PER   0x60U
 
-/* S_AXI_TIME register offsets (difi_time_cfg_regmap.vh). */
 #define TIME_SEC              0x00U
 #define TIME_PS_LO            0x04U
 #define TIME_PS_HI            0x08U
@@ -104,8 +77,8 @@ extern char inbyte(void);
 #define B5_VERSION_WORDS      11U
 #define B5_CONTEXT_WORDS      27U
 #define B5_DATA_WORDS         (7U + B5_IQ_WORDS)
-#define B5_RX_CAPACITY_WORDS  512U   /* 2048 bytes; max DIFI = 1052 bytes */
-#define B5_POLL_LIMIT         25000000U  /* bounded poll count; NOT seconds */
+#define B5_RX_CAPACITY_WORDS  512U   
+#define B5_POLL_LIMIT         25000000U  /* Polling iteration limit, not seconds. */
 
 static XAxiDma AxiDma;
 static u32 RxWords[B5_RX_CAPACITY_WORDS] __attribute__((aligned(64)));
@@ -130,7 +103,6 @@ static u32 time_read(u32 reg)
     return Xil_In32(B5_TIME_BASE + reg);
 }
 
-
 static int wait_time_valid(void)
 {
     u32 poll;
@@ -147,14 +119,6 @@ static int wait_time_valid(void)
     return XST_FAILURE;
 }
 
-/* This UART input implementation is intentionally based on the proven B4
- * difi_full_board_test.c implementation.  It explicitly echoes characters:
- *   - visible printable characters
- *   - Backspace / Delete correction
- *   - one visible CRLF when ENTER is pressed
- *   - CRLF terminal mode consumes the trailing LF on the next read
- * MobaXterm "Local echo" should be OFF to avoid duplicate display.
- */
 static void uart_getline(char *buf, unsigned cap)
 {
     unsigned n = 0U;
@@ -187,11 +151,10 @@ static void uart_getline(char *buf, unsigned cap)
             buf[n++] = c;
             xil_printf("%c", (int)c);
         }
-        /* Extra input is discarded until Enter to avoid buffer overflow. */
+        
     }
 }
 
-/* B4-compatible decimal parser, with uint32 overflow detection. */
 static int parse_decimal(const char **p, u32 *out)
 {
     u64 v = 0ULL;
@@ -259,7 +222,7 @@ static int config_difi(void)
 {
     u32 poll;
     u32 st;
-    ctrl_write(CTRL_CONTROL, 0U); /* disabled before commit */
+    ctrl_write(CTRL_CONTROL, 0U); 
     ctrl_write(CTRL_DATA_SID, 1U);
     ctrl_write(CTRL_VERSION_SID, 2U);
     ctrl_write(CTRL_SAMPLES, B5_IQ_WORDS);
@@ -269,7 +232,7 @@ static int config_difi(void)
     ctrl_write(CTRL_RF_HI, 0U);
     ctrl_write(CTRL_CTX_PERIOD, 0U);
     ctrl_write(CTRL_VER_PERIOD, 0U);
-    ctrl_write(CTRL_COMMAND, 1U); /* Shadow -> Active via scheduler ACK */
+    ctrl_write(CTRL_COMMAND, 1U); 
     for (poll = 0U; poll < B5_POLL_LIMIT; poll++) {
         st = ctrl_read(CTRL_STATUS);
         if (st & ST_COMMIT_ERROR) {
@@ -351,7 +314,7 @@ static int dma_wait(int direction)
     u32 poll;
     for (poll = 0U; poll < B5_POLL_LIMIT; poll++) {
         u32 st = dma_status(direction);
-        if (st & 0x70U) {  /* AXI DMA DMASlvErr/DMADecErr/DMAIntErr */
+        if (st & 0x70U) {  
             xil_printf("[ERROR] DMA direction=%d status=%08x\r\n", direction, st);
             return XST_FAILURE;
         }
@@ -403,9 +366,7 @@ static int validate_and_dump(const char *name, u32 type, u32 words)
             }
         }
     }
-    /* These exact delimiters / W[] formatting are consumed by
-     * b5_hex_to_pcap.py and the B5 PC regression parser.
-     */
+    /* Keep the delimiters and W[] format for rtf_to_pcap.py. */
     xil_printf("[B5_START]\r\n");
     for (i = 0U; i < words; i++)
         xil_printf("W[%03u]=%08x\r\n", (unsigned)i, (unsigned)RxWords[i]);
@@ -440,19 +401,18 @@ int main(void)
     if (program_time() != XST_SUCCESS) goto fail;
     if (config_difi() != XST_SUCCESS) goto fail;
 
-    /* Arm S2MM BEFORE enabling TX.  Version is scheduler startup packet. */
+    /* Arm S2MM before enabling TX to receive the first Version packet. */
     if (dma_arm_rx(B5_VERSION_WORDS) != XST_SUCCESS) goto fail;
     ctrl_write(CTRL_CONTROL, 1U);
     if (dma_wait(XAXIDMA_DEVICE_TO_DMA) != XST_SUCCESS) goto fail;
     if (validate_and_dump("Version", 5U, B5_VERSION_WORDS) != XST_SUCCESS)
         goto fail;
 
-    /* Scheduler next emits the initial changed Context; it safely stalls
-       with TVALID asserted until S2MM is rearmed. */
+    /* The first Context can wait until S2MM is rearmed before being output. */
     if (capture_packet("Context", 4U, B5_CONTEXT_WORDS) != XST_SUCCESS)
         goto fail;
 
-    /* Then arm S2MM for Data; only after that feed four samples via MM2S. */
+    /* Prepare to receive Data before sending 4 samples through MM2S. */
     if (dma_arm_rx(B5_DATA_WORDS) != XST_SUCCESS) goto fail;
     Xil_DCacheFlushRange((UINTPTR)IqWords, sizeof(IqWords));
     rc = XAxiDma_SimpleTransfer(&AxiDma, (UINTPTR)IqWords,

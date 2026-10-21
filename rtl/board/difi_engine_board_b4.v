@@ -1,22 +1,5 @@
-// -----------------------------------------------------------------------------
-// DIFI board integration: B3 TX->RX loopback + PS-programmed UTC + periodic events.
-// Target: Zynq-7000 XC7Z020, single 100-MHz PL clock, Verilog-2001.
-//
-// DMA MM2S IQ -> DIFI TX -> DIFI RX -> DMA S2MM decoded IQ.
-// AXI GPIO CH1: 5-bit dbg_page; CH2: 32-bit dbg_rdata.
-//
-// Preserves difi_engine_top v1.5 (frozen interface) and
-// B3 board-adapter ports, AXI-Lite register map, metadata counters, and
-// internal loopback. Three Common RTL modules are instantiated here.
-//
-// S_AXI_CTRL retains the frozen protocol control map; S_AXI_TIME is a separate
-// AXI4-Lite slave for PS-provided UTC time initialization.
-// There is NO automatic hardcoded UTC initialization. The PS must program
-// time before enabling TX. Time validity is reflected in CTRL STATUS[4].
-//
-// Important: periodic Context/Version packets pass through the TX->RX loop;
-// only decoded Data IQ appears on M_AXIS_IQ (DMA S2MM).
-// -----------------------------------------------------------------------------
+// Set time from the PS before enabling TX; STATUS[4] indicates valid time.
+
 module difi_engine_board #(
     parameter integer CLK_FREQ_HZ = 100_000_000
 )(
@@ -27,7 +10,6 @@ module difi_engine_board #(
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME aresetn, POLARITY ACTIVE_LOW" *)
     input wire aresetn,
 
-    // AXI4-Lite control interface (unchanged from B3)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_CTRL AWADDR" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXI_CTRL, PROTOCOL AXI4LITE, DATA_WIDTH 32, ADDR_WIDTH 8" *)
     input  wire [7:0]  s_axi_awaddr,
@@ -68,9 +50,6 @@ module difi_engine_board #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_CTRL RREADY" *)
     input  wire        s_axi_rready,
 
-    // Independent AXI4-Lite UTC time initialization peripheral.
-    // Connect this to the PS AXI Master through SmartConnect, with its own
-    // address range (NOT an offset inside the frozen S_AXI_CTRL map).
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_TIME AWADDR" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME S_AXI_TIME, PROTOCOL AXI4LITE, DATA_WIDTH 32, ADDR_WIDTH 8" *)
     input wire [7:0] s_axi_time_awaddr,
@@ -111,8 +90,8 @@ module difi_engine_board #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_TIME RREADY" *)
     input wire s_axi_time_rready,
 
-    // Incoming IQ from AXI DMA MM2S. The IQ packetizer ignores input
-    // TKEEP/TLAST: DIFI boundaries follow cfg_samples_per_packet.
+    // Ignore input TKEEP/TLAST; use the configured sample count for packet boundaries.
+    
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TDATA" *)
     input wire [31:0] s_axis_iq_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TVALID" *)
@@ -124,7 +103,6 @@ module difi_engine_board #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TLAST" *)
     input wire s_axis_iq_tlast,
 
-    // Decoded Data IQ to AXI DMA S2MM; Context/Version do not produce IQ.
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TDATA" *)
     output wire [31:0] m_axis_iq_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TVALID" *)
@@ -136,16 +114,12 @@ module difi_engine_board #(
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TLAST" *)
     output wire m_axis_iq_tlast,
 
-    // Read multiplexor for AXI GPIO monitoring (same 5-bit page as B3).
     input wire [4:0] dbg_page,
     output reg [31:0] dbg_rdata
 );
 
 assign m_axis_iq_tkeep = 4'b1111;
 
-// -----------------------------------------------------------------------------
-// A. Common blocks: PS time control, time source, periodic events.
-// -----------------------------------------------------------------------------
 wire [31:0] time_sec;
 wire [63:0] time_ps;
 wire        time_valid;
@@ -155,8 +129,6 @@ wire        context_periodic_trigger;
 wire        version_periodic_trigger;
 wire        tx_busy;
 
-// Time register slave and time source use the SAME clock domain.
-// The slave snapshots the three shadow fields and emits one time_load pulse.
 wire        time_cfg_load;
 wire [31:0] time_cfg_sec;
 wire [63:0] time_cfg_ps;
@@ -213,9 +185,6 @@ difi_periodic_trigger_gen #(
     .version_periodic_trigger(version_periodic_trigger)
 );
 
-// -----------------------------------------------------------------------------
-// B. Existing B3 loopback and observable RX metadata.
-// -----------------------------------------------------------------------------
 wire data_meta_valid;
 wire [31:0] data_meta_sid, data_meta_sec;
 wire [3:0] data_meta_seq;
@@ -232,8 +201,6 @@ wire [63:0] ver_ps;
 wire e_dispatch, e_data, e_ctx, e_ver;
 wire [3:0] e_dispatch_code, e_data_code, e_ctx_code, e_ver_code;
 
-// Local loopback: exactly the TX packet beats accepted by the RX engine.
-// Clock/Reset shared, so no CDC/FIFO is required for this specific test.
 wire [31:0] loop_pkt_tdata;
 wire        loop_pkt_tvalid;
 wire        loop_pkt_tready;
@@ -302,9 +269,6 @@ difi_engine_top u_engine (
     .rx_version_error_valid(e_ver), .rx_version_error_code(e_ver_code)
 );
 
-// -----------------------------------------------------------------------------
-// C. B3-compatible GPIO metadata/error/packet-count monitor.
-// -----------------------------------------------------------------------------
 reg [31:0] cnt_data, cnt_ctx, cnt_ver;
 reg [31:0] cnt_e_dispatch, cnt_e_data, cnt_e_ctx, cnt_e_ver;
 reg [31:0] last_error;
@@ -392,8 +356,6 @@ always @(posedge aclk or negedge aresetn) begin
     end
 end
 
-// Page 1..30 semantics match B3, so the old PS GPIO monitor can be reused.
-// Page 0/31 mark the PS-configured integrated version only.
 always @(*) begin
     dbg_rdata = 32'd0;
     case (dbg_page)

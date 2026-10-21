@@ -6,9 +6,6 @@ module tb_difi_version_parser;
     localparam integer MAX_WORDS     = 128;
     localparam integer WAIT_LIMIT    = 20000;
 
-    // ------------------------------------------------------------------
-    // 1. DUT and clock
-    // ------------------------------------------------------------------
     reg         aclk, aresetn;
     reg  [31:0] s_axis_pkt_tdata;
     reg         s_axis_pkt_tvalid;
@@ -58,9 +55,6 @@ module tb_difi_version_parser;
     initial aclk = 1'b0;
     always #5 aclk = ~aclk;
 
-    // ------------------------------------------------------------------
-    // 2. Packet builder and golden metadata
-    // ------------------------------------------------------------------
     reg [31:0] tx_word [0:MAX_WORDS-1];
     reg [3:0]  tx_keep [0:MAX_WORDS-1];
     reg        tx_last [0:MAX_WORDS-1];
@@ -87,7 +81,6 @@ module tb_difi_version_parser;
     reg        held_changed;
     reg previous_err;
 
-    // Only this negedge process owns m_ver_ready.
     reg stall_meta;
     integer meta_stall_cycles;
     integer meta_stall_hits;
@@ -118,7 +111,6 @@ module tb_difi_version_parser;
         end
     endtask
 
-    // Build one completely legal 11-word Version Context packet.
     task make_packet;
         input [31:0] sid;
         input [31:0] sec;
@@ -150,8 +142,6 @@ module tb_difi_version_parser;
         end
     endtask
 
-    // Frozen protocol Appendix-C vector. This checks the TB packet builder
-    // independently before TC01 is sent to the DUT.
     task check_reference_version_vector;
         integer k;
         reg [31:0] expected;
@@ -184,8 +174,6 @@ module tb_difi_version_parser;
         end
     endtask
 
-    // error_expected: 0 = no error, 1 = fatal error/no metadata,
-    //                 2 = nonfatal sequence error + valid metadata.
     task arm_case;
         input integer error_expected;
         input [3:0] error_expected_code;
@@ -224,16 +212,13 @@ module tb_difi_version_parser;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 3. Scoreboard. Observe all real transfers on posedge.
-    // ------------------------------------------------------------------
     always @(posedge aclk) begin
         if (!aresetn) begin
             hold_meta = 1'b0;
             hold_rx = 1'b0;
             previous_err = 1'b0;
         end else begin
-            // The AXIS source must hold a stalled beat stable.
+            // Keep transmitted data stable while reception is stalled.
             if (hold_rx) begin
                 if (s_axis_pkt_tvalid !== 1'b1 ||
                     s_axis_pkt_tdata  !== held_rx_data ||
@@ -249,7 +234,7 @@ module tb_difi_version_parser;
                 held_rx_last = s_axis_pkt_tlast;
             end
 
-            // Metadata must stay bit-for-bit stable under backpressure.
+            // Keep metadata stable while reception is stalled.
             if (hold_meta) begin
                 if (m_ver_valid     !== 1'b1 ||
                     m_ver_stream_id !== held_sid ||
@@ -335,7 +320,6 @@ module tb_difi_version_parser;
         end
     end
 
-    // Selectively backpressure Version metadata.
     always @(negedge aclk) begin
         if (!aresetn) begin
             m_ver_ready = 1'b1;
@@ -348,9 +332,6 @@ module tb_difi_version_parser;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 4. AXIS source: drive on falling edges and hold until handshake.
-    // ------------------------------------------------------------------
     task send_word;
         input [31:0] data;
         input [3:0] keep;
@@ -413,7 +394,6 @@ module tb_difi_version_parser;
             if (waits >= WAIT_LIMIT)
                 fail("Timeout waiting for expected metadata/error");
 
-            // Guard against late duplicate outputs/events.
             repeat (5) @(negedge aclk);
             if (rx_seen != tx_len || rx_last_seen != 1 ||
                 meta_seen != golden_meta_count ||
@@ -476,7 +456,6 @@ module tb_difi_version_parser;
         end
     endtask
 
-    // run_bad assumes make_packet + corruption have already prepared tx_word[].
     task run_bad;
         input [3:0] err;
         input [31:0] sid;
@@ -508,11 +487,6 @@ module tb_difi_version_parser;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 5. Test plan
-    // Covers the v1.1 Version Parser matrix, revised first-detected fatal
-    // error policy, AXIS framing, sequence semantics, and metadata backpressure.
-    // ------------------------------------------------------------------
     integer j, p, bad_at, old_err;
     reg [31:0] info_tmp;
     reg [31:0] pseudo_sid;
@@ -598,7 +572,7 @@ module tb_difi_version_parser;
         tx_word[2] = tx_word[2] ^ 32'h0000_0001;
         run_bad(`DIFI_ERR_CLASS,32'd2,32'd321,4'd3,64'd0,1'b0,
                 make_version_info(7'd26,9'd253));
-        // Baseline remains Seq=2, so Seq=4 is discontinuous.
+        
         run_seq_issue(32'd2,32'd322,4'd4,64'd0,1'b0,7'd26,9'd254);
         run_good(32'd2,32'd323,4'd5,64'd0,1'b0,7'd26,9'd255,0);
 
@@ -612,7 +586,7 @@ module tb_difi_version_parser;
                 make_version_info(7'd26,9'd252));
         cfg_stream_filter_enable=0;
         run_good(32'h0000_1234,32'd331,4'd9,64'd0,1'b1,7'd26,9'd253,0);
-        // New SID re-creates the single-stream Sequence baseline.
+        
         run_good(32'hABCD_0002,32'd332,4'd2,64'd0,1'b0,7'd26,9'd254,0);
         run_good(32'hABCD_0002,32'd333,4'd3,64'd0,1'b0,7'd26,9'd255,0);
         run_good(32'h0000_1234,32'd334,4'd10,64'd0,1'b0,7'd26,9'd256,0);
@@ -754,23 +728,23 @@ module tb_difi_version_parser;
         current_tc=20;
         $display("\n=== TC20: invalid Word10 Day/Revision/Type/ICD fields ===");
         reset_dut;
-        // Day = 0.
+        
         make_packet(32'd2,32'd490,4'd0,64'd0,1'b1,7'd26,9'd1);
         tx_word[10][24:16]=9'd0;
         run_bad(`DIFI_ERR_VERSION_FIELD,32'd2,32'd490,4'd0,64'd0,1'b1,tx_word[10]);
-        // Day = 367.
+        
         make_packet(32'd2,32'd491,4'd0,64'd0,1'b1,7'd26,9'd1);
         tx_word[10][24:16]=9'd367;
         run_bad(`DIFI_ERR_VERSION_FIELD,32'd2,32'd491,4'd0,64'd0,1'b1,tx_word[10]);
-        // Revision != 1.
+        
         make_packet(32'd2,32'd492,4'd0,64'd0,1'b1,7'd26,9'd252);
         tx_word[10][15:10]=6'd2;
         run_bad(`DIFI_ERR_VERSION_FIELD,32'd2,32'd492,4'd0,64'd0,1'b1,tx_word[10]);
-        // Type != 0.
+        
         make_packet(32'd2,32'd493,4'd0,64'd0,1'b1,7'd26,9'd252);
         tx_word[10][9:6]=4'd1;
         run_bad(`DIFI_ERR_VERSION_FIELD,32'd2,32'd493,4'd0,64'd0,1'b1,tx_word[10]);
-        // ICD != 0.
+        
         make_packet(32'd2,32'd494,4'd0,64'd0,1'b1,7'd26,9'd252);
         tx_word[10][5:0]=6'd1;
         run_bad(`DIFI_ERR_VERSION_FIELD,32'd2,32'd494,4'd0,64'd0,1'b1,tx_word[10]);
@@ -803,7 +777,6 @@ module tb_difi_version_parser;
         stop_input;
         finish_case;
 
-        // Reverse: disabled at Word0 stays disabled for the current packet.
         reset_dut;
         cfg_stream_filter_enable=0;
         cfg_expected_stream_id=32'h0000_0002;
@@ -840,14 +813,14 @@ module tb_difi_version_parser;
         current_tc=24;
         $display("\n=== TC24: revised first-detected fatal error policy ===");
         reset_dut;
-        // Earlier Word1 SID error must win over later Word2 Class error.
+        // An earlier SID error takes priority over a later class error.
         cfg_stream_filter_enable=1;
         cfg_expected_stream_id=32'd2;
         make_packet(32'h0000_1234,32'd530,4'd0,64'd0,1'b1,7'd26,9'd252);
         tx_word[2]=32'h0000_0000;
         run_bad(`DIFI_ERR_STREAM_ID,32'h0000_1234,32'd530,4'd0,64'd0,1'b1,
                 make_version_info(7'd26,9'd252));
-        // Earlier Version-field error must win over a later missing TLAST.
+        // An earlier Version-field error takes priority over a later missing TLAST.
         make_packet(32'd2,32'd531,4'd0,64'd0,1'b1,7'd26,9'd252);
         tx_word[7]=32'hDEAD_BEEF;
         tx_last[10]=1'b0;
@@ -857,7 +830,7 @@ module tb_difi_version_parser;
         tx_len=12;
         run_bad(`DIFI_ERR_VERSION_FIELD,32'd2,32'd531,4'd0,64'd0,1'b1,
                 make_version_info(7'd26,9'd252));
-        // Same handshake: Length/TKEEP outranks Class.
+        
         make_packet(32'd2,32'd532,4'd0,64'd0,1'b1,7'd26,9'd252);
         tx_word[2]=32'h0000_0000;
         tx_keep[2]=4'b0111;

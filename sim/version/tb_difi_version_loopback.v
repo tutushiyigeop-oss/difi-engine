@@ -11,20 +11,11 @@ module tb_difi_version_loopback;
     localparam [8:0] BUILD_DAY_OF_YEAR = 9'd252;
     localparam [31:0] BUILD_INFO_WORD   = 32'h34FC_0400;
 
-    // ============================================================
-    // 1. Clock / Reset
-    // ============================================================
-
     reg aclk;
     reg aresetn;
 
     initial aclk = 1'b0;
     always #5 aclk = ~aclk;
-
-
-    // ============================================================
-    // 2. Version Generator inputs / status
-    // ============================================================
 
     reg         pkt_start;
     wire        pkt_busy;
@@ -42,21 +33,6 @@ module tb_difi_version_loopback;
     wire [3:0]  gen_tkeep;
     wire        gen_tlast;
 
-
-    // ============================================================
-    // 3. Testbench AXIS throttle between Generator and Parser
-    //
-    //    gate = 1:
-    //        generator <-> parser normal transfer
-    //
-    //    gate = 0:
-    //        generator sees READY=0
-    //        parser sees VALID=0
-    //
-    //    This allows deterministic link backpressure without causing
-    //    one side to consume a beat that the other side did not.
-    // ============================================================
-
     reg         link_gate;
 
     wire [31:0] parser_tdata;
@@ -73,11 +49,6 @@ module tb_difi_version_loopback;
     assign gen_tready    = parser_tready && link_gate;
 
     wire link_fire = gen_tvalid && gen_tready;
-
-
-    // ============================================================
-    // 4. Version Parser configuration / outputs
-    // ============================================================
 
     reg         cfg_stream_filter_enable;
     reg  [31:0] cfg_expected_stream_id;
@@ -99,11 +70,6 @@ module tb_difi_version_loopback;
     assign m_ver_ready = !manual_meta_block;
 
     wire meta_fire = m_ver_valid && m_ver_ready;
-
-
-    // ============================================================
-    // 5. DUT instances
-    // ============================================================
 
     difi_version_generator #(
         .BUILD_YEAR_OFFSET(BUILD_YEAR_OFFSET),
@@ -128,7 +94,6 @@ module tb_difi_version_loopback;
         .m_axis_pkt_tkeep      (gen_tkeep),
         .m_axis_pkt_tlast      (gen_tlast)
     );
-
 
     difi_version_parser u_version_parser (
         .aclk                  (aclk),
@@ -155,11 +120,6 @@ module tb_difi_version_loopback;
         .error_valid           (error_valid),
         .error_code            (error_code)
     );
-
-
-    // ============================================================
-    // 6. Testbench model / scoreboard storage
-    // ============================================================
 
     integer current_tc;
     integer passed;
@@ -197,7 +157,6 @@ module tb_difi_version_loopback;
     reg        previous_done;
     reg        completion_due;
 
-    // Expected metadata FIFO.
     reg [31:0] exp_sid     [0:QUEUE_DEPTH-1];
     reg [3:0]  exp_seq     [0:QUEUE_DEPTH-1];
     reg [31:0] exp_sec     [0:QUEUE_DEPTH-1];
@@ -207,11 +166,6 @@ module tb_difi_version_loopback;
 
     integer exp_wr;
     integer exp_rd;
-
-
-    // ============================================================
-    // 7. Common helpers
-    // ============================================================
 
     task fail;
         input [8*240-1:0] message;
@@ -233,7 +187,6 @@ module tb_difi_version_loopback;
         end
     endtask
 
-
     task clear_throttle_counters;
         integer j;
         begin
@@ -241,7 +194,6 @@ module tb_difi_version_loopback;
                 throttle_hits[j] = 0;
         end
     endtask
-
 
     task make_golden_packet;
         input [31:0] sid;
@@ -264,7 +216,6 @@ module tb_difi_version_loopback;
         end
     endtask
 
-
     task push_expected_metadata;
         input [31:0] sid;
         input [3:0]  seq;
@@ -285,8 +236,6 @@ module tb_difi_version_loopback;
         end
     endtask
 
-
-    // Full reset of DUTs and the testbench reference model.
     task reset_dut;
         integer j;
         begin
@@ -341,11 +290,6 @@ module tb_difi_version_loopback;
         end
     endtask
 
-
-    // Start one legal Version packet.
-    //
-    // The expected parser SID is intentionally configured separately so that
-    // the TX and RX configuration path is visible in the testbench.
     task launch_packet;
         input [31:0] sid;
         input [31:0] sec;
@@ -404,16 +348,14 @@ module tb_difi_version_loopback;
             );
 
             #2 pkt_start = 1'b1;
-            @(posedge aclk);     // pkt_start accepted here
+            @(posedge aclk);     
             @(negedge aclk);
             pkt_start = 1'b0;
 
-            // Generator accepted the request on the preceding posedge.
             if (pkt_busy !== 1'b1)
                 fail("Generator did not enter busy after a legal pkt_start");
         end
     endtask
-
 
     task wait_current_tx_done;
         integer waited;
@@ -433,7 +375,6 @@ module tb_difi_version_loopback;
         end
     endtask
 
-
     task wait_all_metadata;
         integer waited;
         begin
@@ -449,7 +390,6 @@ module tb_difi_version_loopback;
                 fail("Timeout waiting for Version metadata queue to drain");
         end
     endtask
-
 
     task run_packet;
         input [31:0] sid;
@@ -467,7 +407,6 @@ module tb_difi_version_loopback;
         end
     endtask
 
-
     task wait_until_tx_word_count;
         input integer target;
         integer waited;
@@ -484,7 +423,6 @@ module tb_difi_version_loopback;
         end
     endtask
 
-
     task wait_until_meta_valid;
         integer waited;
         begin
@@ -500,8 +438,6 @@ module tb_difi_version_loopback;
         end
     endtask
 
-
-    // A pkt_start with time_valid=0 must be rejected by the Version Generator.
     task rejected_start_without_time;
         integer before_wr;
         reg [3:0] before_seq;
@@ -541,17 +477,6 @@ module tb_difi_version_loopback;
             time_valid = 1'b1;
         end
     endtask
-
-
-    // ============================================================
-    // 8. Link throttle
-    //
-    // mode 0 : no extra stall
-    // mode 1 : W0/W5/W10 each stalled for 3 cycles
-    // mode 2 : every word stalled for 2 cycles
-    // mode 3 : deterministic pseudo-random stalls
-    // mode 4 : long stall on W10
-    // ============================================================
 
     always @(negedge aclk) begin
         #1;
@@ -616,11 +541,6 @@ module tb_difi_version_loopback;
         end
     end
 
-
-    // ============================================================
-    // 9. Main scoreboard / assertions
-    // ============================================================
-
     always @(posedge aclk) begin
         if (!aresetn) begin
             cycles          = 0;
@@ -631,10 +551,6 @@ module tb_difi_version_loopback;
         end
         else begin
             cycles = cycles + 1;
-
-            // ----------------------------------------------------
-            // Basic signal sanity
-            // ----------------------------------------------------
 
             if (gen_tvalid !== 1'b0 && gen_tvalid !== 1'b1)
                 fail("Generator TVALID is X/Z");
@@ -662,11 +578,6 @@ module tb_difi_version_loopback;
 
             previous_done = pkt_done;
 
-
-            // ----------------------------------------------------
-            // Generator must hold a stalled AXIS beat
-            // ----------------------------------------------------
-
             if (hold_gen) begin
                 if (gen_tvalid !== 1'b1 ||
                     gen_tdata  !== held_gen_data ||
@@ -683,12 +594,6 @@ module tb_difi_version_loopback;
                 held_gen_keep = gen_tkeep;
                 held_gen_last = gen_tlast;
             end
-
-
-            // ----------------------------------------------------
-            // Compare every presented Generator word to independent
-            // expected packet data.
-            // ----------------------------------------------------
 
             if (gen_tvalid === 1'b1) begin
                 if (!current_packet_active)
@@ -709,11 +614,6 @@ module tb_difi_version_loopback;
                     fail("Generator TLAST must appear only on Word10");
             end
 
-
-            // ----------------------------------------------------
-            // Count testbench-inserted link stalls
-            // ----------------------------------------------------
-
             if (current_packet_active &&
                 gen_tvalid === 1'b1 &&
                 link_gate === 1'b0) begin
@@ -724,18 +624,6 @@ module tb_difi_version_loopback;
                 throttle_hits[tx_word_seen] =
                     throttle_hits[tx_word_seen] + 1;
             end
-
-
-            // ----------------------------------------------------
-            // Generator completion pulse must be observed on the
-            // POSedge AFTER the final AXIS handshake.
-            //
-            // The DUT updates pkt_done/pkt_busy with nonblocking
-            // assignments on the final-handshake edge. Therefore this
-            // scoreboard must first service a completion armed by the
-            // PREVIOUS edge, and only afterwards inspect the current
-            // link_fire event.
-            // ----------------------------------------------------
 
             if (completion_due) begin
                 if (pkt_done !== 1'b1)
@@ -758,11 +646,6 @@ module tb_difi_version_loopback;
                 fail("Early or unarmed pkt_done");
             end
 
-
-            // ----------------------------------------------------
-            // Actual Generator -> Parser transfer
-            // ----------------------------------------------------
-
             if (link_fire) begin
                 if (!current_packet_active)
                     fail("Unexpected Version link transfer");
@@ -782,10 +665,9 @@ module tb_difi_version_loopback;
                     if (tx_last_seen != 1)
                         fail("More than one TLAST transfer in one Version packet");
 
-                    // Arm the completion check for the NEXT posedge.
                     completion_due = 1'b1;
 
-                    // Generator sequence changes only after a complete packet.
+                    // Update the TX sequence only after the full packet is sent.
                     model_seq = model_seq + 4'd1;
                     model_first_version_pending = 1'b0;
                 end
@@ -793,22 +675,11 @@ module tb_difi_version_loopback;
                 tx_word_seen = tx_word_seen + 1;
             end
 
-
-            // ----------------------------------------------------
-            // Parser should never report an error for packets produced
-            // by the Version Generator in this positive loopback bench.
-            // ----------------------------------------------------
-
             if (error_valid === 1'b1) begin
                 total_errors = total_errors + 1;
                 $display("       Unexpected parser error_code=%h", error_code);
                 fail("Parser rejected a packet generated by Version Generator");
             end
-
-
-            // ----------------------------------------------------
-            // Metadata must remain stable under backpressure
-            // ----------------------------------------------------
 
             if (hold_meta) begin
                 if (m_ver_valid     !== 1'b1 ||
@@ -832,11 +703,6 @@ module tb_difi_version_loopback;
                 held_meta_changed = m_ver_changed;
                 held_meta_info    = m_ver_info;
             end
-
-
-            // ----------------------------------------------------
-            // End-to-end metadata comparison
-            // ----------------------------------------------------
 
             if (m_ver_valid === 1'b1 && exp_rd >= exp_wr)
                 fail("Parser produced metadata with no expected transaction");
@@ -876,11 +742,6 @@ module tb_difi_version_loopback;
             end
         end
     end
-
-
-    // ============================================================
-    // 10. Test sequence
-    // ============================================================
 
     integer n;
 
@@ -928,12 +789,6 @@ module tb_difi_version_loopback;
         repeat (2) @(negedge aclk);
         reset_dut();
 
-
-        // --------------------------------------------------------
-        // TC1: Appendix-C style first packet
-        //      Seq=0, changed=1, SID=2, timestamp=100s + 0ps.
-        // --------------------------------------------------------
-
         current_tc = 1;
         run_packet(
             32'h0000_0002,
@@ -942,11 +797,6 @@ module tb_difi_version_loopback;
             0
         );
 
-
-        // --------------------------------------------------------
-        // TC2: Second packet must be changed=0 and Seq=1.
-        // --------------------------------------------------------
-
         current_tc = 2;
         run_packet(
             32'h0000_0002,
@@ -954,11 +804,6 @@ module tb_difi_version_loopback;
             64'd123456789,
             0
         );
-
-
-        // --------------------------------------------------------
-        // TC3: Selected-word AXIS backpressure.
-        // --------------------------------------------------------
 
         current_tc = 3;
         run_packet(
@@ -973,11 +818,6 @@ module tb_difi_version_loopback;
             throttle_hits[10] < 3)
             fail("TC3 did not actually exercise selected-word stalls");
 
-
-        // --------------------------------------------------------
-        // TC4: Every Version word is backpressured.
-        // --------------------------------------------------------
-
         current_tc = 4;
         run_packet(
             32'h0000_0002,
@@ -990,11 +830,6 @@ module tb_difi_version_loopback;
             if (throttle_hits[n] < 2)
                 fail("TC4 did not stall every Version word");
 
-
-        // --------------------------------------------------------
-        // TC5: Long stall on final Word10.
-        // --------------------------------------------------------
-
         current_tc = 5;
         run_packet(
             32'h0000_0002,
@@ -1006,15 +841,8 @@ module tb_difi_version_loopback;
         if (throttle_hits[10] < 25)
             fail("TC5 did not exercise long final-word backpressure");
 
-
-        // --------------------------------------------------------
-        // TC6: TX configuration/time snapshot + RX SID-filter snapshot.
-        //
-        // Generator inputs are changed immediately after pkt_start.
-        // Parser expected SID is changed only after Word0 has transferred.
-        // Both modules must continue using their packet-boundary snapshot.
-        // --------------------------------------------------------
-
+        // Keep using the configuration saved at the start of the current packet.
+        
         current_tc = 6;
 
         launch_packet(
@@ -1024,13 +852,11 @@ module tb_difi_version_loopback;
             1
         );
 
-        // Change live TX inputs after start acceptance.
         @(negedge aclk);
         cfg_version_stream_id = 32'hDEAD_BEEF;
         time_sec              = 32'hCAFE_BABE;
         time_ps               = 64'd1;
 
-        // Wait until Parser has accepted Word0, then alter filter config.
         wait_until_tx_word_count(1);
 
         @(negedge aclk);
@@ -1041,11 +867,6 @@ module tb_difi_version_loopback;
 
         $display("[PASS] TC%0d packet-boundary snapshot preserved on TX and RX", current_tc);
         passed = passed + 1;
-
-
-        // --------------------------------------------------------
-        // TC7: Metadata backpressure.
-        // --------------------------------------------------------
 
         current_tc = 7;
         manual_meta_block = 1'b1;
@@ -1060,8 +881,6 @@ module tb_difi_version_loopback;
         wait_current_tx_done();
         wait_until_meta_valid();
 
-        // Hold metadata for several cycles and rely on scoreboard stability
-        // checks during VALID=1/READY=0.
         repeat (12) @(negedge aclk);
 
         if (!m_ver_valid)
@@ -1072,15 +891,6 @@ module tb_difi_version_loopback;
 
         $display("[PASS] TC%0d metadata backpressure/stability", current_tc);
         passed = passed + 1;
-
-
-        // --------------------------------------------------------
-        // TC8: Start next Generator transaction while previous Parser
-        //      metadata is still blocked.
-        //
-        // Parser must deassert s_axis_pkt_tready in ST_META, therefore the
-        // next Generator Word0 must remain stable until old metadata commits.
-        // --------------------------------------------------------
 
         current_tc = 8;
         manual_meta_block = 1'b1;
@@ -1095,7 +905,6 @@ module tb_difi_version_loopback;
         wait_current_tx_done();
         wait_until_meta_valid();
 
-        // Generator is already idle, Parser is still holding metadata.
         launch_packet(
             32'h0000_0050,
             32'h4444_0002,
@@ -1103,7 +912,6 @@ module tb_difi_version_loopback;
             0
         );
 
-        // Parser must not accept the second packet yet.
         repeat (10) @(negedge aclk);
 
         if (tx_word_seen != 0)
@@ -1120,15 +928,6 @@ module tb_difi_version_loopback;
         $display("[PASS] TC%0d pending metadata backpressures the next packet", current_tc);
         passed = passed + 1;
 
-
-        // --------------------------------------------------------
-        // TC9: Change Version SID between packets.
-        //
-        // RX filter is updated before Word0, so the new stream is legal.
-        // Parser must establish/re-establish its single-stream sequence
-        // baseline for the new SID without reporting an error.
-        // --------------------------------------------------------
-
         current_tc = 9;
         run_packet(
             32'hABCD_0001,
@@ -1136,13 +935,6 @@ module tb_difi_version_loopback;
             64'd333,
             0
         );
-
-
-        // --------------------------------------------------------
-        // TC10: time_valid=0 request must be rejected. The following
-        //       valid packet must use the same Generator sequence number
-        //       that would have been used before the rejected request.
-        // --------------------------------------------------------
 
         current_tc = 10;
         rejected_start_without_time();
@@ -1153,13 +945,6 @@ module tb_difi_version_loopback;
             64'd444,
             0
         );
-
-
-        // --------------------------------------------------------
-        // TC11: Sequence wrap. Drive enough legal loopback packets so
-        //       Generator reaches Seq=15 and then wraps to Seq=0.
-        //       Parser must not report a discontinuity.
-        // --------------------------------------------------------
 
         current_tc = 11;
 
@@ -1172,7 +957,6 @@ module tb_difi_version_loopback;
             );
         end
 
-        // Packet with Seq=15.
         run_packet(
             32'hABCD_0001,
             32'h6FFF_000F,
@@ -1183,21 +967,12 @@ module tb_difi_version_loopback;
         if (model_seq !== 4'h0)
             fail("Generator sequence did not wrap 15 -> 0");
 
-        // Packet with Seq=0 after wrap.
         run_packet(
             32'hABCD_0001,
             32'h7000_0000,
             64'd16,
             1
         );
-
-
-        // --------------------------------------------------------
-        // TC12: Reset recovery.
-        //
-        // After reset both TX and RX sequence state is cleared, and the
-        // first Version packet must again carry changed=1, Seq=0.
-        // --------------------------------------------------------
 
         current_tc = 12;
 
@@ -1210,11 +985,6 @@ module tb_difi_version_loopback;
             64'd0,
             0
         );
-
-
-        // ========================================================
-        // Final result
-        // ========================================================
 
         repeat (10) @(negedge aclk);
 

@@ -1,6 +1,6 @@
 #ifndef DIFI_TIME_REGMAP_H
 #define DIFI_TIME_REGMAP_H
-// C mirror of rtl/include/difi_time_cfg_regmap.vh.
+
 #define DIFI_TIME_SEC_OFFSET        0x00U
 #define DIFI_TIME_PS_LO_OFFSET      0x04U
 #define DIFI_TIME_PS_HI_OFFSET      0x08U

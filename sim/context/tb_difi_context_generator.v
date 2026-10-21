@@ -1,18 +1,11 @@
 `timescale 1ns / 1ps
 `include "difi_v1_1_defs.vh"
 
-// Self-checking, Verilog-2001 testbench for the CORRECTED user-posted
-// difi_context_generator (ST_SEND: pkt_busy = 1'b1).
-// Reference words are deliberately independent of DUT `define values.
-// This bench checks the 27-word packet itself, NOT cfg_regs/Scheduler/UDP.
 module tb_difi_context_generator;
     localparam integer WORDS       = 27;
     localparam integer WAIT_LIMIT  = 20000;
     localparam [63:0] MAX_PS       = 64'd999999999999;
 
-    // ------------------------------------------------------------------
-    // 1. DUT, clock, AXIS, controls
-    // ------------------------------------------------------------------
     reg         aclk, aresetn;
     reg         pkt_start;
     wire        pkt_busy, pkt_done;
@@ -51,9 +44,6 @@ module tb_difi_context_generator;
     initial aclk = 1'b0;
     always #5 aclk = ~aclk;
 
-    // ------------------------------------------------------------------
-    // 2. Independent golden packet / testcase bookkeeping
-    // ------------------------------------------------------------------
     reg [31:0] golden_word [0:WORDS-1];
     reg [3:0]  model_seq;
     reg        golden_change;
@@ -86,8 +76,7 @@ module tb_difi_context_generator;
         end
     endtask
 
-    // 27 protocol words, built from the INPUT SNAPSHOT, not the RTL macros.
-    // 64-bit scaling is performed before separating the high/low words.
+    // Scale in 64 bits before splitting the high and low words.
     task make_golden;
         input [31:0] sid, fs_hz, bw_hz, sec;
         input [63:0] rf_hz, ps;
@@ -114,19 +103,17 @@ module tb_difi_context_generator;
             golden_word[8]  = 32'h00000064;
             golden_word[9]  = bw_scaled[63:32];
             golden_word[10] = bw_scaled[31:0];
-            // 11,12: IF frequency; 15,16: IF offset; 17,18: ref/gain
+            
             golden_word[13] = rf_scaled[63:32];
             golden_word[14] = rf_scaled[31:0];
             golden_word[19] = fs_scaled[63:32];
             golden_word[20] = fs_scaled[31:0];
-            // 21..24: adjustment, calibration and state/event
+            
             golden_word[25] = 32'hA00003CF;
             golden_word[26] = 32'h00000000;
         end
     endtask
 
-    // Appendix C.2 of the project's v1.0 protocol specification, explicitly
-    // transcribed as independent known-answer data (all 27 words).
     task check_reference_fixture;
         reg [31:0] literal [0:WORDS-1];
         integer n;
@@ -149,11 +136,6 @@ module tb_difi_context_generator;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 3. Scoreboard: SAMPLE HANDSHAKES ON POSEDGE (pre-NBA).
-    //    Completion pulse is observed on the NEXT posedge, since the DUT
-    //    registers it using nonblocking assignments at the last handshake.
-    // ------------------------------------------------------------------
     always @(posedge aclk) begin
         if (!aresetn) begin
             held_beat            = 1'b0;
@@ -181,7 +163,6 @@ module tb_difi_context_generator;
             previous_done   = pkt_done;
             previous_change = context_change_done;
 
-            // An earlier last-word handshake is the ONLY valid completion.
             if (completion_due) begin
                 if (pkt_done !== 1'b1)
                     fail("Missing pkt_done immediately after last-word handshake");
@@ -221,7 +202,6 @@ module tb_difi_context_generator;
                     fail("AXIS beat changed while backpressured");
             end
 
-            // Compare a presented word even when TREADY=0, not merely on fire.
             if (m_axis_pkt_tvalid === 1'b1) begin
                 if (!watch_active || word_seen >= WORDS)
                     fail("Unarmed/extra output word");
@@ -260,11 +240,6 @@ module tb_difi_context_generator;
         end
     end
 
-    // Sole owner of TREADY. Deterministic stalls can be reproduced exactly;
-    // #1 ensures testcase changes made on a negedge are seen before driving.
-    // 0: always ready; 1: selected words; 2: EVERY word; 3: pseudo-random;
-    // 4: long Word26 stall; 5: indefinitely stall a selected word (reset test);
-    // 6: bursty ready, including forced stalls at the endpoints.
     always @(negedge aclk) begin
         #1;
         if (!aresetn) begin
@@ -320,9 +295,6 @@ module tb_difi_context_generator;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 4. Drive inputs on falling edges; no posedge stimulus/scoreboard race.
-    // ------------------------------------------------------------------
     task begin_packet;
         input [31:0] sid, fs, bw, sec;
         input [63:0] rf, ps;
@@ -352,9 +324,9 @@ module tb_difi_context_generator;
             golden_change = change_bit;
             make_golden(sid, fs, bw, sec, rf, ps, change_bit);
             watch_active = 1'b1;
-            // Everything above is stable before pkt_start's sampling edge.
+            
             #2 pkt_start = 1'b1;
-            @(posedge aclk); // accepted here; scoreboard checks acceptance
+            @(posedge aclk); 
             @(negedge aclk);
             pkt_start = 1'b0;
         end
@@ -365,8 +337,7 @@ module tb_difi_context_generator;
         integer waited;
         begin
             waited = 0;
-            // >=target words have actually HANDSHAKEN. For target=26,
-            // the following presented word is Word26 (the final beat).
+            
             while (word_seen < target && waited < WAIT_LIMIT) begin
                 @(negedge aclk);
                 waited = waited + 1;
@@ -384,7 +355,7 @@ module tb_difi_context_generator;
                 waited = waited + 1;
             end
             if (done_seen != 1) fail("Timeout waiting for complete packet/done");
-            repeat (6) @(negedge aclk); // catch late or repeated completions
+            repeat (6) @(negedge aclk); 
             if (word_seen != WORDS || last_seen != 1 || starts_seen != 1 ||
                 done_seen != 1 || change_seen != (golden_change ? 1 : 0))
                 fail("Final word/start/done/change scoreboard counts mismatch");
@@ -435,7 +406,7 @@ module tb_difi_context_generator;
             @(negedge aclk);
             aresetn = 1'b0;
             pkt_start = 1'b0;
-            watch_active = 1'b0; // aborted in-flight output is NOT expected
+            watch_active = 1'b0; 
             ready_mode = 0;
             cfg_context_change_pending = 1'b0;
             time_valid = 1'b0;
@@ -462,7 +433,7 @@ module tb_difi_context_generator;
                          32'd10000000,32'd500+index,
                          64'd2400000000,64'd123456789,
                          1'b1,5);
-            // Switch to permanent stall at this particular word.
+            
             @(negedge aclk);
             stall_word = index;
             wait_until_word(index);
@@ -476,15 +447,12 @@ module tb_difi_context_generator;
                 done_seen != 0 || change_seen != 0)
                 fail("Failed to arrange an in-flight stalled packet for reset");
             reset_dut;
-            // After abort, sequence restarts at zero; no stale output may leak.
+            // Restart the sequence at zero after abort; no stale output should remain.
             run_packet(32'd1,32'd20000000,32'd10000000,32'd600+index,
                        64'd100000000,64'd0,1'b1,0);
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 5. Directed, reference, stress, start/complete/reset test plan
-    // ------------------------------------------------------------------
     integer j, p;
     reg [63:0] rf_var, ps_var;
     reg [31:0] fs_var, bw_var, sid_var;
@@ -521,7 +489,7 @@ module tb_difi_context_generator;
 
         current_tc=1;
         $display("\n=== TC01: project Appendix C.2 complete 27-word known-answer vector ===");
-        // First packet after reset: Seq=0, changed=1, sec=100, ps=0.
+        
         begin_packet(32'd1,32'd20000000,32'd10000000,32'd100,
                      64'd100000000,64'd0,1'b1,0);
         check_reference_fixture;
@@ -586,8 +554,7 @@ module tb_difi_context_generator;
         $display("\n=== TC08: all config/time/pending change immediately AFTER accept ===");
         begin_packet(32'h00000111,32'd20000000,32'd10000000,32'd300,
                      64'd4900000000,64'd100,1'b1,1);
-        // begin_packet returned after start edge. The next Word0 is stalled;
-        // changes here MUST NOT affect any of the 27 emitted words.
+        
         cfg_data_stream_id=32'h99999999;
         cfg_sample_rate_hz=32'd0;
         cfg_bandwidth_hz=32'd0;
@@ -597,7 +564,7 @@ module tb_difi_context_generator;
         time_ps=64'hFFFFFFFFFFFFFFFF;
         time_valid=0;
         finish_packet;
-        // Confirm that a subsequent packet uses new (valid) live inputs.
+        
         run_packet(32'h99999999,32'd25000000,32'd12500000,32'd301,
                    64'd7700000000,64'd1234,1'b0,0);
 
@@ -606,7 +573,7 @@ module tb_difi_context_generator;
         begin_packet(32'hAABBCCDD,32'd40000000,32'd30000000,32'd400,
                      64'd3500000000,64'd987654321000,1'b0,2);
         wait_until_word(13);
-        // Both high/low RF words must remain from the original snapshot.
+        
         @(negedge aclk);
         cfg_rf_freq_hz=64'd100000000000;
         cfg_sample_rate_hz=32'd2;
@@ -617,8 +584,7 @@ module tb_difi_context_generator;
         time_ps=64'd0;
         time_valid=0;
         finish_packet;
-        // changed was 0 at accept, hence NO change_done even if pending rose.
-
+        
         current_tc=10;
         $display("\n=== TC10: pkt_start while busy ignored, even if time_valid toggles ===");
         begin_packet(32'd77,32'd10000000,32'd5000000,32'd401,
@@ -630,7 +596,7 @@ module tb_difi_context_generator;
         repeat (4) @(negedge aclk);
         pkt_start=0;
         time_valid=1;
-        finish_packet; // starts_seen must still equal 1; no phantom packet
+        finish_packet; 
 
         current_tc=11;
         $display("\n=== TC11: pending changes at LAST WORD are not re-snapshotted ===");
@@ -638,12 +604,11 @@ module tb_difi_context_generator;
                      64'd4300000000,64'd11,1'b0,4);
         wait_until_word(26);
         @(negedge aclk);
-        cfg_context_change_pending=1; // represents a later change/commit
-        finish_packet; // change_done must remain 0 for THIS packet
+        cfg_context_change_pending=1; 
+        finish_packet; 
         run_packet(32'd78,32'd30000000,32'd15000000,32'd403,
                    64'd4300000000,64'd12,1'b1,0);
-        // Conversely, dropping the live pending during a changed packet
-        // must NOT suppress its completion acknowledgement.
+        
         begin_packet(32'd78,32'd30000000,32'd15000000,32'd404,
                      64'd4300000000,64'd13,1'b1,4);
         wait_until_word(26);

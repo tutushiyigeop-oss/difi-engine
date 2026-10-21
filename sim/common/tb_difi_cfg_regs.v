@@ -1,9 +1,6 @@
 `timescale 1ns/1ps
 `include "difi_cfg_regmap.vh"
 
-// Verilog-2001 standalone, self-checking testbench for difi_cfg_regs (v1.4).
-// Only the DUT is instantiated. Scheduler ACK / Context Done are modeled at the
-// interface so their edge cases are tested independently of Scheduler behavior.
 module tb_difi_cfg_regs;
     localparam integer CLK_PERIOD_NS = 10;
     localparam integer TIMEOUT_CYCLES = 100;
@@ -96,8 +93,6 @@ module tb_difi_cfg_regs;
         .cfg_rx_expected_version_stream_id(cfg_rx_expected_version_stream_id)
     );
 
-    // Passive independent protocol monitors: remain active during *all* tests.
-    // Sample at the rising edge (pre-NBA values) to check the previous stall.
     always @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             last_bstall <= 1'b0;
@@ -233,7 +228,7 @@ module tb_difi_cfg_regs;
         end
     endtask
 
-    // BREADY stays low until the response was checked, including optional stall.
+    // Raise BREADY only after checking the response.
     task automatic collect_b;
         input [1:0] exp_resp;
         input integer hold_cycles;
@@ -341,13 +336,12 @@ module tb_difi_cfg_regs;
         end
     endtask
 
-    // Exercise all 16 WSTRB masks against an independent byte-merge oracle.
     task automatic sweep_all_wstrb;
         reg [31:0] expected;
         reg [31:0] payload;
         integer mask_idx, byte_idx;
         begin
-            expected = 32'hAA00_00DD; // previously written RX_DATA_SID value
+            expected = 32'hAA00_00DD; 
             for (mask_idx = 0; mask_idx < 16; mask_idx = mask_idx + 1) begin
                 payload = 32'h7654_3210 ^ (32'h0102_0408 * mask_idx);
                 for (byte_idx = 0; byte_idx < 4; byte_idx = byte_idx + 1)
@@ -477,10 +471,10 @@ module tb_difi_cfg_regs;
         eq1("initial context Done clears pending", context_change_pending, 0);
 
         scenario("AW/W ordering, WSTRB, reserved control bits, R/B stalls");
-        wr(`DIFI_REG_CONTROL, 32'hFFFF_FFFF, 4'b0001, `BRESP_OKAY, 0, 5, 5);  // AW first
+        wr(`DIFI_REG_CONTROL, 32'hFFFF_FFFF, 4'b0001, `BRESP_OKAY, 0, 5, 5);  
         eq1("control enable", tx_enable, 1);
         rd(`DIFI_REG_CONTROL, 1, `RRESP_OKAY, 9);
-        wr(`DIFI_REG_CONTROL, 32'd0, 4'b0001, `BRESP_OKAY, 7, 0, 0); // W first
+        wr(`DIFI_REG_CONTROL, 32'd0, 4'b0001, `BRESP_OKAY, 7, 0, 0); 
         eq1("control disable", tx_enable, 0);
         wr(`DIFI_REG_CONTROL, 32'hFFFF_FFFF, 4'b0000, `BRESP_OKAY, 0, 0, 0);
         eq1("zero strobe control", tx_enable, 0);
@@ -488,7 +482,7 @@ module tb_difi_cfg_regs;
         rd_ok(`DIFI_REG_DATA_STREAM_ID, 32'h0022_0044);
         wr_ok(`DIFI_REG_DATA_STREAM_ID, SID_NEW);
         wr(`DIFI_REG_SAMPLES_PER_PACKET, 32'hDEAD_BEEF, 4'b1100, `BRESP_OKAY, 0, 0, 0);
-        rd_ok(`DIFI_REG_SAMPLES_PER_PACKET, 256); // upper 16 bits ignored
+        rd_ok(`DIFI_REG_SAMPLES_PER_PACKET, 256); 
         wr(`DIFI_REG_SAMPLES_PER_PACKET, 32'hFFFF_0010, 4'b0011, `BRESP_OKAY, 0, 0, 0);
         rd_ok(`DIFI_REG_SAMPLES_PER_PACKET, 16);
         wr(`DIFI_REG_RX_FILTER_CTRL, 32'hFFFF_FFFF, 4'b0010, `BRESP_OKAY, 0, 0, 0);
@@ -534,18 +528,16 @@ module tb_difi_cfg_regs;
         rd(8'h61, 0, `RRESP_DECERR, 0);
         rd(8'h64, 0, `RRESP_DECERR, 0);
         rd(8'hFF, 0, `RRESP_DECERR, 0);
-        rd_ok(`DIFI_REG_LAST_COMMIT_ERROR, 0); // no commit error from bus errors
+        rd_ok(`DIFI_REG_LAST_COMMIT_ERROR, 0); 
 
         scenario("same-cycle AR and write execution returns PRE-write snapshot");
-        // Complete AW/W handshakes (at edge A), FSM transitions to EXECUTE
-        // one rising edge later (B). AR is then driven before edge C, when
-        // the pending write actually executes. Read returns old Shadow value.
+        
         fork
             send_aw(`DIFI_REG_VERSION_STREAM_ID);
             send_w(32'h1234_5678, 4'hF);
         join
-        @(posedge aclk); // edge B: state transitions to EXECUTE
-        send_ar(`DIFI_REG_VERSION_STREAM_ID); // edge C: read & write same edge
+        @(posedge aclk); 
+        send_ar(`DIFI_REG_VERSION_STREAM_ID); 
         collect_r(2, `RRESP_OKAY, 4);
         collect_b(`BRESP_OKAY, 2);
         rd_ok(`DIFI_REG_VERSION_STREAM_ID, 32'h1234_5678);
@@ -596,7 +588,7 @@ module tb_difi_cfg_regs;
         wr_ok(`DIFI_REG_BANDWIDTH_HZ, 32'd1_000_000);
         wr_ok(`DIFI_REG_RF_FREQ_LOW, RF_NEW[31:0]);
         wr_ok(`DIFI_REG_RF_FREQ_HIGH, RF_NEW[63:32]);
-        wr_ok(`DIFI_REG_CONTEXT_PERIOD_MS, 0); // zero disables periodic only
+        wr_ok(`DIFI_REG_CONTEXT_PERIOD_MS, 0); 
         wr_ok(`DIFI_REG_VERSION_PERIOD_MS, 250);
         rd_ok(`DIFI_REG_ACTIVE_DATA_SID, 1);
         wr_ok(`DIFI_REG_COMMAND, 1);
@@ -613,10 +605,10 @@ module tb_difi_cfg_regs;
         wr(`DIFI_REG_COMMAND, 1, 4'h1, `BRESP_SLVERR, 0, 0, 0);
         rd_ok(`DIFI_REG_LAST_COMMIT_ERROR, `DIFI_COMMIT_ERR_BUSY);
         rd_ok(`DIFI_REG_STATUS, 32'h21);
-        wr_ok(`DIFI_REG_RX_VERSION_SID, 32'h1122_7788); // allowed while pending
+        wr_ok(`DIFI_REG_RX_VERSION_SID, 32'h1122_7788); 
         eq32("RX filter bypasses TX commit", cfg_rx_expected_version_stream_id, 32'h1122_7788);
-        wr_ok(`DIFI_REG_CONTROL, 32'd0); // allowed while pending
-        tx_busy = 1; time_valid = 0; // must NOT be prerequisites for ACK
+        wr_ok(`DIFI_REG_CONTROL, 32'd0); 
+        tx_busy = 1; time_valid = 0; 
         pulse_ack();
         eq1("req cleared on ack", cfg_commit_req, 0);
         eq1("ctx pending set on ack", context_change_pending, 1);
@@ -630,11 +622,11 @@ module tb_difi_cfg_regs;
         eq32("committed ver period", cfg_version_period_ms, 250);
         rd_ok(`DIFI_REG_ACTIVE_RF_LOW, RF_NEW[31:0]);
         rd_ok(`DIFI_REG_ACTIVE_RF_HIGH, RF_NEW[63:32]);
-        rd_ok(`DIFI_REG_STATUS, 32'h26); // error + tx busy + context pending
+        rd_ok(`DIFI_REG_STATUS, 32'h26); 
         pulse_done();
         eq1("ctx pending cleared by done", context_change_pending, 0);
         tx_busy = 0; time_valid = 0;
-        pulse_ack(); // spurious ACK must do nothing
+        pulse_ack(); 
         eq1("spurious ACK leaves pending clear", context_change_pending, 0);
         eq32("spurious ACK leaves active unchanged", cfg_data_stream_id, SID_NEW);
 
@@ -642,7 +634,7 @@ module tb_difi_cfg_regs;
         wr_ok(`DIFI_REG_SAMPLES_PER_PACKET, 0);
         wr_ok(`DIFI_REG_SAMPLE_RATE_HZ, 0);
         wr_ok(`DIFI_REG_BANDWIDTH_HZ, 0);
-        invalid_commit(`DIFI_COMMIT_ERR_SAMPLES); // multiple errors -> first error
+        invalid_commit(`DIFI_COMMIT_ERR_SAMPLES); 
         wr_ok(`DIFI_REG_SAMPLES_PER_PACKET, 257);
         invalid_commit(`DIFI_COMMIT_ERR_SAMPLES);
         wr_ok(`DIFI_REG_SAMPLES_PER_PACKET, 16);
@@ -652,7 +644,7 @@ module tb_difi_cfg_regs;
         wr_ok(`DIFI_REG_BANDWIDTH_HZ, 2_000_001);
         invalid_commit(`DIFI_COMMIT_ERR_BANDWIDTH);
         wr_ok(`DIFI_REG_BANDWIDTH_HZ, 1_000_000);
-        wr_ok(`DIFI_REG_RF_FREQ_HIGH, 32'h0000_0020); // >100 GHz
+        wr_ok(`DIFI_REG_RF_FREQ_HIGH, 32'h0000_0020); 
         invalid_commit(`DIFI_COMMIT_ERR_RF_FREQ);
         eq32("rejected config must not mutate active", cfg_data_stream_id, SID_NEW);
         eq64("rejected RF must not mutate active", cfg_rf_freq_hz, RF_NEW);
@@ -666,7 +658,7 @@ module tb_difi_cfg_regs;
         wr_ok(`DIFI_REG_COMMAND, 1);
         eq1("accepted req", cfg_commit_req, 1);
         rd_ok(`DIFI_REG_LAST_COMMIT_ERROR, 0);
-        // old changed Context completes on precisely the new ACK edge
+        
         @(negedge aclk);
         context_change_done = 1;
         cfg_commit_ack = 1;

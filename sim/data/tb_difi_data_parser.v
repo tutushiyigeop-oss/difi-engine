@@ -3,14 +3,11 @@
 
 module tb_difi_data_parser;
     localparam integer MAX_SAMPLES = 256;
-    localparam integer MAX_WORDS   = 600; // also tests prolonged ST_DROP
+    localparam integer MAX_WORDS   = 600; 
     localparam integer WAIT_LIMIT  = 20000;
     localparam integer RUN_TIMESTAMP_STRICT = 0;
     localparam integer RUN_MULTI_SID_STRICT = 0;
 
-    // ------------------------------------------------------------------
-    // 1. DUT and clock
-    // ------------------------------------------------------------------
     reg         aclk, aresetn;
     reg  [31:0] s_axis_pkt_tdata;
     reg         s_axis_pkt_tvalid;
@@ -63,9 +60,6 @@ module tb_difi_data_parser;
     initial aclk = 1'b0;
     always #5 aclk = ~aclk;
 
-    // ------------------------------------------------------------------
-    // 2. Independent packet generator + expected IQ
-    // ------------------------------------------------------------------
     reg [31:0] tx_word [0:MAX_WORDS-1];
     reg [3:0]  tx_keep [0:MAX_WORDS-1];
     reg        tx_last [0:MAX_WORDS-1];
@@ -91,7 +85,6 @@ module tb_difi_data_parser;
     reg [15:0] held_count;
     reg previous_err;
 
-    // Only the negedge-ready driver owns the downstream READY signals.
     reg stall_meta, stall_iq;
     integer meta_stall_cycles, iq_stall_cycles;
     integer meta_stall_hits;
@@ -127,7 +120,6 @@ module tb_difi_data_parser;
         end
     endfunction
 
-    // Packet builder: all words and TLAST positions explicit, easy to corrupt.
     task make_packet;
         input integer n;
         input [31:0] sid, sec;
@@ -196,9 +188,6 @@ module tb_difi_data_parser;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 3. Scoreboard. Sample real transfers at POSedge only.
-    // ------------------------------------------------------------------
     always @(posedge aclk) begin
         if (!aresetn) begin
             hold_iq = 1'b0;
@@ -327,8 +316,6 @@ module tb_difi_data_parser;
         end
     end
 
-    // Selectively backpressure metadata and IQ independently.
-    // READY is exclusively driven here to avoid multiple-driver races.
     always @(negedge aclk) begin
         if (!aresetn) begin
             m_meta_ready = 1'b1;
@@ -351,9 +338,6 @@ module tb_difi_data_parser;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 4. Drive on falling edges; do not advance a beat without handshake.
-    // ------------------------------------------------------------------
     task send_word;
         input [31:0] data;
         input [3:0] keep;
@@ -414,7 +398,7 @@ module tb_difi_data_parser;
             end
             if (waits >= WAIT_LIMIT)
                 fail("Timeout waiting for expected metadata/IQ/error");
-            // Guard against late, duplicate or unexpected transfers/events.
+            
             repeat (5) @(negedge aclk);
             if (rx_seen != tx_len || rx_last_seen != 1 ||
                 meta_seen != golden_meta_count || iq_seen != golden_n ||
@@ -496,15 +480,12 @@ module tb_difi_data_parser;
         input [63:0] ps;
         begin
             make_packet(n,sid,sec,seq,ps,tag,0);
-            // Nonfatal: one SEQ event AND valid metadata AND all IQ samples.
+            
             arm_case(n,tag,0,2,`DIFI_ERR_SEQ,sid,sec,seq,ps,0,0);
             execute_case;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 5. Test plan: positive, malformed, priority, sequence, flow control.
-    // ------------------------------------------------------------------
     integer j, p, bad_at, n, old_err;
     initial begin
         aresetn = 1'b0;
@@ -632,11 +613,11 @@ module tb_difi_data_parser;
             tx_len=1;
             tx_last[0]=1;
             case(p)
-                0: begin end // only premature TLAST
-                1: tx_word[0] = tx_word[0] ^ 32'h1000_0000; // Type beats TLAST
-                2: tx_word[0] = tx_word[0] ^ 32'h0800_0000; // Header beats TLAST
-                3: tx_word[0] = (tx_word[0] & 32'hFFFF_0000); // TLAST beats SIZE
-                4: tx_keep[0] = 4'b0111; // TLAST beats TKEEP
+                0: begin end 
+                1: tx_word[0] = tx_word[0] ^ 32'h1000_0000; 
+                2: tx_word[0] = tx_word[0] ^ 32'h0800_0000; 
+                3: tx_word[0] = (tx_word[0] & 32'hFFFF_0000); 
+                4: tx_keep[0] = 4'b0111; 
             endcase
             if (p==1)
                 run_bad(4,120+p,0,`DIFI_ERR_UNSUPPORTED_TYPE,32'd1,32'd503,4'd0,64'd0);
@@ -695,9 +676,9 @@ module tb_difi_data_parser;
             tx_len=p+1;
             tx_last[p]=1;
             tx_keep[p]=4'b0011;
-            if (p==1) tx_word[p]=32'd2; // SID mismatch as well
-            if (p==2) tx_word[p]=32'd0; // OUI mismatch as well
-            if (p==3) tx_word[p]=32'd1; // Class mismatch as well
+            if (p==1) tx_word[p]=32'd2; 
+            if (p==2) tx_word[p]=32'd0; 
+            if (p==3) tx_word[p]=32'd1; 
             run_bad(4,190+p,0,`DIFI_ERR_TRUNCATED,32'd1,32'd509,4'd0,64'd0);
         end
         make_packet(4,32'd2,32'd510,4'd0,64'd0,195,0);
@@ -742,9 +723,7 @@ module tb_difi_data_parser;
         make_packet(4,32'h0000_0011,32'd600,4'd7,64'd9876,220,0);
         arm_case(4,220,0,0,4'd0,32'h11,32'd600,4'd7,64'd9876,0,0);
         send_word(tx_word[0],tx_keep[0],tx_last[0]);
-        // send_word returns at the Word0 handshake posedge. Retire that
-        // beat at the next negedge before waiting inside send_word again;
-        // otherwise the still-valid Word0 is received a second time.
+        
         @(negedge aclk);
         s_axis_pkt_tvalid=1'b0;
         cfg_stream_filter_enable=0;
@@ -755,12 +734,12 @@ module tb_difi_data_parser;
         finish_case;
         cfg_stream_filter_enable=1;
         run_good(4,221,0,0,0,32'h22,32'd601,4'd8,64'd5678);
-        // Disabled filter remains disabled for *this* packet even if enabled after Word0.
+        // Enabling the filter after Word0 does not affect the current packet.
         cfg_stream_filter_enable=0;
         make_packet(4,32'h1234_5678,32'd602,4'd9,64'd0,222,0);
         arm_case(4,222,0,0,4'd0,32'h1234_5678,32'd602,4'd9,64'd0,0,0);
         send_word(tx_word[0],tx_keep[0],tx_last[0]);
-        // Same beat-retirement requirement for the reverse snapshot case.
+        
         @(negedge aclk);
         s_axis_pkt_tvalid=1'b0;
         cfg_stream_filter_enable=1;
@@ -792,14 +771,13 @@ module tb_difi_data_parser;
         meta_stall_cycles=12;
         iq_stall_cycles=12;
         transmit_prepared;
-        // Probe READY without presenting a beat: don't illegally retract TVALID
-        // while stalled. TC24/25 present a REAL pending beat until reset.
+        
         repeat(4) begin
             @(posedge aclk);
             if(s_axis_pkt_tready !== 0 || m_meta_valid !== 1)
                 fail("Input READY high during metadata pending");
         end
-        // Metadata handshake eventually occurs; wait until IQ output starts.
+        
         p=0;
         while (m_axis_iq_tvalid !== 1 && p<200) begin
             @(negedge aclk);
@@ -840,7 +818,7 @@ module tb_difi_data_parser;
                m_axis_iq_tvalid !== 0 || s_axis_pkt_tready !== 0)
                 fail("Metadata or held next Word0 wasn't blocked before reset");
         end
-        reset_dut; // Reset aborts BOTH pending AXIS transactions.
+        reset_dut; 
         run_good(4,261,0,0,0,32'd1,32'd703,4'd4,64'd0);
 
         current_tc=25;
@@ -913,7 +891,7 @@ module tb_difi_data_parser;
         current_tc=28;
         $display("\n=== TC28: known spec gaps (opt-in strict tests) ===");
         if (RUN_MULTI_SID_STRICT != 0) begin
-            // EXPECTED FAIL with current RTL: no SID-keyed sequence baseline.
+            
             reset_dut;
             cfg_stream_filter_enable=0;
             run_good(4,280,0,0,0,32'd1,32'd800,4'd3,64'd0);
@@ -925,7 +903,7 @@ module tb_difi_data_parser;
         end
         if (RUN_TIMESTAMP_STRICT != 0) begin
 `ifdef DIFI_ERR_TIMESTAMP
-            // Enable only after the header AND the DUT define timestamp validation.
+            
             reset_dut;
             cfg_stream_filter_enable=1;
             cfg_expected_stream_id=32'd1;

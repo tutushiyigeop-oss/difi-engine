@@ -1,10 +1,4 @@
-// DIFI Stage B3: Internal TX->RX loopback adapter + GPIO metadata monitor.
-// Vivado 2024.2 / Zynq XC7Z020 / 100 MHz PL clock / Verilog-2001.
-// DMA MM2S IQ => DIFI TX => DIFI RX => DMA S2MM decoded IQ.
-// Context and Version metadata and error events are latched and exposed via
-// the existing AXI GPIO configured as CH1 5-bit output (dbg_page),
-// CH2 32-bit input (dbg_rdata). No changes to frozen core RTL.
-// TX must be enabled by AXI4-Lite after configuration commit.
+// Enable TX through AXI4-Lite after committing the configuration.
 module difi_engine_board_b3 (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 aclk CLK" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME aclk, ASSOCIATED_BUSIF S_AXIS_IQ:M_AXIS_IQ:S_AXI_CTRL, ASSOCIATED_RESET aresetn" *)
@@ -53,9 +47,6 @@ module difi_engine_board_b3 (
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_CTRL RREADY" *)
     input  wire        s_axi_rready,
 
-    // 256 I16/Q16 IQ samples from AXI DMA MM2S.
-    // Incoming TLAST/TKEEP are supplied by DMA but packetizer determines
-    // DIFI boundaries using cfg_samples_per_packet (not input TLAST).
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TDATA" *)
     input wire [31:0] s_axis_iq_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TVALID" *)
@@ -67,7 +58,6 @@ module difi_engine_board_b3 (
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_IQ TLAST" *)
     input wire s_axis_iq_tlast,
 
-    // Parsed IQ to DMA S2MM; each IQ word is four valid bytes.
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TDATA" *)
     output wire [31:0] m_axis_iq_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TVALID" *)
@@ -79,7 +69,6 @@ module difi_engine_board_b3 (
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TLAST" *)
     output wire m_axis_iq_tlast,
 
-    // Monitoring read mux controlled by AXI GPIO channel 1.
     input wire [4:0] dbg_page,
     output reg [31:0] dbg_rdata
 );
@@ -104,8 +93,6 @@ wire [3:0] e_dispatch_code, e_data_code, e_ctx_code, e_ver_code;
 wire [31:0] unused_context_period, unused_version_period;
 wire unused_tx_busy;
 
-// Local loopback: exactly the TX AXI-stream beats accepted by the RX engine.
-// In the shared 100-MHz domain no FIFO/CDC is necessary for this test.
 wire [31:0] loop_pkt_tdata;
 wire        loop_pkt_tvalid;
 wire        loop_pkt_tready;
@@ -113,7 +100,6 @@ wire [3:0]  loop_pkt_tkeep;
 wire        loop_pkt_tlast;
 wire        loop_pkt_hs = loop_pkt_tvalid && loop_pkt_tready;
 reg  [31:0] tx_packet_count, tx_beat_count;
-
 
 difi_engine_top u_engine (
   .aclk(aclk), .aresetn(aresetn),
@@ -249,8 +235,6 @@ always @(posedge aclk or negedge aresetn) begin
   end
 end
 
-// GPIO register selectors: 0=ID, 1..3=accepted packet counts,
-// 4..7=error counts, 8=last error source/code, rest=snapshots.
 always @(*) begin
   dbg_rdata = 32'd0;
   case(dbg_page)

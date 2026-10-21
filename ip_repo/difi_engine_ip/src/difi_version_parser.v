@@ -26,8 +26,6 @@ module difi_version_parser (
     output reg  [3:0]  error_code
 );
 
-
-// FSM State Defination
 reg [1:0] current_state;
 reg [1:0] next_state;
 localparam ST_IDLE = 2'd0;
@@ -35,19 +33,13 @@ localparam ST_RECV = 2'd1;
 localparam ST_DROP = 2'd2;
 localparam ST_META = 2'd3;
 
-
-// Handshake
 wire s_axis_handshake;
 wire m_ver_handshake;
 assign s_axis_handshake = s_axis_pkt_tvalid & s_axis_pkt_tready;
 assign m_ver_handshake = m_ver_valid & m_ver_ready;
 
-
-// Counter
 reg [3:0] word_count;
 
-
-// Snapshot & Temp
 reg [3:0] snapshot_pkt_seq;
 reg snapshot_stream_filter_enable;
 reg [31:0] snapshot_expected_stream_id;
@@ -57,23 +49,17 @@ reg [63:0] snapshot_m_ver_time_ps;
 reg [31:0] snapshot_m_ver_info;
 reg temp_m_ver_changed;
 
-
-// Tkeep Error
 wire tkeep_error;
 assign tkeep_error =
     s_axis_handshake&&
     (s_axis_pkt_tkeep!=4'b1111);
 
-
-// Word0 Packet Type Error
 wire word0_type_error;
 assign word0_type_error = 
     (current_state==ST_IDLE)&&
     s_axis_handshake&&
     (s_axis_pkt_tdata[31:28]!=`DIFI_VERSION_PKT_TYPE);
 
-
-// Word0 Fixed Header fields Error
 wire word0_header_error;
 assign word0_header_error =
     (current_state==ST_IDLE)&&
@@ -84,24 +70,18 @@ assign word0_header_error =
     (s_axis_pkt_tdata[23:22]!=`DIFI_TSI_UTC)||
     (s_axis_pkt_tdata[21:20]!=`DIFI_TSF_REALTIME_PS));
 
-
-// Word0 Packet Size Error
 wire word0_size_error;
 assign word0_size_error =
     (current_state==ST_IDLE)&&
     s_axis_handshake&&
     (s_axis_pkt_tdata[15:0]!=`DIFI_VERSION_PKT_WORDS);
 
-
-// Word0 TLAST Error
 wire word0_tlast_error;
 assign word0_tlast_error =
     (current_state==ST_IDLE)&&
     s_axis_handshake&&
     s_axis_pkt_tlast;
 
-
-// Overall Word0 Error
 wire word0_error;
 assign word0_error =
     (current_state==ST_IDLE)&&
@@ -111,16 +91,12 @@ assign word0_error =
     word0_tlast_error||
     tkeep_error);
 
-
-// Word0 Accept
 wire word0_accept;
 assign word0_accept =
     (current_state==ST_IDLE)&&
     s_axis_handshake&&
     !word0_error;
 
-
-// Word1 Stream ID Mismatch
 wire word1_error;
 assign word1_error =
     (current_state==ST_RECV)&&
@@ -129,8 +105,6 @@ assign word1_error =
     snapshot_stream_filter_enable&&
     (s_axis_pkt_tdata!=snapshot_expected_stream_id);
 
-
-// Invalid OUI, ICC, or PCC (Word2-3)
 wire word2_error;
 wire word3_error;
 assign word2_error =
@@ -144,8 +118,6 @@ assign word3_error =
     s_axis_handshake&&
     (s_axis_pkt_tdata!=`DIFI_VERSION_CLASS_WORD);
 
-
-// Invalid Fractional Timestamp
 wire version_value_error;
 assign version_value_error =
     (current_state==ST_RECV)&&
@@ -153,8 +125,6 @@ assign version_value_error =
     (word_count==`DIFI_VERSION_LAST_WORD)&&
     (snapshot_m_ver_time_ps>=64'd1000000000000);
 
-
-// Invalid CIF0 (Word7)
 wire word7_error;
 assign word7_error =
     (current_state==ST_RECV)&&
@@ -162,8 +132,6 @@ assign word7_error =
     ((s_axis_pkt_tdata!=`DIFI_VERSION_CIF_CHANGED)&&(s_axis_pkt_tdata!=`DIFI_VERSION_CIF_NO_CHANGE))&&
     s_axis_handshake;
 
-
-// Invalid CIF1 (Word8)
 wire word8_error;
 assign word8_error =
     (current_state==ST_RECV)&&
@@ -171,8 +139,6 @@ assign word8_error =
     s_axis_handshake&&
     (s_axis_pkt_tdata!=`DIFI_VERSION_CIF1_WORD);
 
-
-// Invalid V49 Spec Version (Word9)
 wire word9_error;
 assign word9_error =
     (current_state==ST_RECV)&&
@@ -180,8 +146,6 @@ assign word9_error =
     s_axis_handshake&&
     (s_axis_pkt_tdata!=`DIFI_VERSION_V49_SPEC_WORD);
 
-
-// Invalid Version Information (Word10)
 wire word10_error;
 assign word10_error =
     (current_state==ST_RECV)&&
@@ -192,8 +156,6 @@ assign word10_error =
     (s_axis_pkt_tdata[9:6]!=`DIFI_VERSION_TYPE)||
     (s_axis_pkt_tdata[5:0]!=`DIFI_VERSION_ICD_VERSION));
 
-
-// Truncated Packet Error
 wire truncated_packet_error;
 assign truncated_packet_error =
     (current_state==ST_RECV)&&
@@ -201,8 +163,6 @@ assign truncated_packet_error =
     s_axis_pkt_tlast&&
     (word_count<`DIFI_VERSION_LAST_WORD);
 
-
-// Oversized Packet Error
 wire oversized_packet_error;
 assign oversized_packet_error = 
     (current_state==ST_RECV)&&
@@ -210,8 +170,6 @@ assign oversized_packet_error =
     !s_axis_pkt_tlast&&
     (word_count==`DIFI_VERSION_LAST_WORD);
 
-
-// ST_RECV Error (except "Sequence discontinuity")
 wire recv_error;
 assign recv_error = 
     word1_error||
@@ -226,8 +184,6 @@ assign recv_error =
     truncated_packet_error||
     oversized_packet_error;
 
-
-// ST_RECV No Error (except "Sequence discontinuity")
 wire recv_no_error;
 assign recv_no_error =
     (current_state==ST_RECV)&&
@@ -236,8 +192,7 @@ assign recv_no_error =
     s_axis_pkt_tlast&&
     (word_count==`DIFI_VERSION_LAST_WORD);
 
-
-// Sequence discontinuity (report only, do not discard)
+// Report sequence discontinuities without discarding the packet.
 reg base_active;
 reg [31:0] base_stream_id;
 reg [3:0] base_seq_num;
@@ -250,10 +205,6 @@ assign seq_discontinuity_error =
     (snapshot_received_stream_id==base_stream_id)&&
     (snapshot_pkt_seq!=expect_seq_num);
 
-
-// ------------------------------------------------------------------
-// 1. State register
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)
@@ -267,10 +218,6 @@ begin
     end
 end
 
-
-// ------------------------------------------------------------------
-// 2. Next-state logic and packet-boundary recovery
-// ------------------------------------------------------------------
 always @(*) 
 begin
     next_state = current_state;
@@ -341,10 +288,6 @@ begin
     endcase
 end
 
-
-// ------------------------------------------------------------------
-// 3. Combinational ready/valid, metadata, and IQ outputs
-// ------------------------------------------------------------------
 always @(*) 
 begin
     s_axis_pkt_tready = 0;
@@ -384,10 +327,6 @@ begin
     endcase
 end
 
-
-// ------------------------------------------------------------------
-// 4. Snapshot storage, error reporting, and sequence baseline
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)
@@ -503,7 +442,6 @@ begin
                     endcase
                 end
             end
-
 
             if(truncated_packet_error)
             begin

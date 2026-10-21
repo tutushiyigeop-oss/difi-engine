@@ -1,0 +1,24 @@
+Target: packaged_ip
+BD: difi_ip_test
+Top: difi_ip_test_wrapper
+Part: xc7z020clg400-2
+Vivado version: 2024.2
+Original project: difi_ip_validation
+Original XDC paths (copies are saved alongside bd.tcl):
+Original IP repositories (for auditing custom IP dependencies):
+  D:/Study/project/DIFI/ip_repo
+BD cells and VLNVs:
+  /axi_dma_0 | xilinx.com:ip:axi_dma:7.1
+  /axi_mem_intercon | xilinx.com:ip:axi_interconnect:2.1
+  /axi_mem_intercon/m00_couplers | 
+  /axi_mem_intercon/m00_couplers/auto_pc | xilinx.com:ip:axi_protocol_converter:2.1
+  /axi_mem_intercon/s00_couplers | 
+  /axi_mem_intercon/s00_couplers/auto_us | xilinx.com:ip:axi_dwidth_converter:2.1
+  /axi_mem_intercon/s01_couplers | 
+  /axi_mem_intercon/s01_couplers/auto_us | xilinx.com:ip:axi_dwidth_converter:2.1
+  /axi_mem_intercon/xbar | xilinx.com:ip:axi_crossbar:2.1
+  /axi_smc | xilinx.com:ip:smartconnect:1.0
+  /difi_engine_ip_0 | user.org:user:difi_engine_ip:1.0
+  /processing_system7_0 | xilinx.com:ip:processing_system7:5.5
+  /rst_ps7_0_100M | xilinx.com:ip:proc_sys_reset:5.0
+  /xlconstant_0 | xilinx.com:ip:xlconstant:1.1

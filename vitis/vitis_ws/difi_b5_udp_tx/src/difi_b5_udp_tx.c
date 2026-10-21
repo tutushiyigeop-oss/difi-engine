@@ -1,12 +1,4 @@
-/*
- * DIFI B5 raw-packet -> lwIP UDP transmitter, phase-1 functional demo.
- * Zynq XC7Z020, Vitis 2024.2 Standalone SDT + lwip220 RAW API.
- * REQUIRED HARDWARE: B5 raw-export PL, NOT packaged-IP internal TX/RX loopback.
- *           DMA MM2S IQ -> DIFI TX packetizer -> DMA S2MM raw packet.
- * Based on repository's difi_stage_b5-b_test and ZYNQ_UDP_test examples.
- * UDP payload is BIG ENDIAN DIFI/VITA word order. No UDP/IP fragmentation.
- * Sends one startup Version, one Changed Context, then 20 Data packets.
- */
+/* Send raw B5 DIFI packets over UDP: 1 Version, 1 Context, and 20 Data packets. Requires B5 raw-packet export hardware. */
 #include <string.h>
 #include "xparameters.h"
 #include "xaxidma.h"
@@ -53,18 +45,17 @@
 # endif
 #endif
 
-/* Confirm these from the B5 Address Editor (same as repository examples). */
+/* Addresses must match the B5 hardware configuration. */
 #define B5_CTRL_BASE      ((UINTPTR)0x40000000U)
 #define B5_TIME_BASE      ((UINTPTR)0x40001000U)
 
-/* IP setup: board 192.168.1.10, PC 192.168.1.100 (same /24). */
 #define BOARD_IP0 192
 #define BOARD_IP1 168
 #define BOARD_IP2 1
 #define BOARD_IP3 10
 #define UDP_PORT 4991U
-#define CPU_CLOCK_HZ 666666667U       /* User-confirmed PS clock. */
-#define TIMER_TICKS_PER_SEC 20U      /* SCU timer IRQ every 50ms. */
+#define CPU_CLOCK_HZ 666666667U       
+#define TIMER_TICKS_PER_SEC 20U      
 
 #define DATA_PACKETS     20U
 #define IQ_SAMPLES       256U
@@ -122,7 +113,6 @@ static void twr(u32 off, u32 val) { Xil_Out32(B5_TIME_BASE + off, val); }
 static u32 trd(u32 off) { return Xil_In32(B5_TIME_BASE + off); }
 static int fail(const char *msg) { xil_printf("[FAIL] %s\r\n", msg); return XST_FAILURE; }
 
-/* UART line reader, consistent with existing B5-B application. */
 static void uart_getline(char *line, unsigned capacity)
 {
     unsigned n = 0U;
@@ -271,7 +261,7 @@ static void make_iq(u32 round)
     TxIQ[2]=0xFFFE0003U; TxIQ[3]=0x00000000U;
     Xil_DCacheFlushRange((INTPTR)TxIQ,(u32)sizeof(TxIQ));
 }
-/* Minimal but strict header/payload check before external transmission. */
+
 static int verify_packet(u32 words,u32 type,u32 seq,u32 round)
 {
     u32 i,w0,expected;
@@ -302,7 +292,6 @@ static int verify_packet(u32 words,u32 type,u32 seq,u32 round)
     return XST_SUCCESS;
 }
 
-/* -------- Existing standalone GEM0/lwIP RAW API initialization pattern -------- */
 static void timer_irq(void *context)
 {
     XScuTimer_ClearInterruptStatus((XScuTimer *)context);
@@ -389,8 +378,7 @@ static int udp_send_captured(u32 words,u32 type,u32 seq)
         if (p) pbuf_free(p);
         return fail("UDP TX pbuf allocation failed / unexpected pbuf chain");
     }
-    /* DIFI packet words are uint32 in little-endian PS RAM; network payload
-       MUST put the MSB of each DIFI word first (big-endian wire format). */
+    /* Send UDP data in big-endian byte order. */
     bytes=(unsigned char *)p->payload;
     for (i=0U;i<words;++i) {
         u32 w=RxWords[i];
@@ -409,8 +397,7 @@ static int udp_send_captured(u32 words,u32 type,u32 seq)
 
 static int capture_startup(void)
 {
-    /* RX S2MM must be armed BEFORE enabling TX; otherwise startup Version
-     * can be blocked or lost in a different hardware wiring. */
+    /* Arm S2MM before enabling TX to avoid losing the first Version packet. */
     if (arm_rx(VERSION_WORDS)!=XST_SUCCESS) return XST_FAILURE;
     cwr(C_CONTROL,1U);
     if (dma_wait(XAXIDMA_DEVICE_TO_DMA)!=XST_SUCCESS ||
@@ -436,7 +423,7 @@ static int capture_data(u32 round)
         verify_packet(DATA_WORDS,1U,round&15U,round)!=XST_SUCCESS ||
         udp_send_captured(DATA_WORDS,1U,round&15U)!=XST_SUCCESS)
         return XST_FAILURE;
-    pump_net(); usleep(2000U);  /* deliberate pacing: functionality, not throughput */
+    pump_net(); usleep(2000U);  /* Pace transmissions for functional checks. */
     return XST_SUCCESS;
 }
 int main(void)
@@ -463,6 +450,6 @@ done:
     cwr(C_CONTROL,0U);
     if (!success) xil_printf("[FAIL] B5 UDP export incomplete\r\n");
     else xil_printf("[NOTE] Check PC received all packets: udp_sendto success does NOT prove receipt.\r\n");
-    for (;;) pump_net();   /* keep network responsive and allow PC to inspect */
+    for (;;) pump_net();   
     return XST_SUCCESS;
 }

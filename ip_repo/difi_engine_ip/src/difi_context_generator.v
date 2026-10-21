@@ -26,41 +26,35 @@ module difi_context_generator (
     output reg         m_axis_pkt_tlast
 );
 
-// FSM State Definition
 reg current_state;
 reg next_state;
 
 localparam ST_IDLE = 1'b0;
 localparam ST_SEND = 1'b1;
 
-// Handshake
 wire m_axis_handshake;
 assign m_axis_handshake = m_axis_pkt_tvalid & m_axis_pkt_tready;
 
-// Tkeep
 assign m_axis_pkt_tkeep = 4'b1111;
 
-// Counter
 reg [3:0] context_seq;
 reg [4:0] word_count;
 
-// Snapshot
-reg [31:0] snapshot_cfg_data_stream_id; // Word1
+reg [31:0] snapshot_cfg_data_stream_id; 
 reg [31:0] snapshot_cfg_sample_rate_hz;
 reg [31:0] snapshot_cfg_bandwidth_hz;
 reg [31:0] snapshot_cfg_rf_freq_h_hz;
 reg [31:0] snapshot_cfg_rf_freq_l_hz;
 reg snapshot_cfg_context_change_pending;
-reg [31:0] snapshot_time_sec; // Word4
-reg [31:0] snapshot_time_h_ps; // Word5
-reg [31:0] snapshot_time_l_ps; // Word6
+reg [31:0] snapshot_time_sec; 
+reg [31:0] snapshot_time_h_ps; 
+reg [31:0] snapshot_time_l_ps; 
 
-// Segment
-wire [31:0] header; // Word0
-wire [31:0] cif0; // Word7
-wire [63:0] bw_raw; // Word9-10
-wire [63:0] rf_raw; // Word13-14
-wire [63:0] fs_raw; // Word19-20
+wire [31:0] header; 
+wire [31:0] cif0; 
+wire [63:0] bw_raw; 
+wire [63:0] rf_raw; 
+wire [63:0] fs_raw; 
 assign header = `DIFI_CONTEXT_HEADER_BASE | ({28'd0, context_seq} << 16);
 assign cif0 = 
     snapshot_cfg_context_change_pending ? 
@@ -69,10 +63,6 @@ assign bw_raw = {32'd0, snapshot_cfg_bandwidth_hz} << 20;
 assign rf_raw = {snapshot_cfg_rf_freq_h_hz,snapshot_cfg_rf_freq_l_hz} << 20;
 assign fs_raw = {32'd0, snapshot_cfg_sample_rate_hz} << 20;
 
-
-// ------------------------------------------------------------------
-// 1. State register
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)
@@ -86,10 +76,6 @@ begin
     end
 end
 
-
-// ------------------------------------------------------------------
-// 2. Next-state logic
-// ------------------------------------------------------------------
 always @(*) 
 begin
     next_state = current_state;
@@ -118,10 +104,6 @@ begin
     endcase
 end
 
-
-// ------------------------------------------------------------------
-// 3. Combinational block
-// ------------------------------------------------------------------
 always @(*) 
 begin
     pkt_busy = 0;
@@ -266,10 +248,6 @@ begin
     endcase
 end
 
-
-// ------------------------------------------------------------------
-// 4. Snapshot storage , Update/Reset counter
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)

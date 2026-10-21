@@ -1,8 +1,5 @@
 `timescale 1ns/1ps
-// DIFI v1.4 config-to-TX integration verification.
-// IEEE 1364-2001 (Verilog-2001). No SystemVerilog features.
-// Real DUTs: cfg_regs, tx_scheduler, data_packetizer,
-//            context_generator, version_generator.
+
 module tb_difi_cfg_tx_integration;
 
 localparam [7:0] REG_CONTROL = 8'h00;
@@ -106,9 +103,6 @@ reg merged_tready;
 reg [31:0] iq_sample;
 wire iq_tready;
 
-// --------------------------------------------------------------------
-// DUT interconnect - no behavioral replacement for real TX blocks.
-// --------------------------------------------------------------------
 difi_cfg_regs u_cfg (
     .aclk(aclk), .aresetn(aresetn),
     .s_axi_awaddr(s_axi_awaddr), .s_axi_awprot(s_axi_awprot),
@@ -220,9 +214,6 @@ always @(posedge aclk or negedge aresetn)
     if (!aresetn) iq_sample <= 32'h1111_0000;
     else if (iq_tready) iq_sample <= iq_sample + 32'd1;
 
-// --------------------------------------------------------------------
-// Scoreboard. Capture each packet's actual handshaken words.
-// --------------------------------------------------------------------
 integer packets;
 integer word_index;
 reg [3:0] packet_type [0:63];
@@ -247,7 +238,6 @@ integer acks;
 integer changed_done_count;
 reg prev_ack;
 
-// Never silently continue after a failed assertion.
 task fail;
     input [8*160-1:0] reason;
     begin
@@ -378,10 +368,6 @@ always @(posedge aclk) begin
     end
 end
 
-// --------------------------------------------------------------------
-// Master BFM: tasks drive on falling edges; DUT samples rising edges.
-// Timeout bounded and each channel independently handshaken.
-// --------------------------------------------------------------------
 task axi_write;
     input [7:0] addr;
     input [31:0] value;
@@ -575,7 +561,6 @@ initial begin
     aresetn = 1;
     repeat (3) @(negedge aclk);
 
-    // TEST 1: startup uses real version and context generators.
     tc = 1;
     $display("[TEST 1] Startup Version(changed) -> Context(changed) -> Data");
     assert_equal32({31'd0, context_change_pending}, 32'd1, "Reset Context Pending");
@@ -596,12 +581,11 @@ initial begin
     assert_equal32(packet_sid[2], 32'd1, "Startup Data SID");
     assert_equal_int(packet_len[2], 263, "Startup samples=256");
 
-    // TEST 2: Commit while a real Data packet is stalled mid-packet.
     tc = 2;
     $display("[TEST 2] Shadow writes + Commit during stalled Data; no early ACK");
     base = packets;
     request_one_data;
-    // Wait for the outgoing Data packet, then force backpressure.
+    
     i = 0;
     while (((packet_type[base] !== TYPE_DATA) || (packets != base) || (word_index < 2)) && i < 800) begin
         @(negedge aclk);
@@ -614,8 +598,8 @@ initial begin
     axi_write(REG_SAMPLES, 32'd3, 4'hf, OKAY);
     axi_write(REG_FS, 32'd8000000, 4'hf, OKAY);
     axi_write(REG_BW, 32'd4000000, 4'hf, OKAY);
-    axi_write(REG_RF_LO, 32'hc7652400, 4'hf, OKAY); // 42 GHz low 32 bits
-    axi_write(REG_RF_HI, 32'h00000009, 4'hf, OKAY); // 42 GHz high 32 bits
+    axi_write(REG_RF_LO, 32'hc7652400, 4'hf, OKAY); 
+    axi_write(REG_RF_HI, 32'h00000009, 4'hf, OKAY); 
     axi_write(REG_CTX_PERIOD, 32'd250, 4'hf, OKAY);
     axi_write(REG_VER_PERIOD, 32'd500, 4'hf, OKAY);
     assert_equal32(cfg_data_stream_id, 32'd1, "Active must not change on Shadow writes");
@@ -643,7 +627,7 @@ initial begin
     axi_read_check(REG_ACTIVE_SAMPLES, 32'd3, OKAY);
     axi_read_check(REG_ACTIVE_CTX_PERIOD, 32'd250, OKAY);
     axi_read_check(REG_ACTIVE_VER_PERIOD, 32'd500, OKAY);
-    // Scheduler must announce new Context before granting a new Data packet.
+    
     request_one_data;
     wait_packets(base+3);
     wait_pending_clear;
@@ -663,7 +647,6 @@ initial begin
     assert_equal32(packet_rf_hi[base+1], expected_rf[63:32], "Context RF high");
     assert_equal32(packet_rf_lo[base+1], expected_rf[31:0], "Context RF low");
 
-    // TEST 3: periodic Context and Version; neither should look changed.
     tc = 3;
     $display("[TEST 3] Periodic Context -> Version, with unchanged CIF");
     base = packets;
@@ -677,7 +660,6 @@ initial begin
     assert_equal32({31'd0, context_change_pending}, 32'd0,
                    "Periodic Context must not set pending");
 
-    // TEST 4: Commit succeeds even if TX disabled and time source invalid.
     tc = 4;
     $display("[TEST 4] Disabled/time-invalid Commit, resume -> changed Context -> Data");
     axi_write(REG_CONTROL, 32'd0, 4'h1, OKAY);
@@ -694,7 +676,7 @@ initial begin
     assert_equal_int(starts, old_starts, "No packet starts while disabled");
     assert_equal32(cfg_data_stream_id, 32'h01234567, "Active updates even with TX disabled");
     assert_equal32({31'd0, context_change_pending}, 32'd1, "Commit creates Context pending");
-    axi_read_check(REG_STATUS, 32'h00000002, OKAY); // bit1=1 only
+    axi_read_check(REG_STATUS, 32'h00000002, OKAY); 
     time_valid = 1;
     axi_write(REG_CONTROL, 32'd1, 4'h1, OKAY);
     request_one_data;
@@ -707,7 +689,6 @@ initial begin
     assert_equal32(packet_sid[base+1], 32'h01234567, "Resume Data SID");
     assert_equal_int(packet_len[base+1], 8, "N=1 Data packet length");
 
-    // TEST 5: RX filter updates bypass TX Commit.
     tc = 5;
     $display("[TEST 5] RX direct-update path independent of TX commit");
     axi_write(REG_RX_DATA_SID, 32'hCAFEBABE, 4'hf, OKAY);
@@ -716,7 +697,6 @@ initial begin
     assert_equal32({31'd0, cfg_rx_data_filter_enable}, 32'd1, "RX filter enable immediate");
     assert_equal32(cfg_data_stream_id, 32'h01234567, "RX writes cannot mutate TX Active");
 
-    // TEST 6: reset re-arms startup and restores defaults on all 5 DUTs.
     tc = 6;
     $display("[TEST 6] Reset restores config and startup packet sequence");
     axi_write(REG_CONTROL, 32'd0, 4'h1, OKAY);

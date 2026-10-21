@@ -55,8 +55,6 @@ module difi_tx_scheduler (
     output wire        tx_busy
 );
 
-
-// FSM State Defination
 reg [1:0] current_state;
 reg [1:0] next_state;
 localparam ST_IDLE = 2'd0;
@@ -64,63 +62,43 @@ localparam ST_SEND_DATA = 2'd1;
 localparam ST_SEND_CONTEXT = 2'd2;
 localparam ST_SEND_VERSION = 2'd3;
 
-
-// Pending Signal
 reg startup_version_pending;
 reg context_periodic_pending;
 reg version_periodic_pending;
 
-
-// MUX for Tready
 assign s_axis_data_tready = (current_state==ST_SEND_DATA) ? m_axis_pkt_tready:0;
 assign s_axis_context_tready = (current_state==ST_SEND_CONTEXT) ? m_axis_pkt_tready:0;
 assign s_axis_version_tready = (current_state==ST_SEND_VERSION) ? m_axis_pkt_tready:0;
 
-
-// MUX for Tdata
 assign m_axis_pkt_tdata = 
     (current_state==ST_SEND_DATA) ? s_axis_data_tdata:
     (current_state==ST_SEND_CONTEXT) ? s_axis_context_tdata:
     (current_state==ST_SEND_VERSION) ? s_axis_version_tdata:0;
 
-
-// MUX for Tvalid
 assign m_axis_pkt_tvalid = 
     (current_state==ST_SEND_DATA) ? s_axis_data_tvalid:
     (current_state==ST_SEND_CONTEXT) ? s_axis_context_tvalid:
     (current_state==ST_SEND_VERSION) ? s_axis_version_tvalid:0;
 
-
-// MUX for Tlast
 assign m_axis_pkt_tlast = 
     (current_state==ST_SEND_DATA) ? s_axis_data_tlast:
     (current_state==ST_SEND_CONTEXT) ? s_axis_context_tlast:
     (current_state==ST_SEND_VERSION) ? s_axis_version_tlast:0;
 
-
-// MUX for Tkeep
 assign m_axis_pkt_tkeep = 
     (current_state==ST_SEND_DATA) ? s_axis_data_tkeep:
     (current_state==ST_SEND_CONTEXT) ? s_axis_context_tkeep:
     (current_state==ST_SEND_VERSION) ? s_axis_version_tkeep:0;
 
-
-// Tx busy
 assign tx_busy = 
     (current_state==ST_SEND_DATA) ? 1:
     (current_state==ST_SEND_CONTEXT) ? 1:
     (current_state==ST_SEND_VERSION) ? 1:0;
 
-
-// Pkt start
 assign data_pkt_start = aresetn&&(current_state==ST_IDLE)&&(next_state==ST_SEND_DATA);
 assign context_pkt_start = aresetn&&(current_state==ST_IDLE)&&(next_state==ST_SEND_CONTEXT);
 assign version_pkt_start = aresetn&&(current_state==ST_IDLE)&&(next_state==ST_SEND_VERSION);
 
-
-// ------------------------------------------------------------------
-// 1. State register
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)
@@ -134,10 +112,6 @@ begin
     end
 end
 
-
-// ------------------------------------------------------------------
-// 2. Next-state logic
-// ------------------------------------------------------------------
 always @(*) 
 begin
     next_state = current_state;
@@ -223,10 +197,6 @@ begin
     endcase
 end
 
-
-// ------------------------------------------------------------------
-// 3. 
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)
@@ -285,6 +255,5 @@ begin
         end
     end
 end
-
 
 endmodule

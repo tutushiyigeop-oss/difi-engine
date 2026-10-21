@@ -1,10 +1,4 @@
-// DIFI Stage B2: RX-only Zynq board adapter + GPIO-readable metadata monitor.
-// Vivado 2024.2 / Zynq XC7Z020 / 100 MHz PL clock / Verilog-2001.
-// DMA MM2S => DIFI RX Packet => Data Parser => IQ => DMA S2MM.
-// Context and Version metadata and error events are latched and exposed via
-// the existing AXI GPIO configured as CH1 5-bit output (dbg_page),
-// CH2 32-bit input (dbg_rdata). No changes to frozen core RTL.
-// TX is disabled by reset and the application must keep CONTROL=0.
+// Keep CONTROL=0 in this test to disable TX.
 module difi_engine_board_b2 (
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 aclk CLK" *)
     (* X_INTERFACE_PARAMETER = "XIL_INTERFACENAME aclk, ASSOCIATED_BUSIF S_AXIS_PKT:M_AXIS_IQ:S_AXI_CTRL, ASSOCIATED_RESET aresetn" *)
@@ -53,7 +47,6 @@ module difi_engine_board_b2 (
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI_CTRL RREADY" *)
     input  wire        s_axi_rready,
 
-    // DIFI Packet from DMA MM2S (contains AXIS TLAST, TKEEP).
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_PKT TDATA" *)
     input wire [31:0] s_axis_pkt_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_PKT TVALID" *)
@@ -65,7 +58,6 @@ module difi_engine_board_b2 (
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 S_AXIS_PKT TLAST" *)
     input wire s_axis_pkt_tlast,
 
-    // Parsed IQ to DMA S2MM; each IQ word is four valid bytes.
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TDATA" *)
     output wire [31:0] m_axis_iq_tdata,
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TVALID" *)
@@ -77,7 +69,6 @@ module difi_engine_board_b2 (
     (* X_INTERFACE_INFO = "xilinx.com:interface:axis:1.0 M_AXIS_IQ TLAST" *)
     output wire m_axis_iq_tlast,
 
-    // Monitoring read mux controlled by AXI GPIO channel 1.
     input wire [4:0] dbg_page,
     output reg [31:0] dbg_rdata
 );
@@ -229,8 +220,6 @@ always @(posedge aclk or negedge aresetn) begin
   end
 end
 
-// GPIO register selectors: 0=ID, 1..3=accepted packet counts,
-// 4..7=error counts, 8=last error source/code, rest=snapshots.
 always @(*) begin
   dbg_rdata = 32'd0;
   case(dbg_page)

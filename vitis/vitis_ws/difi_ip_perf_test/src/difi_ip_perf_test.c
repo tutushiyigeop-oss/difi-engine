@@ -1,24 +1,4 @@
-/*
- * DIFI 1.1 FPGA board-level system performance test.
- * Source: adapted to the existing difi_ip_loopback_test design in
- * https://github.com/tutushiyigeop-oss/difi-engine (feature/rtl-integration).
- *
- * Zynq-7020, Vitis standalone, 100 MHz PL expected.
- * DDR -> AXI DMA MM2S -> DIFI TX -> DIFI RX -> AXI DMA S2MM -> DDR.
- * Both metadata READY pins and Context/Version READY must be driven high.
- * AXI DMA: Simple mode, 32-bit AXI streams, one 256-IQ-word S2MM transfer
- * per DIFI Data Packet. Each packet ends with RX IQ TLAST.
- *
- * METRIC SCOPE:
- *  - "run-window throughput": entire PS-driven 100-packet run INCLUDING
- *    CPU processing, DMA rearming, DDR/cache activity and driver polling.
- *  - "transaction time": arm S2MM, submit MM2S, wait for both DMA channels,
- *    excluding per-packet data preparation and IQ checking.
- *  NEITHER IS PL CORE-ONLY THROUGHPUT/LATENCY. Do not compare as equivalents
- *  with the RTL-only 196.916 MB/s baseline.
- *
- * Real hardware was NOT executed by the author of this test file.
- */
+/* DIFI IP performance test. Results include PS, DMA, and cache overhead, not PL-only performance. */
 #include "xparameters.h"
 #include "xaxidma.h"
 #include "xaxidma_hw.h"
@@ -36,13 +16,11 @@
 # define DMA_IDENTIFIER XPAR_AXIDMA_0_DEVICE_ID
 #endif
 
-
 #define N_SAMPLES         256U
 #define PERF_ROUNDS       100U
 #define WARMUP_ROUNDS       2U
 #define DMA_SPIN_LIMIT  100000000U
 
-/* S_AXI_CTRL offsets: frozen mapping */
 #define C_CONTROL          0x00U
 #define C_COMMAND          0x04U
 #define C_STATUS           0x08U
@@ -61,14 +39,13 @@
 #define C_RX_VER_SID       0x3CU
 #define C_ACTIVE_SAMPLES   0x48U
 
-/* Separate S_AXI_TIME offsets */
 #define T_SEC              0x00U
 #define T_PS_LO            0x04U
 #define T_PS_HI            0x08U
 #define T_COMMAND          0x0CU
 #define T_STATUS           0x10U
 
-#define TEST_TIME_SEC     1700000000U  /* synthetic, not real UTC */
+#define TEST_TIME_SEC     1700000000U  /* Test time, not real UTC. */
 #define TEST_DATA_SID     0x10203040U
 #define TEST_VERSION_SID  0x55667788U
 #define TEST_SAMPLE_RATE   2000000U
@@ -155,7 +132,6 @@ static int configure_engine(void)
     return XST_SUCCESS;
 }
 
-/* Creates round-specific deterministic I16/Q16 samples. */
 static void prepare_data(u32 round)
 {
     u32 i;
@@ -170,7 +146,7 @@ static void prepare_data(u32 round)
     Xil_DCacheInvalidateRange((INTPTR)RxIQ,(u32)sizeof(RxIQ));
 }
 
-/* RX must be armed before MM2S, since the parser may output immediately. */
+/* Arm reception before MM2S to avoid losing data output immediately. */
 static int transfer_one_packet(u64 *elapsed)
 {
     u64 a,b;
@@ -205,9 +181,7 @@ static int check_packet(u32 round)
     return XST_SUCCESS;
 }
 
-/* Avoid printf floats unsupported by xil_printf().
- * Return MB/s x 1000 (decimal MB=1,000,000 B).
- */
+/* xil_printf does not support floats; print integer values. */
 #if PERF_HAVE_TIMER_FREQ
 static u32 mbps_x1000(u64 bytes, u64 ticks)
 {
@@ -273,7 +247,7 @@ int main(void)
         return XST_FAILURE;
 
     cwr(C_CONTROL,1U);
-    usleep(10000U);  /* initial Version and Changed Context in packet loop */
+    usleep(10000U);  
     if (!(crd(C_STATUS)&(1U<<3))) return fail("TX not enabled");
 
     for (round=0U;round<WARMUP_ROUNDS;++round) {
@@ -297,10 +271,6 @@ int main(void)
     if (finish<=begin) return fail("selected hardware timer did not advance");
     wall_ticks=(u64)(finish-begin);
 
-    /* IQ mismatch count is verified by check_packet().
-     * DIFI parser error-event signals are NOT connected to this software.
-     * Do not claim protocol error counters equal zero from this benchmark.
-     */
     xil_printf("[RESULT] dma_rounds=%u verified_iq_samples=%u iq_mismatches=0\r\n",
                (unsigned)done,(unsigned)correct);
     xil_printf("[NOTE] protocol_error_events=NOT_MEASURED\r\n");

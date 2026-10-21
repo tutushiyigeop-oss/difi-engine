@@ -1,54 +1,39 @@
 `include "difi_time_cfg_regmap.vh"
 
-// -----------------------------------------------------------------------------
-// DIFI external UTC initialization control (independent AXI4-Lite slave).
-// Verilog-2001; same aclk domain as difi_time_source and difi_engine_top.
-//
-// Register map (byte offsets, independently based at S_AXI_TIME):
-//   0x00 TIME_SEC       RW  UTC integer seconds (shadow)
-//   0x04 TIME_PS_LO     RW  picoseconds[31:0] (shadow)
-//   0x08 TIME_PS_HI     RW  picoseconds[63:32] (shadow)
-//   0x0C TIME_COMMAND   WO  W1P bit0: atomic time load; reads zero
-//   0x10 TIME_STATUS    RO  bit0=time_valid, bit1=last_load_error
-//
-// All other addresses / misaligned accesses: DECERR (2'b11).
-// Writes to read-only TIME_STATUS: SLVERR (2'b10).
-// Illegal time load (ps >= 10^12): SLVERR; no time_load pulse, error latched.
-// All mapped register writes honor WSTRB; COMMAND requires WSTRB[0].
-// AW and W are accepted independently in either order; B/R hold under stall.
-// One outstanding transaction per direction; reads and writes independent.
-// This block does NOT change the frozen difi_cfg_regs AXI register map.
-// -----------------------------------------------------------------------------
+// Unmapped or unaligned accesses return DECERR.
+// Writes to the read-only status register return SLVERR.
+// Reject loads with ps >= 10^12; return SLVERR and latch the error.
+// Writes honor WSTRB; COMMAND requires WSTRB[0].
+// Address and data may arrive in either order; hold responses stable while waiting.
+
 module difi_time_cfg_regs (
     input  wire        aclk,
     input  wire        aresetn,
 
-    // S_AXI_TIME: AXI4-Lite AW
     input  wire [7:0]  s_axi_awaddr,
     input  wire [2:0]  s_axi_awprot,
     input  wire        s_axi_awvalid,
     output wire        s_axi_awready,
-    // W
+    
     input  wire [31:0] s_axi_wdata,
     input  wire [3:0]  s_axi_wstrb,
     input  wire        s_axi_wvalid,
     output wire        s_axi_wready,
-    // B
+    
     output reg  [1:0]  s_axi_bresp,
     output reg         s_axi_bvalid,
     input  wire        s_axi_bready,
-    // AR
+    
     input  wire [7:0]  s_axi_araddr,
     input  wire [2:0]  s_axi_arprot,
     input  wire        s_axi_arvalid,
     output wire        s_axi_arready,
-    // R
+    
     output reg  [31:0] s_axi_rdata,
     output reg  [1:0]  s_axi_rresp,
     output reg         s_axi_rvalid,
     input  wire        s_axi_rready,
 
-    // Atomic load to difi_time_source (same clock domain)
     output reg         time_load,
     output reg  [31:0] load_time_sec,
     output reg  [63:0] load_time_ps,
@@ -65,7 +50,6 @@ assign status_word = ({31'd0, time_valid} << `DIFI_TIME_STATUS_VALID_BIT)
 reg [31:0] shadow_sec;
 reg [31:0] shadow_ps_lo;
 reg [31:0] shadow_ps_hi;
-
 
 reg        aw_pending;
 reg [7:0]  awaddr_reg;
@@ -110,7 +94,7 @@ always @(posedge aclk or negedge aresetn) begin
         load_time_sec  <= 32'd0;
         load_time_ps   <= 64'd0;
     end else begin
-        // Registered one-cycle load event. Values are latched simultaneously.
+        // Latch time values together; the load pulse lasts one cycle.
         time_load <= 1'b0;
 
         if (s_axi_awvalid && s_axi_awready) begin
@@ -126,7 +110,7 @@ always @(posedge aclk or negedge aresetn) begin
         if (s_axi_bvalid && s_axi_bready)
             s_axi_bvalid <= 1'b0;
 
-        // Execute only after BOTH independent channels have arrived.
+        // Write only after both address and data have arrived.
         if (aw_pending && w_pending && !s_axi_bvalid) begin
             aw_pending <= 1'b0;
             w_pending  <= 1'b0;
@@ -140,8 +124,8 @@ always @(posedge aclk or negedge aresetn) begin
                 `DIFI_TIME_REG_COMMAND: begin
                     if (wstrb_reg[0] && wdata_reg[`DIFI_TIME_CMD_LOAD_BIT]) begin
                         if ({shadow_ps_hi, shadow_ps_lo} < PS_PER_SECOND) begin
-                            // Snapshot shadow fields; do not drive time_load
-                            // from continuously changing register values.
+                            // Snapshot all time fields together on load.
+                            
                             load_time_sec <= shadow_sec;
                             load_time_ps  <= {shadow_ps_hi, shadow_ps_lo};
                             time_load <= 1'b1;
@@ -152,8 +136,8 @@ always @(posedge aclk or negedge aresetn) begin
                         end
                     end
                 end
-                `DIFI_TIME_REG_STATUS: s_axi_bresp <= `DIFI_TIME_AXI_SLVERR; // Read-only status.
-                default: s_axi_bresp <= `DIFI_TIME_AXI_DECERR; // Includes misalignment.
+                `DIFI_TIME_REG_STATUS: s_axi_bresp <= `DIFI_TIME_AXI_SLVERR; 
+                default: s_axi_bresp <= `DIFI_TIME_AXI_DECERR; 
             endcase
         end
 

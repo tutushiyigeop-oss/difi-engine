@@ -1,12 +1,4 @@
-/*
- * DIFI 1.1 Managed IP - packaged-IP independent validation
- * Platform: Zynq-7000, Vitis 2024.2 standalone, 100-MHz PL.
- * DDR -> AXI DMA MM2S -> DIFI TX -> DIFI RX -> AXI DMA S2MM -> DDR.
- * No AXI GPIO dependency. A test timestamp is used, NOT synchronized UTC.
- * The IP example design MUST connect all RX metadata READY pins to 1.
- * TX IQ's data_available MUST follow the AXIS IQ TVALID signal.
- * Set CTRL/TIME BASE addresses to the new XSA mapping before compiling.
- */
+/* DIFI IP loopback test; start reception before sending IQ. */
 #include "xparameters.h"
 #include "xaxidma.h"
 #include "xaxidma_hw.h"
@@ -27,7 +19,6 @@
 #define NUM_ROUNDS           2U
 #define DMA_SPIN_LIMIT 100000000U
 
-/* Byte offsets within AXI4-Lite S_AXI_CTRL */
 #define C_CONTROL          0x00U
 #define C_COMMAND          0x04U
 #define C_STATUS           0x08U
@@ -46,14 +37,13 @@
 #define C_RX_VER_SID       0x3CU
 #define C_ACTIVE_SAMPLES   0x48U
 
-/* Byte offsets within AXI4-Lite S_AXI_TIME */
 #define T_SEC              0x00U
 #define T_PS_LO            0x04U
 #define T_PS_HI            0x08U
 #define T_COMMAND          0x0CU
 #define T_STATUS           0x10U
 
-#define TEST_TIME_SEC     1700000000U /* synthetic test timestamp, not real UTC */
+#define TEST_TIME_SEC     1700000000U /* Fixed test time, not real UTC. */
 #define TEST_DATA_SID     0x10203040U
 #define TEST_VERSION_SID  0x55667788U
 #define TEST_SAMPLE_RATE   2000000U
@@ -128,12 +118,12 @@ static int configure_engine(void) {
     cwr(C_BW, TEST_BANDWIDTH);
     cwr(C_RF_LO, TEST_RF_FREQ);
     cwr(C_RF_HI, 0U);
-    cwr(C_CTX_PERIOD, 0U); /* disable periodic packets, keep startup Context */
-    cwr(C_VER_PERIOD, 0U); /* disable periodic packets, keep startup Version */
+    cwr(C_CTX_PERIOD, 0U); 
+    cwr(C_VER_PERIOD, 0U); 
     cwr(C_RX_FILTER, 3U);
     cwr(C_RX_DATA_SID, TEST_DATA_SID);
     cwr(C_RX_VER_SID, TEST_VERSION_SID);
-    cwr(C_COMMAND, 1U); /* shadow -> active commit */
+    cwr(C_COMMAND, 1U); 
     for (k = 0; k < 100000U; ++k)
         if (!(crd(C_STATUS) & 1U)) break;
     if (k == 100000U || crd(C_COMMIT_ERROR) != 0U ||
@@ -157,7 +147,7 @@ static int loopback_round(u32 round) {
     Xil_DCacheFlushRange((INTPTR)RxIQ, (u32)sizeof(RxIQ));
     Xil_DCacheInvalidateRange((INTPTR)RxIQ, (u32)sizeof(RxIQ));
 
-    /* Always arm the receive channel first. */
+    /* Start the receive channel first. */
     if (XAxiDma_SimpleTransfer(&Dma, (UINTPTR)RxIQ, sizeof(RxIQ),
                                XAXIDMA_DEVICE_TO_DMA) != XST_SUCCESS)
         return fail("failed to arm S2MM");
@@ -199,8 +189,8 @@ int main(void) {
         configure_engine() != XST_SUCCESS)
         return XST_FAILURE;
 
-    cwr(C_CONTROL, 1U); /* enable TX: startup Version and changed Context */
-    usleep(10000);     /* allow startup packets to pass through internal loopback */
+    cwr(C_CONTROL, 1U); 
+    usleep(10000);     
     if (!(crd(C_STATUS) & (1U << 3)))
         return fail("TX enable state not set");
     for (round = 0; round < NUM_ROUNDS; ++round)

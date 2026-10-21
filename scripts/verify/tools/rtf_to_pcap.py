@@ -33,7 +33,6 @@ RTF_SKIP_GROUPS = {
     "colorschememapping", "datastore", "xmlnstbl", "rsidtbl", "fldinst",
 }
 
-
 def strip_rtf(raw: bytes) -> str:
     """Decode ordinary MobaXterm/Windows RTF with no nonstdlib dependencies.
 
@@ -75,7 +74,7 @@ def strip_rtf(raw: bytes) -> str:
             continue
         if c != "\\":
             i += 1
-            if c in "\r\n":  # RTF source line wrapping isn't document text.
+            if c in "\r\n":  
                 continue
             if skip_fallback:
                 skip_fallback -= 1
@@ -143,7 +142,7 @@ def strip_rtf(raw: bytes) -> str:
         elif word == "u" and arg is not None:
             flush()
             u = arg & 0xFFFF
-            # Python will preserve code points for the typical ASCII B5 log.
+            
             chunks.append(chr(u))
             skip_fallback = stack[-1]["uc"]
         elif word == "emdash":
@@ -156,19 +155,17 @@ def strip_rtf(raw: bytes) -> str:
     flush()
     return "".join(chunks)
 
-
 def load_console_text(path: Path) -> str:
     raw = path.read_bytes()
     if raw.lstrip().startswith(b"{\\rtf"):
         return strip_rtf(raw)
-    # Preserve plain text logs captured in standard UTF-8 or Windows encodings.
+    
     for enc in ("utf-8-sig", "gb18030", "cp1252"):
         try:
             return raw.decode(enc)
         except UnicodeDecodeError:
             continue
     return raw.decode("utf-8", errors="replace")
-
 
 def extract_packets(text: str):
     packets = []
@@ -205,7 +202,6 @@ def extract_packets(text: str):
         raise ValueError("No B5 packet blocks found. Check whether the RTF contains [B5_START]/[B5_END].")
     return packets
 
-
 def packet_to_bytes(words, number):
     packet_type = (words[0] >> 28) & 0xF
     size_words = words[0] & 0xFFFF
@@ -222,11 +218,10 @@ def packet_to_bytes(words, number):
         raise ValueError(f"packet #{number}: Version should have 11 Words, got {len(words)}")
     if packet_type == 1 and not (8 <= len(words) <= 263):
         raise ValueError(f"packet #{number}: Data should have 7+N Words, N in 1..256")
-    # IMPORTANT: UART displays numerical 32-bit DIFI Words. UDP payload MUST
-    # use network-byte-order (big-endian): 5960000B -> 59 60 00 0B.
+    # Write UART words to UDP in big-endian order, e.g. 5960000B -> 59 60 00 0B.
+    
     payload = b"".join(struct.pack("!I", w) for w in words)
     return packet_type, payload
-
 
 def checksum16(data: bytes) -> int:
     if len(data) % 2:
@@ -235,7 +230,6 @@ def checksum16(data: bytes) -> int:
     while total >> 16:
         total = (total & 0xFFFF) + (total >> 16)
     return (~total) & 0xFFFF
-
 
 def ethernet_ipv4_udp(payload, *, number, src_ip, dst_ip, src_port, dst_port):
     src_ip_raw = ipaddress.IPv4Address(src_ip).packed
@@ -257,42 +251,37 @@ def ethernet_ipv4_udp(payload, *, number, src_ip, dst_ip, src_port, dst_port):
     if udp_checksum == 0:
         udp_checksum = 0xFFFF
     udp_header = struct.pack("!HHHH", src_port, dst_port, udp_len, udp_checksum)
-    # 02:00:00:00:00:02 <- 02:00:00:00:00:01, ethertype = IPv4
+    
     ethernet_header = bytes.fromhex("0200000000020200000000010800")
     return ethernet_header + ip_header + udp_header + payload
-
 
 def write_pcap(path: Path, records):
     """Write pre-built (timestamp seconds, Ethernet frame) pairs in PCAP format."""
     with path.open("wb") as f:
-        # PCAP little-endian header; LINKTYPE_ETHERNET (1).
+        
         f.write(struct.pack("<IHHIIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1))
         for ts_sec, frame in records:
             f.write(struct.pack("<IIII", ts_sec, 0, len(frame), len(frame)))
             f.write(frame)
 
-
 def write_outputs(packets, output: Path, args):
-    # Validate every packet before creating output files.
+    
     validated = [packet_to_bytes(words, i) for i, words in enumerate(packets)]
     output.mkdir(parents=True, exist_ok=True)
 
-    # Flow keys are ("version" or "data_context", Stream ID).
-    # Note: Context and Data with different Stream IDs must NOT be merged.
+    # Do not merge Context and Data packets with different Stream IDs.
     flow_records = {}
     all_records = []
-    seconds = int(time.time())  # Synthetic capture timestamps, not FPGA timestamps.
+    seconds = int(time.time())  # Capture timestamps are generated, not FPGA timestamps.
 
     for index, (words, (type_code, payload)) in enumerate(zip(packets, validated)):
         name = TYPE_NAMES[type_code]
-        stream_id = words[1]  # Word 1 is the 32-bit Stream ID (DIFI 1.1).
+        stream_id = words[1]  
         flow_name = "version" if type_code == 5 else "data_context"
         key = (flow_name, stream_id)
         binary_path = output / f"packet_{index:02d}_{name}.bin"
         binary_path.write_bytes(payload)
 
-        # Generate one Ethernet/IP/UDP frame and REUSE its bytes in every PCAP.
-        # Thus the split PCAP is a lossless subset of the combined PCAP.
         frame = ethernet_ipv4_udp(
             payload, number=index, src_ip=args.src_ip,
             dst_ip=args.dst_ip, src_port=args.src_port, dst_port=args.dst_port,
@@ -309,9 +298,6 @@ def write_outputs(packets, output: Path, args):
     print(f"\n[OUTPUT] Combined (original order): {combined_path.resolve()} "
           f"({len(all_records)} packets)")
 
-    # For the normal two-stream B5 configuration keep simple fixed filenames.
-    # If there are multiple Stream IDs within a flow category, include SID in
-    # every filename of that category to avoid accidentally combining streams.
     category_count = {}
     for flow_name, _ in flow_records:
         category_count[flow_name] = category_count.get(flow_name, 0) + 1
@@ -330,7 +316,6 @@ def write_outputs(packets, output: Path, args):
     print("[NOTE] Ethernet/IPv4/UDP headers and PCAP arrival times are SYNTHETIC (offline validation).")
     print("[NOTE] A PASS on split flows is not a PASS on the combined capture or formal certification.")
     return combined_path
-
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -357,7 +342,6 @@ def main(argv=None):
     except (ValueError, OSError, UnicodeError) as ex:
         print(f"[ERROR] {ex}", file=sys.stderr)
         return 1
-
 
 if __name__ == "__main__":
     sys.exit(main())

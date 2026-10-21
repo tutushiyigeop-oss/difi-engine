@@ -1,52 +1,36 @@
-// -----------------------------------------------------------------------------
-// DIFI 1.1 FPGA Digital IF Protocol Engine - structural top-level
-// Interface contract: DIFI_RTL_Interface_Spec_v1_5, section 11.8 / appendix A.10
-// Verilog-2001; one aclk / aresetn domain.
-//
-// Nine frozen RTL blocks; no extra arbitration FSM, FIFO, CDC, timer, UDP stack,
-// error merge, or internal TX-to-RX loopback.
-// Time source, IQ availability and periodic triggers are external contracts.
-// -----------------------------------------------------------------------------
 module difi_engine_top (
-    // Clock/Reset
+    
     input  wire         aclk,
     input  wire         aresetn,
 
-    // AXI-Lite AW
     input  wire [7:0]   s_axi_awaddr,
     input  wire [2:0]   s_axi_awprot,
     input  wire         s_axi_awvalid,
     output wire         s_axi_awready,
 
-    // AXI-Lite W
     input  wire [31:0]  s_axi_wdata,
     input  wire [3:0]   s_axi_wstrb,
     input  wire         s_axi_wvalid,
     output wire         s_axi_wready,
 
-    // AXI-Lite B
     output wire [1:0]   s_axi_bresp,
     output wire         s_axi_bvalid,
     input  wire         s_axi_bready,
 
-    // AXI-Lite AR
     input  wire [7:0]   s_axi_araddr,
     input  wire [2:0]   s_axi_arprot,
     input  wire         s_axi_arvalid,
     output wire         s_axi_arready,
 
-    // AXI-Lite R
     output wire [31:0]  s_axi_rdata,
     output wire [1:0]   s_axi_rresp,
     output wire         s_axi_rvalid,
     input  wire         s_axi_rready,
 
-    // Time
     input  wire [31:0]  time_sec,
     input  wire [63:0]  time_ps,
     input  wire         time_valid,
 
-    // Schedule
     input  wire         data_available,
     input  wire         context_periodic_trigger,
     input  wire         version_periodic_trigger,
@@ -54,32 +38,27 @@ module difi_engine_top (
     output wire [31:0]  cfg_version_period_ms,
     output wire         tx_busy,
 
-    // TX IQ
     input  wire [31:0]  s_axis_iq_tdata,
     input  wire         s_axis_iq_tvalid,
     output wire         s_axis_iq_tready,
 
-    // TX Packet
     output wire [31:0]  m_axis_tx_pkt_tdata,
     output wire         m_axis_tx_pkt_tvalid,
     input  wire         m_axis_tx_pkt_tready,
     output wire [3:0]   m_axis_tx_pkt_tkeep,
     output wire         m_axis_tx_pkt_tlast,
 
-    // RX Packet
     input  wire [31:0]  s_axis_rx_pkt_tdata,
     input  wire         s_axis_rx_pkt_tvalid,
     output wire         s_axis_rx_pkt_tready,
     input  wire [3:0]   s_axis_rx_pkt_tkeep,
     input  wire         s_axis_rx_pkt_tlast,
 
-    // RX IQ
     output wire [31:0]  m_axis_iq_tdata,
     output wire         m_axis_iq_tvalid,
     input  wire         m_axis_iq_tready,
     output wire         m_axis_iq_tlast,
 
-    // RX Data Meta
     output wire         m_data_meta_valid,
     input  wire         m_data_meta_ready,
     output wire [31:0]  m_data_meta_stream_id,
@@ -88,7 +67,6 @@ module difi_engine_top (
     output wire [63:0]  m_data_meta_time_ps,
     output wire [15:0]  m_data_meta_sample_count,
 
-    // RX Context Meta
     output wire         m_ctx_valid,
     input  wire         m_ctx_ready,
     output wire [31:0]  m_ctx_stream_id,
@@ -100,7 +78,6 @@ module difi_engine_top (
     output wire [63:0]  m_ctx_rf_freq_hz,
     output wire [31:0]  m_ctx_sample_rate_hz,
 
-    // RX Version Meta
     output wire         m_ver_valid,
     input  wire         m_ver_ready,
     output wire [31:0]  m_ver_stream_id,
@@ -110,7 +87,6 @@ module difi_engine_top (
     output wire         m_ver_changed,
     output wire [31:0]  m_ver_info,
 
-    // Error Events
     output wire         rx_dispatch_error_valid,
     output wire [3:0]   rx_dispatch_error_code,
     output wire         rx_data_error_valid,
@@ -121,9 +97,6 @@ module difi_engine_top (
     output wire [3:0]   rx_version_error_code
 );
 
-// -----------------------------------------------------------------------------
-// 1. Configuration and cross-module control
-// -----------------------------------------------------------------------------
 wire        tx_enable;
 wire        cfg_commit_req;
 wire        cfg_commit_ack;
@@ -141,7 +114,6 @@ wire [31:0] cfg_rx_expected_data_stream_id;
 wire        cfg_rx_version_filter_enable;
 wire [31:0] cfg_rx_expected_version_stream_id;
 
-// TX generator transaction controls and three independent packet streams.
 wire data_pkt_start;
 wire data_pkt_busy;
 wire data_pkt_done;
@@ -170,7 +142,6 @@ wire        version_pkt_tready;
 wire [3:0]  version_pkt_tkeep;
 wire        version_pkt_tlast;
 
-// RX Dispatch's three independent packet streams; each Parser owns TREADY.
 wire [31:0] rx_data_pkt_tdata;
 wire        rx_data_pkt_tvalid;
 wire        rx_data_pkt_tready;
@@ -189,9 +160,6 @@ wire        rx_version_pkt_tready;
 wire [3:0]  rx_version_pkt_tkeep;
 wire        rx_version_pkt_tlast;
 
-// -----------------------------------------------------------------------------
-// 2. AXI4-Lite configuration, active TX config and RX filters
-// -----------------------------------------------------------------------------
 difi_cfg_regs u_cfg_regs (
     .aclk                                (aclk),
     .aresetn                             (aresetn),
@@ -235,9 +203,6 @@ difi_cfg_regs u_cfg_regs (
     .cfg_rx_expected_version_stream_id   (cfg_rx_expected_version_stream_id)
 );
 
-// -----------------------------------------------------------------------------
-// 3. Three independent DIFI transmit generators
-// -----------------------------------------------------------------------------
 difi_data_packetizer u_data_packetizer (
     .aclk                                (aclk),
     .aresetn                             (aresetn),
@@ -298,9 +263,6 @@ difi_version_generator u_version_generator (
     .m_axis_pkt_tlast                    (version_pkt_tlast)
 );
 
-// -----------------------------------------------------------------------------
-// 4. Packet-boundary TX ownership and 3-to-1 AXIS mux
-// -----------------------------------------------------------------------------
 difi_tx_scheduler u_tx_scheduler (
     .aclk                                (aclk),
     .aresetn                             (aresetn),
@@ -344,9 +306,6 @@ difi_tx_scheduler u_tx_scheduler (
     .tx_busy                             (tx_busy)
 );
 
-// -----------------------------------------------------------------------------
-// 5. RX packet-type dispatch; route is locked through TLAST
-// -----------------------------------------------------------------------------
 difi_rx_dispatch u_rx_dispatch (
     .aclk                                (aclk),
     .aresetn                             (aresetn),
@@ -374,9 +333,6 @@ difi_rx_dispatch u_rx_dispatch (
     .error_code                          (rx_dispatch_error_code)
 );
 
-// -----------------------------------------------------------------------------
-// 6. Three RX protocol parsers and four independent error events
-// -----------------------------------------------------------------------------
 difi_data_parser u_data_parser (
     .aclk                                (aclk),
     .aresetn                             (aresetn),

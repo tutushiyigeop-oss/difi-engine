@@ -1,30 +1,10 @@
 `timescale 1ns / 1ps
-// -----------------------------------------------------------------------------
-// DIFI Signal Context loopback integration testbench (Verilog-2001)
-//
-//   difi_context_generator -> difi_context_parser
-//
-// Goals:
-//   1) Check every generated 27-word packet against an independent golden model.
-//   2) Check parser metadata against the original generator inputs.
-//   3) Check Context changed/no-change behavior and context_change_done.
-//   4) Exercise context sequence wraparound, SID changes, configuration snapshots,
-//      time_valid gating, metadata backpressure, natural link backpressure, reset,
-//      and a deterministic multi-packet stress run.
-//
-// The golden packet below intentionally does NOT use DUT internal signals/macros.
-// Add difi_context_generator.v, difi_context_parser.v and their common defs header
-// as simulation sources together with this testbench.
-// -----------------------------------------------------------------------------
 
 module tb_difi_context_loopback;
 
     localparam integer MAX_PACKETS = 96;
     localparam integer WAIT_LIMIT  = 100000;
 
-    // ------------------------------------------------------------------
-    // 1. DUT connections: direct Generator -> Parser AXI4-Stream link.
-    // ------------------------------------------------------------------
     reg         aclk;
     reg         aresetn;
 
@@ -116,11 +96,8 @@ module tb_difi_context_loopback;
     );
 
     initial aclk = 1'b0;
-    always #5 aclk = ~aclk; // 100 MHz
+    always #5 aclk = ~aclk; 
 
-    // ------------------------------------------------------------------
-    // 2. Independent golden transaction queue.
-    // ------------------------------------------------------------------
     reg [31:0] golden_sid       [0:MAX_PACKETS-1];
     reg [31:0] golden_fs        [0:MAX_PACKETS-1];
     reg [31:0] golden_bw        [0:MAX_PACKETS-1];
@@ -188,7 +165,6 @@ module tb_difi_context_loopback;
         end
     endtask
 
-    // Independent packet model. No DUT macro is used here.
     function [31:0] reference_word;
         input integer packet;
         input integer word_index;
@@ -266,9 +242,6 @@ module tb_difi_context_loopback;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 3. Edge-based scoreboard and AXI stability checks.
-    // ------------------------------------------------------------------
     always @(posedge aclk) begin
         if (!aresetn) begin
             previous_done        = 1'b0;
@@ -277,19 +250,17 @@ module tb_difi_context_loopback;
             hold_meta            = 1'b0;
             meta_stall_now       = 0;
         end else begin
-            // A Generator-produced packet must always be accepted as valid
-            // by the matching Context Parser.
+            
             if (error_valid !== 1'b0)
                 fail("Parser raised an error on a generator-produced Context packet");
 
-            // AXI source stability under backpressure.
             if (hold_link && (link_tvalid !== 1'b1 ||
                               link_tdata  !== saved_link_data ||
                               link_tkeep  !== saved_link_keep ||
                               link_tlast  !== saved_link_last))
                 fail("Generator packet beat changed while stalled");
 
-            // Metadata must remain stable while VALID=1 and READY=0.
+            // Keep metadata stable while VALID=1 and READY=0.
             if (hold_meta && (m_ctx_valid          !== 1'b1 ||
                               m_ctx_stream_id      !== saved_ctx_sid ||
                               m_ctx_seq            !== saved_ctx_seq ||
@@ -326,8 +297,6 @@ module tb_difi_context_loopback;
                 meta_stall_now    = meta_stall_now + 1;
             end
 
-            // Check every Generator output word against an independent
-            // 27-word Context reference model.
             if (link_fire) begin
                 if (link_id >= q_count || link_word >= 27)
                     fail("Unexpected/extra Context packet word");
@@ -351,7 +320,6 @@ module tb_difi_context_loopback;
                 end
             end
 
-            // Parser exposes one atomic metadata transaction per valid packet.
             if (meta_fire) begin
                 if (meta_id >= q_count || link_id <= meta_id)
                     fail("Unexpected/early/duplicate Context metadata handshake");
@@ -385,8 +353,6 @@ module tb_difi_context_loopback;
                 meta_stall_now = 0;
             end
 
-            // pkt_done and context_change_done must be one-cycle completion
-            // pulses associated with the packet whose Word26 has completed.
             if (pkt_done === 1'b1) begin
                 if (previous_done || done_id >= q_count || link_id <= done_id)
                     fail("pkt_done duplicated or occurred before complete packet handshake");
@@ -415,15 +381,6 @@ module tb_difi_context_loopback;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 4. Single-owner metadata READY driver.
-    // Modes:
-    //   0 = always ready
-    //   1 = short deterministic stall
-    //   2 = long deterministic stall
-    //   3 = periodic ready toggling
-    //   4 = manual release
-    // ------------------------------------------------------------------
     always @(negedge aclk) begin
         if (!aresetn) begin
             m_ctx_ready = 1'b1;
@@ -445,9 +402,6 @@ module tb_difi_context_loopback;
         end
     end
 
-    // ------------------------------------------------------------------
-    // 5. Packet launch / drain / reset helpers.
-    // ------------------------------------------------------------------
     task run_packet;
         input [31:0] sid;
         input [31:0] fs;
@@ -465,9 +419,6 @@ module tb_difi_context_loopback;
             queue_packet(sid, fs, bw, rf, change_flag, sec, ps, ready_mode);
             id = q_count - 1;
 
-            // Generator may be idle even when Parser is still holding the
-            // previous metadata. That case is intentionally allowed; it
-            // creates natural link backpressure on the next packet.
             guard = 0;
             while (pkt_busy !== 1'b0 && guard < WAIT_LIMIT) begin
                 @(negedge aclk);
@@ -496,8 +447,7 @@ module tb_difi_context_loopback;
                 fail("pkt_busy did not rise after accepted Context pkt_start");
 
             if (snapshot_test != 0) begin
-                // Generator must have snapshotted all of these at the
-                // accepted pkt_start edge. Change them BEFORE Word0 is sent.
+                
                 cfg_data_stream_id         = sid ^ 32'h00FF_00FF;
                 cfg_sample_rate_hz         = fs + 32'd123;
                 cfg_bandwidth_hz           = 32'd1;
@@ -509,10 +459,8 @@ module tb_difi_context_loopback;
                 else
                     time_ps = 64'd0;
 
-                // Parser must snapshot its filter settings on Word0.
-                // Wait until Word0 has actually handshaken, then make the
-                // LIVE filter deliberately reject this SID. Current packet
-                // must still pass if Parser snapshot behavior is correct.
+                // Save this packet's filter settings when receiving Word0.
+                
                 guard = 0;
                 while ((link_id == id) && (link_word == 0) &&
                        (guard < WAIT_LIMIT)) begin
@@ -567,7 +515,6 @@ module tb_difi_context_loopback;
             time_valid = 1'b0;
             repeat (4) @(negedge aclk);
 
-            // Both Generator sequence and Parser baseline restart on reset.
             seq_model = 0;
             aresetn = 1'b1;
             time_valid = 1'b1;
@@ -580,9 +527,6 @@ module tb_difi_context_loopback;
         end
     endtask
 
-    // ------------------------------------------------------------------
-    // 6. Main integration test plan.
-    // ------------------------------------------------------------------
     integer p;
     integer link_stalls_before;
     integer change_done_before;
@@ -630,9 +574,6 @@ module tb_difi_context_loopback;
         aresetn = 1'b1;
         repeat (2) @(negedge aclk);
 
-        // --------------------------------------------------------------
-        // TC01: Official project reference vector, Context Changed = 1.
-        // --------------------------------------------------------------
         current_tc = 1;
         $display("\n=== TC01: official 27-word Signal Context golden vector ===");
         run_packet(32'h0000_0001,
@@ -645,9 +586,6 @@ module tb_difi_context_loopback;
                    0, 1, 0);
         wait_drain;
 
-        // --------------------------------------------------------------
-        // TC02: Periodic/no-change Context with nonzero fractional time.
-        // --------------------------------------------------------------
         current_tc = 2;
         $display("\n=== TC02: Context no-change + alternate valid metadata ===");
         run_packet(32'h1122_3344,
@@ -660,9 +598,6 @@ module tb_difi_context_loopback;
                    0, 1, 0);
         wait_drain;
 
-        // --------------------------------------------------------------
-        // TC03: Important legal boundaries for decoded Context values.
-        // --------------------------------------------------------------
         current_tc = 3;
         $display("\n=== TC03: Context legal boundary values ===");
         run_packet(32'h0000_0001,
@@ -683,9 +618,6 @@ module tb_difi_context_loopback;
                    1, 1, 0);
         wait_drain;
 
-        // --------------------------------------------------------------
-        // TC04: Enough Context packets to cross sequence 15 -> 0.
-        // --------------------------------------------------------------
         current_tc = 4;
         $display("\n=== TC04: 20 Context packets, sequence wraparound ===");
         for (p = 0; p < 20; p = p + 1) begin
@@ -700,11 +632,6 @@ module tb_difi_context_loopback;
         end
         wait_drain;
 
-        // --------------------------------------------------------------
-        // TC05: Parser metadata backpressure + next packet overlap.
-        // Holding metadata prevents Parser from accepting the next Word0,
-        // naturally backpressuring the Generator through the direct link.
-        // --------------------------------------------------------------
         current_tc = 5;
         $display("\n=== TC05: metadata backpressure and natural packet overlap ===");
         link_stalls_before = link_stall_total;
@@ -716,8 +643,7 @@ module tb_difi_context_loopback;
                    32'd2000,
                    64'd55,
                    2, 1, 0);
-        // First Generator packet is already done, while its metadata remains
-        // stalled. Launching the next packet must stall its output safely.
+        
         run_packet(32'hA5A5_0001,
                    32'd40000000,
                    32'd10000000,
@@ -732,12 +658,6 @@ module tb_difi_context_loopback;
         if (meta_stall_total < 18)
             fail("Long metadata backpressure was not exercised");
 
-        // --------------------------------------------------------------
-        // TC06: Snapshot semantics on BOTH modules.
-        // Generator cfg/time/change is modified after accepted pkt_start;
-        // Parser filter target is modified after Word0 handshake.
-        // Current packet must still reflect the original snapshot.
-        // --------------------------------------------------------------
         current_tc = 6;
         $display("\n=== TC06: Generator config/time/change + Parser filter snapshots ===");
         run_packet(32'h0123_4567,
@@ -750,8 +670,6 @@ module tb_difi_context_loopback;
                    1, 1, 1);
         wait_drain;
 
-        // Also verify a snapshotted no-change remains no-change even if the
-        // live pending signal becomes 1 immediately after start.
         run_packet(32'h89AB_CDEF,
                    32'd25000000,
                    32'd5000000,
@@ -762,10 +680,6 @@ module tb_difi_context_loopback;
                    0, 1, 1);
         wait_drain;
 
-        // --------------------------------------------------------------
-        // TC07: Context TX must reject pkt_start while time_valid=0.
-        // The rejected request must not consume sequence or create activity.
-        // --------------------------------------------------------------
         current_tc = 7;
         $display("\n=== TC07: time_valid=0 rejects Context pkt_start ===");
         @(negedge aclk);
@@ -791,11 +705,6 @@ module tb_difi_context_loopback;
                    0, 1, 0);
         wait_drain;
 
-        // --------------------------------------------------------------
-        // TC08: Filter disabled + SID changes. Parser's first-version
-        // single-stream sequence baseline must not create false errors when
-        // the currently observed SID changes.
-        // --------------------------------------------------------------
         current_tc = 8;
         $display("\n=== TC08: filter disabled, SID A -> B -> A ===");
         run_packet(32'h0000_00A1,
@@ -809,10 +718,6 @@ module tb_difi_context_loopback;
                    1'b1, 32'd5002, 64'd12, 0, 0, 0);
         wait_drain;
 
-        // --------------------------------------------------------------
-        // TC09: Deterministic integration stress with changing valid fields,
-        // change flags, SIDs, and metadata READY modes.
-        // --------------------------------------------------------------
         current_tc = 9;
         $display("\n=== TC09: 24 deterministic Context stress packets ===");
         for (p = 0; p < 24; p = p + 1) begin
@@ -836,10 +741,6 @@ module tb_difi_context_loopback;
         end
         wait_drain;
 
-        // --------------------------------------------------------------
-        // TC10: Reset both endpoints and verify Context seq/parser baseline
-        // restart cleanly at seq=0.
-        // --------------------------------------------------------------
         current_tc = 10;
         $display("\n=== TC10: idle reset, sequence/baseline restart ===");
         apply_idle_reset;
@@ -864,9 +765,6 @@ module tb_difi_context_loopback;
         if (change_done_total != change_done_before + 1)
             fail("context_change_done count incorrect after reset test");
 
-        // --------------------------------------------------------------
-        // Final consistency / coverage checks.
-        // --------------------------------------------------------------
         if (passed != q_count)
             fail("End-of-suite Context packet count mismatch");
         if (meta_stall_total == 0 || link_stall_total == 0 ||
@@ -880,7 +778,6 @@ module tb_difi_context_loopback;
         $finish;
     end
 
-    // Global deadlock protection.
     initial begin
         #5000000;
         fail("Global Context loopback simulation timeout");

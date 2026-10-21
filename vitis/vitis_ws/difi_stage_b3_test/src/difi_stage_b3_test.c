@@ -1,15 +1,4 @@
-/*
- * DIFI Stage B3 - Full TX->RX internal AXI4-Stream loopback, Zynq-7020.
- * Vitis 2024.2 standalone. Uses AXI DMA Simple mode and dual-channel AXI GPIO.
- *
- * DDR IQ -> DMA MM2S -> Engine TX -> Engine RX -> DMA S2MM -> DDR IQ.
- * TX startup also emits Version + Context, consumed by the RX parsers.
- * The RX metadata and packet/error counters are read through AXI GPIO pages.
- *
- * IMPORTANT: Program the B3 bitstream and use its matching XSA Platform.
- * A fresh PL reset is required: startup Version/Context and counters are
- * intentionally checked from their reset values.
- */
+/* Stage B3: check DIFI TX/RX loopback. */
 #include <stddef.h>
 #include "xparameters.h"
 #include "xaxidma.h"
@@ -29,7 +18,7 @@
 #endif
 
 #ifndef DIFI_CTRL_BASE
-#define DIFI_CTRL_BASE 0x40000000U  /* verify in Vivado Address Editor */
+#define DIFI_CTRL_BASE 0x40000000U  /* Verify the address in Vivado. */
 #endif
 
 #define R_CONTROL         0x00U
@@ -64,7 +53,6 @@
 #define WAIT_LIMIT        50000000U
 #define COMMIT_LIMIT      1000000U
 
-/* GPIO monitor pages: 0..28 same as Stage B2; 29/30 added by B3. */
 #define PG_MAGIC      0U
 #define PG_DATA_CNT   1U
 #define PG_CTX_CNT    2U
@@ -113,7 +101,7 @@ static u32 rd(u32 reg)
 static u32 page(u32 index)
 {
     XGpio_DiscreteWrite(&Gpio, 1U, index & 31U);
-    (void)XGpio_DiscreteRead(&Gpio, 1U); /* serialized GPIO write/read */
+    (void)XGpio_DiscreteRead(&Gpio, 1U); /* Ensure the GPIO write completes before reading. */
     return XGpio_DiscreteRead(&Gpio, 2U);
 }
 static int eq(const char *name, u32 got, u32 want)
@@ -194,8 +182,8 @@ static int commit_config(void)
     wr(R_RF_HIGH,0U);
     wr(R_RX_DATA_SID,DATA_SID);
     wr(R_RX_VER_SID,VERSION_SID);
-    wr(R_RX_FILTER,3U); /* RX filters both enabled */
-    wr(R_COMMAND,1U);   /* Shadow -> Active */
+    wr(R_RX_FILTER,3U); 
+    wr(R_COMMAND,1U);   
     for (i=0U;i<COMMIT_LIMIT;i++) {
         if (!(rd(R_STATUS)&1U)) break;
     }
@@ -328,8 +316,8 @@ int main(void)
     if (rc!=XST_SUCCESS) {
         xil_printf("[FAIL] GPIO init rc=%d\r\n",rc); return XST_FAILURE;
     }
-    XGpio_SetDataDirection(&Gpio,1U,0U);           /* 5-bit page select output */
-    XGpio_SetDataDirection(&Gpio,2U,0xFFFFFFFFU);  /* 32-bit page data input */
+    XGpio_SetDataDirection(&Gpio,1U,0U);           
+    XGpio_SetDataDirection(&Gpio,2U,0xFFFFFFFFU);  
     wr(R_CONTROL,0U);
     if (eq("B3 monitor ID",page(PG_MAGIC),0xB3000003U) ||
         eq("B3 page selector",page(31U),0xB3F0001FU)) {

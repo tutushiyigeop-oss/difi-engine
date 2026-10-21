@@ -24,34 +24,27 @@ module difi_version_generator #(
     output reg         m_axis_pkt_tlast
 );
 
-
-// Tkeep
 assign m_axis_pkt_tkeep = 4'b1111;
 
-// FSM State Definition
 reg current_state;
 reg next_state;
 localparam ST_IDLE = 1'b0;
 localparam ST_SEND = 1'b1;
 
-// Handshake
 wire m_axis_handshake;
 assign m_axis_handshake = m_axis_pkt_tvalid & m_axis_pkt_tready;
 
-// Counter
 reg [3:0] version_seq;
 reg [4:0] word_count;
 
-// Snapshot
-reg [31:0] snapshot_cfg_version_stream_id; // Word1
-reg [31:0] snapshot_time_sec; // Word4
-reg [31:0] snapshot_time_h_ps; // Word5
-reg [31:0] snapshot_time_l_ps; // Word6
+reg [31:0] snapshot_cfg_version_stream_id; 
+reg [31:0] snapshot_time_sec; 
+reg [31:0] snapshot_time_h_ps; 
+reg [31:0] snapshot_time_l_ps; 
 
-// Segment
-wire [31:0] header; // Word0
-wire [31:0] cif0; // Word7
-wire [31:0] version_info; // Word10
+wire [31:0] header; 
+wire [31:0] cif0; 
+wire [31:0] version_info; 
 reg first_version_sent;
 assign header = `DIFI_VERSION_HEADER_BASE | ({28'd0, version_seq} << 16);
 assign cif0 = 
@@ -64,10 +57,6 @@ assign version_info =
     `DIFI_VERSION_TYPE,
     `DIFI_VERSION_ICD_VERSION};
 
-
-// ------------------------------------------------------------------
-// 1. State register
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)
@@ -81,10 +70,6 @@ begin
     end
 end
 
-
-// ------------------------------------------------------------------
-// 2. Next-state logic
-// ------------------------------------------------------------------
 always @(*) 
 begin
     next_state = current_state;
@@ -113,10 +98,6 @@ begin
     endcase
 end
 
-
-// ------------------------------------------------------------------
-// 3. Combinational block
-// ------------------------------------------------------------------
 always @(*) 
 begin
     pkt_busy = 0;
@@ -215,10 +196,6 @@ begin
     endcase
 end
 
-
-// ------------------------------------------------------------------
-// 4. Snapshot storage , Update/Reset counter
-// ------------------------------------------------------------------
 always @(posedge aclk or negedge aresetn) 
 begin
     if (!aresetn)
@@ -275,6 +252,5 @@ begin
         endcase
     end
 end
-
 
 endmodule

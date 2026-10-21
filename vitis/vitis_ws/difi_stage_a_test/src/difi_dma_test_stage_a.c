@@ -1,17 +1,4 @@
-/*
- * DIFI Stage-A board test: Zynq-7020, Vitis 2024.2, standalone.
- *
- * HW: AXI DMA MM2S -> difi_tx_board_test/S_AXIS_IQ
- *     difi_tx_board_test/M_AXIS_PKT -> AXI DMA S2MM
- *     AXI GPIO channel 1 bit 0 -> difi_tx_board_test/start_level
- *
- * The test wrapper fixes: stream_id=1, samples=256,
- * time_sec=1700000000 (0x6553F100), time_ps=0.
- * The DIFI Packetizer emits 7 header words + 256 IQ words = 1052 bytes.
- *
- * The buffers below should be linked into PS DDR, which is accessible
- * from the DMA through the Zynq PS S_AXI_HP0 interface.
- */
+/* Stage A: send IQ through DMA and receive DIFI Data packets. */
 
 #include <stddef.h>
 #include "xparameters.h"
@@ -23,7 +10,6 @@
 #include "xstatus.h"
 #include "sleep.h"
 
-/* Support 2024.2 SDT platforms and legacy BSP configurations. */
 #ifdef SDT
   #ifndef XPAR_XAXIDMA_0_BASEADDR
     #error "Missing XPAR_XAXIDMA_0_BASEADDR. Check the generated xparameters.h"
@@ -46,7 +32,7 @@
 #define GPIO_CHANNEL      1U
 #define POLL_LIMIT        50000000U
 
-/* Pad the RX storage to a cacheline-aligned size: 272 words = 1088 B. */
+/* Pad the receive buffer to 1088 bytes for cache-line alignment. */
 static u32 TxBuffer[DIFI_SAMPLES] __attribute__((aligned(64)));
 static u32 RxBuffer[272] __attribute__((aligned(64)));
 static XAxiDma AxiDma;
@@ -99,7 +85,7 @@ static void prepare_buffers(void)
         RxBuffer[i] = 0xDEADBEEFU;
     }
 
-    /* DMA is not cache-coherent with the Zynq-7000 ARM caches over HP0. */
+    /* DMA over HP0 does not automatically sync CPU caches. */
     Xil_DCacheFlushRange((INTPTR)TxBuffer, (u32)sizeof(TxBuffer));
     Xil_DCacheFlushRange((INTPTR)RxBuffer, (u32)sizeof(RxBuffer));
     Xil_DCacheInvalidateRange((INTPTR)RxBuffer, (u32)sizeof(RxBuffer));
@@ -111,13 +97,13 @@ static int validate_packet(void)
     u32 mismatches = 0U;
     u32 seq;
     u32 expected[DIFI_HEADER_WORDS] = {
-        0x18600107U,  /* Data, C=1, UTC, realtime, seq=0, size=263 */
-        0x00000001U,  /* Stream ID */
-        0x006A621EU,  /* OUI */
-        0x00000000U,  /* ICC/PCC */
-        0x6553F100U,  /* Fixed synthetic UTC integer-seconds field */
-        0x00000000U,  /* Fractional timestamp high */
-        0x00000000U   /* Fractional timestamp low */
+        0x18600107U,  
+        0x00000001U,  
+        0x006A621EU,  
+        0x00000000U,  
+        0x6553F100U,  
+        0x00000000U,  
+        0x00000000U   
     };
 
     xil_printf("[RX] First 9 words:\r\n");
@@ -129,8 +115,7 @@ static int validate_packet(void)
     seq = (RxBuffer[0] >> 16) & 0xFU;
     xil_printf("[RX] Packet sequence = %u\r\n", (unsigned int)seq);
 
-    /* Sequence is expected to be zero after a fresh PL reset. The
-     * remaining fixed header fields should be identical on repeat runs. */
+    /* Expect sequence zero after PL reset; repeat runs check only the other fixed header fields. */
     expected[0] |= (seq << 16);
 
     for (i = 0U; i < DIFI_HEADER_WORDS; ++i) {
@@ -199,14 +184,13 @@ int main(void)
         xil_printf("[FAIL] AXI GPIO initialization: %d\r\n", status);
         return XST_FAILURE;
     }
-    XGpio_SetDataDirection(&Gpio, GPIO_CHANNEL, 0x0U); /* output */
+    XGpio_SetDataDirection(&Gpio, GPIO_CHANNEL, 0x0U); 
     XGpio_DiscreteWrite(&Gpio, GPIO_CHANNEL, 0x0U);
 
     xil_printf("[INIT] TX buffer = 0x%08x\r\n", (unsigned int)(UINTPTR)TxBuffer);
     xil_printf("[INIT] RX buffer = 0x%08x\r\n", (unsigned int)(UINTPTR)RxBuffer);
     prepare_buffers();
 
-    /* Step 1: prepare the receiver before there is any stream output. */
     status = XAxiDma_SimpleTransfer(&AxiDma, (UINTPTR)RxBuffer,
                                     (u32)RX_BYTES, XAXIDMA_DEVICE_TO_DMA);
     if (status != XST_SUCCESS) {
@@ -216,14 +200,12 @@ int main(void)
     }
     xil_printf("[START] S2MM armed (%u B)\r\n", (unsigned int)RX_BYTES);
 
-    /* Step 2: cause a 0->1 transition at the PL wrapper start_level. */
     usleep(20U);
     XGpio_DiscreteWrite(&Gpio, GPIO_CHANNEL, 0x1U);
     usleep(20U);
     XGpio_DiscreteWrite(&Gpio, GPIO_CHANNEL, 0x0U);
     xil_printf("[START] GPIO start pulse sent\r\n");
 
-    /* Step 3: provide IQ samples via DDR -> MM2S -> PL. */
     status = XAxiDma_SimpleTransfer(&AxiDma, (UINTPTR)TxBuffer,
                                     (u32)TX_BYTES, XAXIDMA_DMA_TO_DEVICE);
     if (status != XST_SUCCESS) {
@@ -244,7 +226,7 @@ int main(void)
     xil_printf("[OK] S2MM complete\r\n");
     dump_dma_status();
 
-    /* CPU must invalidate cached copies before reading data written by DMA. */
+    /* Invalidate old cache contents before reading DMA data. */
     Xil_DCacheInvalidateRange((INTPTR)RxBuffer, (u32)sizeof(RxBuffer));
 
     status = validate_packet();

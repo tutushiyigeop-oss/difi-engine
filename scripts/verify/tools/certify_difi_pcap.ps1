@@ -1,26 +1,10 @@
 ﻿#requires -Version 5.1
-<#
-.SYNOPSIS
-  Verify split DIFI 1.1 PCAP flows using the UNMODIFIED DIFI Consortium validator.
-.EXAMPLE
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Study\project\DIFI\scripts\verify\tools\certify_difi_pcap.ps1" "D:\Study\project\DIFI\verification\pcap\b5-b"
-.EXAMPLE
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Study\project\DIFI\scripts\verify\tools\certify_difi_pcap.ps1" "D:\Study\project\DIFI\verification\pcap\b5-b" -OutputDir "D:\Study\project\DIFI\verification\reports\my_b5_b_report"
-.EXAMPLE
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "D:\Study\project\DIFI\scripts\verify\tools\certify_difi_pcap.ps1" "D:\Study\project\DIFI\verification\pcap\b5-b" "D:\Study\project\DIFI\verification\reports\my_b5_b_report"
-.NOTES
-  Requires the Python venv and certify_source.py previously installed.
-  Uses the PCAP files as-is; it does not modify either packets or validator.
-  -OutputDir is optional. -ReportDir remains an alias for older commands.
-  Without -OutputDir, the default remains verification\reports\<pcap-folder-name>.
-#>
+<# Validate PCAPs with the DIFI checker. OutputDir is optional; ReportDir is the old name. Requires an installed Python environment and certify_source.py. #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
     [string]$PcapDir,
 
-    # Optional report output directory. Also accepts legacy -ReportDir.
-    # A second positional argument is supported for convenience.
     [Parameter(Position = 1)]
     [Alias('ReportDir')]
     [string]$OutputDir = '',
@@ -55,22 +39,19 @@ function Invoke-DifiValidation {
     $stdoutTemp = Join-Path $OutDirectory '_stdout.tmp'
     $stderrTemp = Join-Path $OutDirectory '_stderr.tmp'
 
-    # Explicit quotes are needed with Start-Process -ArgumentList on Windows.
+    # Quote paths to support spaces.
     $arguments = '"{0}" --pcap "{1}" --difi-version 1.1 --error-log "{2}"' -f $Validator, $InputPcap, $errorLog
 
     Write-Host ""
     Write-Host ('[RUN] ' + $Label) -ForegroundColor Cyan
     Write-Host ('[PCAP] ' + $InputPcap)
 
-    # Start-Process isolates stderr: the official script emits a harmless
-    # 'not a git repository' warning when installed from a GitHub ZIP.
     $process = Start-Process -FilePath $PythonExe -ArgumentList $arguments `
         -WorkingDirectory $OutDirectory -Wait -PassThru -NoNewWindow `
         -RedirectStandardOutput $stdoutTemp -RedirectStandardError $stderrTemp
     $exitCode = $process.ExitCode
 
-    # PowerShell 5.1 may return $null for Get-Content -Raw on an empty file.
-    # Convert the output explicitly to strings before any string operations.
+    # An empty file may return null; convert it to a string first.
     $stdout = if (Test-Path -LiteralPath $stdoutTemp) { [string](Get-Content -LiteralPath $stdoutTemp -Raw) } else { '' }
     $stderr = if (Test-Path -LiteralPath $stderrTemp) { [string](Get-Content -LiteralPath $stderrTemp -Raw) } else { '' }
 
