@@ -36,17 +36,23 @@ Thumbs.db
 
 # Ignore all files under the Vitis workspace
 /vitis/vitis_ws/**
+/vitis/vitis_ws_rebuilt/**
 
 # Allow component directories to be traversed
 !/vitis/vitis_ws/*/
+!/vitis/vitis_ws_rebuilt/*/
 
 # Allow Application src directories
 !/vitis/vitis_ws/*/src/
 !/vitis/vitis_ws/*/src/**/
+!/vitis/vitis_ws_rebuilt/*/src/
+!/vitis/vitis_ws_rebuilt/*/src/**/
 
 # Only keep user C source and header files in src
 !/vitis/vitis_ws/*/src/**/*.c
 !/vitis/vitis_ws/*/src/**/*.h
+!/vitis/vitis_ws_rebuilt/*/src/**/*.c
+!/vitis/vitis_ws_rebuilt/*/src/**/*.h
 
 # Windows system files
 desktop.ini

@@ -1,0 +1,12 @@
+Result: PASS (tool build and post-route timing; Vitis/board not yet retested)
+Vivado: 2024.2
+Target: packaged_ip
+Part: xc7z020clg400-2
+Top: difi_ip_test_wrapper
+Synthesis status: synth_design Complete!
+Implementation status: write_bitstream Complete!
+Setup WNS (ns): 0.411
+Hold WHS (ns): 0.046
+Bitstream: D:/Study/project/DIFI/vivado/rebuilt/packaged_ip/difi_rebuilt_packaged_ip.runs/impl_1/difi_ip_test_wrapper.bit
+XSA: D:/Study/project/DIFI/vivado/rebuilt/packaged_ip/packaged_ip_rebuilt.xsa
+Not yet tested: regenerated XSA imported into Vitis; on-board IQ/UDP validation
