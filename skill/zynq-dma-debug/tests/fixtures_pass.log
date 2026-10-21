@@ -1,0 +1,7 @@
+=== DIFI BOARD IP PERF: ZYNQ-7020 / 100 MHz ===
+[INFO] rounds=100 warmup=2 samples/packet=256
+[PASS] warmup 2 packets
+[RESULT] dma_rounds=100 verified_iq_samples=25600 iq_mismatches=0
+[RESULT] total_wall_ticks_hi=0 lo=2729306
+[RESULT] summed_dma_ticks_hi=0 lo=636916
+[PASS] difi_ip_perf_test: 100 packets x 256 IQ verified

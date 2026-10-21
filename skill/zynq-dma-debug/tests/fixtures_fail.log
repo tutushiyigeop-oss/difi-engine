@@ -1,0 +1,2 @@
+[FAIL] S2MM DMA error, SR=00004010
+[FAIL] MM2S DMA timeout, status=0x00000001

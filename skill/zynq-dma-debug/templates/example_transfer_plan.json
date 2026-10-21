@@ -1,0 +1,22 @@
+{
+  "_warning": "Addresses are illustrative, NOT a valid DIFI/Vitis board address map. Edit from your XSA/linker map; this is offline validation only.",
+  "mode": "simple",
+  "sg_length_width": 14,
+  "cache_line_bytes": 64,
+  "rx_armed_first": true,
+  "expected_s2mm_packet_bytes": 1024,
+  "mm2s": {
+    "address": "0x11000000",
+    "buffer_bytes": 1024,
+    "transfer_bytes": 1024,
+    "alignment_bytes": 4,
+    "dre_enabled": false
+  },
+  "s2mm": {
+    "address": "0x11001000",
+    "buffer_bytes": 1024,
+    "transfer_bytes": 1024,
+    "alignment_bytes": 4,
+    "dre_enabled": false
+  }
+}
