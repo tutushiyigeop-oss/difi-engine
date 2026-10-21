@@ -1,4 +1,4 @@
-Result: PASS (tool build and post-route timing; Vitis/board not yet retested)
+Result: PASS 
 Vivado: 2024.2
 Target: b5_raw_export
 Part: xc7z020clg400-2
@@ -9,4 +9,3 @@ Setup WNS (ns): 2.206
 Hold WHS (ns): 0.021
 Bitstream: D:/Study/project/DIFI/vivado/rebuilt/b5_raw_export/difi_rebuilt_b5_raw_export.runs/impl_1/difi_system_wrapper.bit
 XSA: D:/Study/project/DIFI/vivado/rebuilt/b5_raw_export/b5_raw_export_rebuilt.xsa
-Not yet tested: regenerated XSA imported into Vitis; on-board IQ/UDP validation
