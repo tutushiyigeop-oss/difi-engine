@@ -258,17 +258,19 @@ PC 接收脚本 `scripts/verify/tools/difi_udp_receiver.py` 对类型、长度�
 
 证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export}/SUCCESS.txt` 及实现报告。**待归档：** 新 XSA 对应的 Vitis 构建日志、板级 UART 日志、PC 接收日志以及关联的 Git Commit SHA。
 
-## 8. 大模型协作过程与纠错记录（待补原始材料）
+## 8. 大模型协作过程与纠错记录（专项附录 v0.1）
 
-AMD 指南要求真实的提示词、模型回答、自我纠错轨迹，不能用事后编造的对话替代。计划至少整理以下真实过程，每个案例都要有**错误/原始请求 → 模型建议 → 人工验证 → 反馈纠错 → 最终结果**：
+本项目从真实的 FPGA 工程开发中选取五个协作与纠错案例，并将其整理为[《AI 协作与自我纠错专项报告》](ai_collaboration_report.md)：
 
-1. Data Parser 的 TKEEP、TLAST、Sequence、Drop 状态与 BRAM 同步读问题。
-2. Icarus Verilog 跨目录 `include` / 源文件依赖与 VS Code 一键仿真配置。
-3. Zynq AXI DMA 的 Cache Flush/Invalidate、先 S2MM 后 MM2S 和真实板级波形/日志。
-4. Vivado Tcl 导出中 `open_bd_design unavailable` 的误判、修复与重新执行结果。
-5. UDP 应用层字节序、Wireshark 显示过滤器、DIFI Consortium 参考工具分流验证。
+1. **Data Parser（C01）**：Word0/RECV 错误优先级、握手、TLAST/TKEEP、丢包后恢复；结合最终 RTL 和异常 Testbench 核对。
+2. **BRAM 资源优化（C02）**：综合报告发现资源热点，讨论同步读预取改造，同口径 OOC LUT 4023→1516、FF 10446→2202、RAMB18 0→1。
+3. **Icarus 编译配置（C03）**：先解决 `include` 搜索路径，再解决 `Unknown module type` 源文件遗漏；区分 `-I` 和 Verilog 编译输入。
+4. **Vivado Tcl 重建（C04）**：修复 Tcl 环境命令可用性误判；两套独立工程均生成 Bitstream/XSA、时序 PASS，开发者确认上板通过，新 XSA 的详细上板日志待补归档。
+5. **UDP 参考工具（C05）**：22 包真实 UDP 验证、不同 Stream ID 分流使用 DIFI Consortium 参考工具，三类报文均通过本轮参考检查。
 
-**重要：** 上述仅是候选案例。正式报告应引用已保存的真实会话或原始日志，以及对应的 Git Diff/Commit；若找不到原始证据，应注明，不得重构为虚假的逐轮对话。
+为保证 AI 协作证据的真实性，报告将**聊天逐字记录（E1）、Git 代码与提交（E2）、真实实验日志（E3）、事后技术复盘（E4）**分开。当前 E2/E3 证据较完整，但五个案例的原始多轮 AI 聊天尚待集中导出，不将历史摘要改写为模型逐字原话。具体关联 Git SHA、文件路径、原始数据及缺失项见 [`evidence_index.csv`](../ai_collaboration/evidence_index.csv)，留档要求见 [`report/ai_collaboration/README.md`](../ai_collaboration/README.md)。
+
+**当前阶段结论：** 已形成可审查的协作案例和工程证据索引；尚不能称 AMD 所要求的“完整原始 AI 交互记录”已经全部提交。Skill 通用部分亦按此前计划留待统一验收。
 
 ## 9. Skill 技能包提炼（统一验收待补）
 
