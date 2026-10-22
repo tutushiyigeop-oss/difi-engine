@@ -2,7 +2,7 @@
 
 > 面向 AMD Zynq-7000 SoC 的可配置 Digital IF 协议收发引擎：从 32-bit I/Q 样本到 DIFI Packet，再到真实 UDP 网络传输与独立协议验证。
 >
-> **项目状态（2026-10-21）：** RTL 功能仿真、Zynq-7020 板级回环、UDP 端到端发送及 DIFI Consortium 开源参考工具验证均已取得通过结果。本文只描述当前实现及已留存的证据，不将演示结果等同于全规范覆盖或正式认证。
+> **项目状态（2026-10-22）：** RTL 功能仿真、Zynq-7020 板级回环、UDP 端到端发送及 DIFI Consortium 开源参考工具验证均已取得通过结果。本文只描述当前实现及已留存的证据，不将演示结果等同于全规范覆盖或正式认证。
 
 [架构与功能](#1-项目概述) · [实测结果](#2-验证状态与实测结果) · [快速复现](#5-快速复现) · [文件索引](#7-仓库目录与提交物对照) · [限制与待办](#8-已知限制与后续工作)
 
@@ -186,7 +186,18 @@ vvp sim/icarus/tb_difi_engine_perf.vvp +packets=100
 
 **严禁直接用封装 IP 的回环 XSA 运行 B5 UDP 程序。** 前者输出 IQ，后者要求收到完整 DIFI Packet（S2MM 按每包 `TLAST` 结束）。
 
-当前仓库保留了 RTL、[`ip_repo/`](ip_repo/)、板级封装代码和 `.rpt`，**但未提交可自动重建这两套完整 Block Design 的 `.tcl` / `.xsa` / `.bit` 成套产物**；因此本节提供硬件连接约束而不冒充“一条命令从零重建”。已有本地 Vivado 工程时，应使用相匹配的 XSA；在全新环境需要依据下列约束重建 BD 并重新生成 bitstream/XSA：
+**两套真实 Block Design 的 Tcl 快照已提交**：[`scripts/vivado/generated/packaged_ip/`](scripts/vivado/generated/packaged_ip/) 和 [`scripts/vivado/generated/b5_raw_export/`](scripts/vivado/generated/b5_raw_export/)。原工程导出脚本、独立重建脚本及实现/XSA 导出脚本也已入库，且两套新工程均有综合、Bitstream/XSA 与时序通过记录。**仓库不提交 `.xpr`、`.bit`、`.xsa` 等可再生成的大型二进制构建产物**；评委需使用 Vivado 2024.2 执行重建，并据新 XSA 建立匹配的 Vitis Platform。开发者已确认两套重建工程上板回归通过，但新版 XSA 对应的完整 Vitis/UART 原始日志仍待集中归档；尚未验证独立陌生机器的端到端复现。完整命令、输出位置与限制见 [`scripts/vivado/README.md`](scripts/vivado/README.md)。
+
+```powershell
+# 在仓库根目录、Vivado 2024.2 命令行环境中分别运行
+vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs packaged_ip
+vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b5_raw_export
+# 在每套新工程独立重建成功后运行对应实现；脚本会保护已有 SUCCESS.txt
+vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs packaged_ip
+vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b5_raw_export
+```
+
+上述命令是**重新复现时的操作说明**，不是要求对现有已完成工程重复执行；重建目标目录已存在时必须先手动核对并另行处理。原始 BD 的 AXI 连接和 PS/PL 设置还应核对以下项目：
 
 1. `processing_system7_0` 的 FCLK 设为 **100 MHz**；启用 AXI GP/HP 数据通路、DDR 和 B5 UDP 所需的 **PS GEM0** 及对应 PHY/MIO 配置。
 2. AXI DMA 使用 **Simple Mode（非 Scatter-Gather）**，MM2S、S2MM 数据流宽度为 32 bit，PS 侧 DDR 通过 AXI 通路访问；S2MM 接收端须支持逐包 `TLAST`。
@@ -278,14 +289,14 @@ difi-engine/
 ├── ip_repo/              # Vivado 自定义 DIFI IP 包
 ├── sim/                  # 模块与系统 Testbench、仿真向量、性能测试
 ├── vitis/vitis_ws/       # 各阶段应用的 src/*.c / *.h（生成工作区被忽略）
-├── scripts/              # Python 接收/校验、PowerShell 验证工具
+├── scripts/              # RTL/Vivado Tcl、Python 验证、绘图与审查脚本
 ├── verification/         # 旧阶段的 PCAP、标准校验与记录
 ├── report/results/       # RTL、封装 IP、B4/B5、UDP 的原始证据
-├── report/competition/   # 竞赛设计报告（待完善）
+├── report/competition/   # 设计报告初稿、AI 协作复盘、量化证据索引（尚待终验）
 ├── docs/                 # 接口规格及开发备注
 ├── board/                # 板级目录（部分为预留）
 ├── host/                 # PC 工具预留目录
-└── skill/                # 可复用技能包（待完善）
+└── skill/                # 四个可复用 Skill 已制作；统一真实/跨项目验收待完成
 ```
 
 这套目录与 AMD 自主选题赛道推荐的 `src/`、`sim/`、`build/`、`board/`、`data/`、`skill/`、`report/` **不是一一同名**，对应关系如下：
@@ -294,21 +305,21 @@ difi-engine/
 | --- | --- |
 | 源码 `src/` | `rtl/`、`vitis/vitis_ws/*/src/`、`ip_repo/` |
 | 仿真与验证 `sim/` | `sim/`、`scripts/verify/`、`verification/` |
-| 构建文件与实现报告 `build/` | `ip_repo/`、`report/results/*_impl/`；**完整 BD 构建 Tcl 待补** |
+| 构建文件与实现报告 `build/` | `scripts/vivado/{export_bd,rebuild_bd,verify_rebuilt_impl}.tcl`、`scripts/vivado/generated/`、`ip_repo/`、`report/results/vivado_rebuild/` |
 | 上板工程与证据 `board/` | `rtl/board/`、`vitis/vitis_ws/`、`report/results/` |
 | 测试数据 `data/` | `sim/vectors/`、`report/results/perf/`、`report/results/udp/` |
-| 技能包 `skill/` | `skill/`（目前尚待补充） |
-| 设计报告 `report/` | `report/competition/`（待完善）及 `report/results/` |
+| 技能包 `skill/` | `skill/` 下四套 Skill，均已制作；新通用工具的真实/跨项目验收待统一进行 |
+| 设计报告 `report/` | `report/competition/` 现有初稿、`report/ai_collaboration/` 证据索引及 `report/results/` 实测资料 |
 
-此 README 为已有内容的索引，**不代表未完成的交付物已具备**。AMD 指南还要求大模型协作交互记录和可复用 Skill，它们需要在正式参赛提交前另外归档。
+**交付状态边界：** AI 协作案例与工程证据索引已在 [`report/ai_collaboration/`](report/ai_collaboration/)；原始逐字模型交互仍需补档。四个 Skill 已制作，但其新通用工具的统一验收尚未进行，见 [`skill/README.md`](skill/README.md)。本 README 不将初稿或已制作的工具表述为已经通过最终提交验收。
 
 ## 8. 已知限制与后续工作
 
 - **规范覆盖范围有限**：当前重点是 DIFI 1.1 的 Data/Context/Version Profile 与 I16/Q16 格式；未宣称支持全部 Packet 类型、射频源及跨厂商互操作组合。
 - **不是无丢包、高速连续 UDP 网关**：B5 使用 DMA Simple Mode 逐包接收、PS 侧 lwIP 发送，并人为插入发送间隔。网络吞吐率上限、丢包率、长期运行稳定性尚未量化。
 - **时间源边界**：UTC 起点由 PS/UART 初始化，PL 按时钟推进；尚无外部高精度同步参考，不能声明 PTP/GPS 同步精度。
-- **复现工程尚待完善**：已保存 RTL/IP/Vitis 源码和实测 `.rpt`/PCAP，但 Vivado BD 的完整导出与自动化重建脚本尚需补齐，不能承诺不依赖现有 XSA 的一键板级复现。
-- **一致性维护**：`performance_summary.md` 的“时钟待确认”内容需要按已确认的 666.667 MHz 修订；项目根 README、Skill、竞赛报告及 AI 协作日志也需要保持同一版本口径。
+- **可复现性仍有边界**：两套真实 BD 快照、重建/实现脚本和工具 PASS 报告已入库；开发者已确认新工程上板，但新版 XSA 所对应的完整 Vitis/UART 证据与独立陌生机器复现仍待终验。不能将工具实现成功等同于无需人工操作的一键板级部署。
+- **性能换算证据**：板级 PMU 原始计数已归档，两项 MB/s 按开发者确认的约 666.667 MHz CPU 时钟换算。最终仍应将与该次 XSA/板级运行对应的 PS CPU 时钟配置证据独立归档；不要将软件 DMA 轮询测值视为纯 PL 峰值吞吐率。
 - **开源许可**：当前仓库根目录未包含 `LICENSE` 文件；若要允许第三方明确再分发，需先选定并加入 MIT 或 Apache-2.0 等许可，勿默认无 LICENSE 即可自由复用。
 
 ## 9. 参考标准与工具

@@ -10,7 +10,8 @@
 - [ ] 在 Vivado 打开 `difi_ip_test` 与 B5 `difi_system`，各保存一张真正的 BD 截图。
 - [x] 从已归档的 OOC Report、RTL latency CSV、板级 PMU 日志、UDP 验证记录制作四张证据图（SVG + PNG），并嵌入报告 5/6 章。
 - [ ] 整理 UDP Wireshark 的 22 包总览及 Version / Context / Data 三张解析截图。
-- [ ] 核查并统一 666.667 MHz PS 时钟的证据；同步修订旧性能汇总里的“待校准”。
+- [x] 同步修订旧性能汇总里的“待校准”措辞；保留原始 PMU ticks 与按开发者确认约 666.667 MHz 的换算值。
+- [ ] 归档与实际测试 XSA 对应的 PS CPU 时钟配置原始证据（截图/配置文件），确认数值对应关系。
 - [ ] 收集新 XSA 对应的 Vitis 编译和实际板级结果（已有测试不用重跑，只补原始日志）。
 
 ## AI 协作记录（可以与报告并行）
@@ -31,7 +32,7 @@
 
 - [ ] 四个 Skill 的静态/真实/跨项目验收，形成 `report/skill_validation_report.md`。
 - [ ] 新通用脚本及验证器正反例测试的最终日志归档。
-- [ ] README/Skill 目录索引一致；给出目录对照说明。
+- [x] 已同步 README、Vivado 构建文档和四套 Skill 目录的“已制作/待统一验收”口径；正式发版仍须对最新分支重新审查。
 - [ ] 仓库的开源许可证及第三方工具授权审查。
 - [ ] 统一 `.gitignore`、检查 Git 中是否混入生成 Workspace。
 - [ ] 冻结分支 SHA / Tag，进行一次完整复现与演示。

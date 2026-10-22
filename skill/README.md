@@ -1,19 +1,19 @@
 # 可复用技能包（Skill Library）
 
-本目录根据 AMD 自主选题赛道 3.3.5.2 的要求，记录在**真实工程开发及大模型协作**中沉淀的方法、模板、校验工具和失效边界。它与 `report/` 下的真实交互记录、测试原始数据相互引用，不能相互替代。
+本目录依据 AMD 自主选题赛道关于 Skill 沉淀的要求，汇总在真实 DIFI 工程开发与大模型协作中提炼的工作流、模板、脚本和失败条件。**四个 Skill 均已制作完成；本轮暂缓统一真实工程/跨项目验收。**
 
-## 已完成
+| Skill | 范围与入口 | 已具备的证据 | 仍待完成 |
+| --- | --- | --- | --- |
+| [`vivado-rebuild`](vivado-rebuild/SKILL.md) | BD Tcl 导出、依赖审计、空目录重建、实现与 XSA | DIFI **专用脚本**两套真实工程工具构建与开发者确认的板级回归；新通用模板有静态/模拟检查 | 新通用模板在真实 Vivado 工程、跨项目及异机环境中实测 |
+| [`zynq-dma-debug`](zynq-dma-debug/SKILL.md) | AXI DMA Simple Mode、S2MM/MM2S、缓存、TLAST、日志诊断 | DIFI 原有 DMA 代码已上板；Skill 离线 Python 工具测试 | 新通用 C 模板 Vitis 编译及其他项目复用 |
+| [`axis-rtl-verification`](axis-rtl-verification/SKILL.md) | AXI4-Stream 握手、背压、TLAST、Golden/Scoreboard、错误注入 | DIFI 原有 RTL Testbench；Skill 离线 CSV 检查器测试 | Skill 自带示例/错误 RTL 的 Icarus 实测和跨项目复用 |
+| [`udp-packet-validation`](udp-packet-validation/SKILL.md) | UDP 监听、PCAP、数据长度/序列/Golden 校验，DIFI 示例适配 | DIFI 原有 B5 UDP 22 包、5120 IQ 与第三方参考工具记录；Skill 合成测试 | 新通用 UDP 工具接入真实板级链路及跨项目复用 |
 
-| 技能包 | 适用范围 | 入口 | 已验证效果与限制 |
-|---|---|---|---|
-| **Vivado Block Design 可复现构建** | IP Integrator 工程导出、重建、综合实现、XSA 与板级分层验证 | [`vivado-rebuild/SKILL.md`](vivado-rebuild/SKILL.md) | DIFI 两套原生工程已重建、工具实现和用户确认的板级验证；新通用模板尚未跨项目 Vivado 实测 |
+## 使用与证据边界
 
-## 后续规划（尚未制作，非已验证 Skill）
+1. 每个 Skill 均从其 `SKILL.md` 开始阅读，配有使用方法、适用场景和失效条件，必要时参阅 `README.md`、`examples/`、`tests/`。
+2. **原 DIFI 项目已通过**不等于 **新通用 Skill 已完成真实/跨项目验证**。离线单元测试也不等同于板级实测。
+3. AI 对话与纠错轨迹另在 [`report/ai_collaboration/`](../report/ai_collaboration/) 归档；当前仍需补齐完整原始交互。
+4. `bd.tcl` 与 `manifest.tcl` 是可执行 Tcl，运行前应审查并只使用可信仓库内容；自定义 IP、外部约束和第三方工具按许可证和实际环境另行核实。
 
-- `zynq-dma-debug`：AXI DMA、缓存一致性与 TLAST 调试。
-- `axis-rtl-verification`：AXI4-Stream Testbench、背压与错误注入。
-- `udp-packet-validation`：Zynq lwIP UDP 到 PC 的抓包与黄金参考检查。
-
-## 使用说明
-
-每个 Skill 均包含适用条件、具体命令、输入输出、实际效果、来源问题以及失效条件。请从其 `SKILL.md` 进入，先区分本项目已实测的专用脚本和面向其他项目的模板。目录内部程序与模板仅接受**可信来源**；生成的 `manifest.tcl`、`bd.tcl` 也是可执行 Tcl，禁止未经审查地运行网络下载版本。
+统一验收完成后再更新每个 Skill 的真实结果，并汇总为 `report/skill_validation_report.md`。不要在现阶段写“全部 Skill 已验收通过”。

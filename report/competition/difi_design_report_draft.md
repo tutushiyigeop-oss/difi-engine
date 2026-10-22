@@ -201,7 +201,7 @@ Setup WNS = **+0.411 ns**；TNS = **0 ns**；规定约束满足。此处的封�
 - `system_MBps = 102400 × 666666667 / (2729306 × 10^6)`
 - `dma_window_MBps = 102400 × 666666667 / (636916 × 10^6)`
 
-**口径说明：** 该系统级结果包含 Simple DMA 逐包重新启动、PS 轮询及 DDR/软件开销，不能用于宣称 PL 协议引擎最大处理性能。`report/results/perf/performance_summary.md` 仍有“频率待确认”的旧表述，最终版须同步修订，并附 PS 时钟配置证据。
+**口径说明：** 该系统级结果包含 Simple DMA 逐包重新启动、PS 轮询及 DDR/软件开销，不能用于宣称 PL 协议引擎最大处理性能。现已将 `report/results/perf/performance_summary.md` 的换算口径与本报告同步；最终仍须为开发者确认的约 666.667 MHz CPU 时钟补档与该次 XSA 相对应的原始配置证据。
 
 ![图 5-3：三种不同测量窗口的有效 IQ 吞吐率](../figures/difi_throughput_measurement_scopes.svg)
 

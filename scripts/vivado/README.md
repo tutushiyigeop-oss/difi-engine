@@ -1,6 +1,6 @@
 # DIFI Vivado Block Design export/rebuild (Vivado 2024.2)
 
-> **Current status:** the generic export/rebuild scripts are provided. The **real** `generated/*/bd.tcl` snapshots can **only** be produced by opening the original projects in your local Vivado installation. No `.bd` / `.xpr` / `.xsa` / `.bit` was present in the Git repository when these scripts were prepared. These scripts have **not** been executed inside Vivado by the authoring environment. Re-implementation and Vitis regression are still required before claiming end-to-end reproducibility.
+> **Current status (2026-10-22):** Both actual Vivado BD snapshots (`generated/{packaged_ip,b5_raw_export}/bd.tcl` and manifests) have been exported from the working original projects and committed. Each has been rebuilt into an independent XPR; the associated implementation scripts generated bitstream and XSA with positive setup/hold slack. The developer subsequently confirmed board-level regression of both rebuilt projects. Fresh-board Vitis/UART transcripts remain to be archived, and this repository has **not** yet been independently reproduced on an unrelated machine. The existing scripts and reports are **real project-specific tools**, not a claim that the new generic `skill/vivado-rebuild/` template has passed cross-project testing.
 
 ## 1. Identifying the two original projects
 
@@ -13,7 +13,7 @@
 
 ## 2. Export the real BD from an open Vivado project
 
-Copy `scripts/vivado/` into `D:/Study/project/DIFI/scripts/vivado/` first.
+The scripts are already committed in this repository. The original export commands below are for auditing/re-exporting a known-good source project; you **do not need to re-export** before rebuilding from the already committed snapshots.
 
 ### Packaged-IP project
 
@@ -35,7 +35,7 @@ source D:/Study/project/DIFI/scripts/vivado/export_bd.tcl
 difi::export_bd b5_raw_export
 ```
 
-The exported files will be:
+The following real snapshot files **are already present in the repository** (re-exporting replaces the snapshot and requires renewed comparison):
 
 ```text
 scripts/vivado/
@@ -44,7 +44,7 @@ scripts/vivado/
 ├── README.md
 └── generated/
     ├── packaged_ip/
-    │   ├── bd.tcl             (generated locally; must check in)
+    │   ├── bd.tcl             (real exported snapshot; committed)
     │   ├── manifest.tcl       (generated locally; must check in)
     │   ├── export_info.txt    (audit)
     │   └── constraints/      (if user XDCs exist)
@@ -85,7 +85,7 @@ vivado/rebuilt/b5_raw_export/difi_rebuilt_b5_raw_export.xpr
 
 The script:
 
-1. Requires a **real exported** `bd.tcl` and `manifest.tcl`; does not fake one.
+1. Requires the already committed, **real exported** `bd.tcl` and `manifest.tcl`; does not fabricate design data.
 2. Rejects a mismatched Vivado version or existing output project directory.
 3. Rebuilds the relevant custom RTL/IP dependency **before** sourcing the original BD Tcl.
 4. Runs `validate_bd_design`, copies saved XDCs into the constraints fileset, generates IP targets, makes an HDL wrapper and updates compile order.
@@ -97,14 +97,32 @@ For packaged IP, `ip_repo/difi_engine_ip/component.xml` must exist and match the
 
 ## 4. Verify post-rebuild implementation and XSA
 
-Open the **new** XPR in Vivado 2024.2. Compare the following with the **original proven implementation** before claiming reproducibility:
+After a **new, independent** BD rebuild, use the committed implementation script from a fresh Vivado 2024.2 batch session:
+
+```powershell
+vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs packaged_ip
+vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b5_raw_export
+```
+
+The script starts synthesis and implementation through bitstream generation, writes timing/utilization/DRC/clock reports, checks timing, exports a bitstream-containing XSA, and writes `report/results/vivado_rebuild/<target>/SUCCESS.txt`. **It refuses to overwrite an existing SUCCESS.txt**; to re-run a target, review/archive previous evidence and handle its generated rebuild directory deliberately. Do not run the commands above blindly in the current, already verified workspace.
+
+Actual archived outcomes:
+
+| Target | Post-route WNS | Post-route WHS | XSA / Bitstream | Board status |
+| --- | ---: | ---: | --- | --- |
+| `packaged_ip` | +0.411 ns | +0.046 ns | Generated, Vivado PASS | Developer confirmed PASS; raw new-XSA UART/Vitis evidence to archive |
+| `b5_raw_export` | +2.206 ns | +0.021 ns | Generated, Vivado PASS | Developer confirmed PASS; raw new-XSA PC/UART evidence to archive |
+
+Evidence: [`packaged_ip/SUCCESS.txt`](../../report/results/vivado_rebuild/packaged_ip/SUCCESS.txt) and [`b5_raw_export/SUCCESS.txt`](../../report/results/vivado_rebuild/b5_raw_export/SUCCESS.txt). The SUCCESS file is a **tool-build acceptance**, not itself a board test certificate. The archived user-reported board test happened after those files were generated.
+
+Open each **new** XPR in Vivado 2024.2 when inspecting the reconstructed design. Compare these parameters with the original proven implementation:
 
 - Device: `xc7z020clg400-2`, PL clock 100 MHz, PS CPU approximately 666.667 MHz.
 - B5: PS GEM0 interface and board-specific MIO/PHY config; DMA MM2S IQ → `difi_board_raw_packet_export` → DMA S2MM **raw** DIFI packet.
 - Packaged IP: TX Packet → RX Packet internal loopback; DMA S2MM **decoded IQ**.
 - Correct AXI4-Lite control/time address map (test software commonly uses `0x40000000` / `0x40001000`, must match Address Editor), DMA device location, interrupt configuration, constraints.
 
-For full hardware reproduction, you must still complete implementation/bitstream generation and export an XSA **including the bitstream** (GUI: `File → Export → Export Hardware`, include bitstream), recreate/rebind the Vitis 2024.2 SDT Platform, enable `lwip220` for B5 networking, and run the existing benchmark and UDP tests. Do not assume this is accomplished by the BD export alone.
+The archived runs **have already completed** implementation/bitstream generation and XSA export using `verify_rebuilt_impl.tcl`. For any **new** reproduction, rebind the newly generated XSA in a Vitis 2024.2 SDT Platform, enable `lwip220` for B5 networking, download the matching bitstream and execute the benchmark/UDP acceptance programs. Vivado-only PASS never substitutes for this board-level step; on-board developer confirmations and missing original fresh-XSA runtime logs must be kept distinct.
 
 Original evidence to compare:
 
