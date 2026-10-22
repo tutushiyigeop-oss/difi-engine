@@ -8,7 +8,7 @@
 - [ ] 确认项目简介、正式参赛题目、参赛队员、指导教师等封面信息。
 - [x] 绘制 RTL 收发架构图、B5 真实系统架构图（SVG + 高清 PNG），核对 RX/B5 边界，并已插入报告初稿。
 - [ ] 在 Vivado 打开 `difi_ip_test` 与 B5 `difi_system`，各保存一张真正的 BD 截图。
-- [ ] 从现有 CSV 和 Report 绘制三张证据图：OOC LUT/FF 对比；RTL 首 IQ 延迟分布；构建/验证层次图。
+- [x] 从已归档的 OOC Report、RTL latency CSV、板级 PMU 日志、UDP 验证记录制作四张证据图（SVG + PNG），并嵌入报告 5/6 章。
 - [ ] 整理 UDP Wireshark 的 22 包总览及 Version / Context / Data 三张解析截图。
 - [ ] 核查并统一 666.667 MHz PS 时钟的证据；同步修订旧性能汇总里的“待校准”。
 - [ ] 收集新 XSA 对应的 Vitis 编译和实际板级结果（已有测试不用重跑，只补原始日志）。

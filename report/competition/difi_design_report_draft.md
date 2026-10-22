@@ -1,4 +1,4 @@
-# DIFI 1.1 FPGA Digital IF Protocol Engine：设计与验证报告（初稿 v0.1）
+# DIFI 1.1 FPGA Digital IF Protocol Engine：设计与验证报告（初稿 v0.2）
 
 > 全国大学生嵌入式芯片与系统设计竞赛（AMD 自主选题赛道）  
 > 队伍、成员、学校：[提交前填写]  
@@ -152,6 +152,10 @@ Data Parser 对完整接收报文进行检查，在接受正确的完整 Packet 
 
 证据：`report/results/ooc/utilization.rpt`、`report/results/ooc_new/utilization.rpt`。上述为综合阶段比较；不要与下节的封装 IP 实现后资源表混用。
 
+![图 5-1：DIFI OOC 综合前后 LUT、FF 优化对比](../figures/difi_ooc_resource_optimization.svg)
+
+*图 5-1　原始综合报告提取的资源对比。LUT 减少约 62.32%、FF 减少约 78.92%；引入 1 块 RAMB18。只比较同一 RTL 顶层的 OOC 综合结果，不能将它与封装 IP 的实现后资源混作一组。*
+
 ### 5.2 封装 IP 实现后资源与时序
 
 条件：`difi_ip_test_wrapper`，XC7Z020CLG400-2，100 MHz，Routed。
@@ -186,6 +190,10 @@ Setup WNS = **+0.411 ns**；TNS = **0 ns**；规定约束满足。此处的封�
 
 证据：`report/results/perf/difi_perf_latency.csv`、`sim/perf/tb_difi_engine_perf.v`。
 
+![图 5-2：100 个 RTL 数据包的首 IQ 输出延迟](../figures/difi_rtl_first_iq_latency.svg)
+
+*图 5-2　逐包延迟来自原始 `difi_perf_latency.csv`：首包为 266 cycles，其余 99 包均为 519 cycles；100 包平均 516.470 cycles。数值是理想 RTL 回环条件下的首 IQ 延迟，不是网络传输时延。*
+
 ### 5.4 板级 DMA 回环
 
 在 Zynq-7020 上，封装 IP 回环使用 100 包 × 256 IQ 的数据集，共 **25,600 IQ 全部正确、失配为 0**。计时数据来自 Cortex-A9 PMU 周期计数器，PS CPU 配置频率在后续核对中确认为约 **666.667 MHz**。据已归档的 `2,729,306` 完整窗口 ticks 和 `636,916` 次 DMA 事务窗口总 ticks 换算，分别约 **25.01 MB/s** 与 **107.18 MB/s**。报告应继续保留原始 ticks 和换算公式：
@@ -194,6 +202,10 @@ Setup WNS = **+0.411 ns**；TNS = **0 ns**；规定约束满足。此处的封�
 - `dma_window_MBps = 102400 × 666666667 / (636916 × 10^6)`
 
 **口径说明：** 该系统级结果包含 Simple DMA 逐包重新启动、PS 轮询及 DDR/软件开销，不能用于宣称 PL 协议引擎最大处理性能。`report/results/perf/performance_summary.md` 仍有“频率待确认”的旧表述，最终版须同步修订，并附 PS 时钟配置证据。
+
+![图 5-3：三种不同测量窗口的有效 IQ 吞吐率](../figures/difi_throughput_measurement_scopes.svg)
+
+*图 5-3　RTL 理想回环 196.916 MB/s；板级 DMA 事务窗口约 107.18 MB/s；完整 PS 软件测试窗口约 25.01 MB/s。板级换算以开发者确认的 PS CPU 666.667 MHz 配置及 PMU 每周期递增 1 为前提，仍须在最终验收时归档时钟配置证据。三组数据并非同一环境下的端到端性能比较，不能根据横条差额推出协议引擎的 PL 吞吐退化。*
 
 ## 6. Zynq UDP 端到端验证与第三方检查
 
@@ -225,6 +237,10 @@ PC 接收脚本 `scripts/verify/tools/difi_udp_receiver.py` 对类型、长度�
 | Data | 20 | 0 | PASS |
 
 **边界：** 此结果表示第三方开源参考程序在本轮检查范围内 PASS，**不等于 DIFI Consortium 的正式认证**。证据保存在 `report/results/udp/consortium/`。
+
+![图 6-1：RTL、DMA、UDP 多层 IQ 正确性验证规模](../figures/difi_multilayer_validation_evidence.svg)
+
+*图 6-1　三条测试链路的黄金数据比对规模：RTL 回环 25,600 IQ、板级 DMA 回环 25,600 IQ、B5 UDP 到 PC 5,120 IQ，已记录样本均无失配。图中没有展示未测试场景的通过率；第三方参考工具检查的 PASS 也不是正式认证。*
 
 ## 7. Tcl 构建可复现性验证
 
