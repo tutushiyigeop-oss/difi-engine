@@ -66,6 +66,10 @@
 
 ### 3.1 协议引擎数据通路
 
+![图 3-1：DIFI 1.1 RTL 协议收发引擎与 B5 包装层结构](../figures/difi_engine_rtl_architecture.svg)
+
+*图 3-1　DIFI 1.1 协议引擎内部结构：TX 路径包含 Data/Context/Version 生成与调度；RX 路径包含类型分发与三类解析器。图中时间源与周期触发为 B5 包装层的辅助模块，不属于 `difi_engine_top` 内部实例。*
+
 ```mermaid
 flowchart LR
     IQIN[AXI4-Stream IQ Input] --> TXD[Data Packetizer]
@@ -106,6 +110,10 @@ PS DDR → AXI DMA MM2S → DIFI TX → AXI DMA S2MM → PS DDR
 ```
 
 该路径 S2MM 接收的是**完整的 DIFI Packet**，PS 负责将 32 位报文 Word 按网络字节序序列化，并经 UDP 发送到 PC。此工程不是 TX/RX 自回环工程。B4 历史工程与 B5 使用同名 `difi_system`，重建时需根据 BD 内原始 Packet 导出模块识别。
+
+![图 3-2：DIFI B5 FPGA—Zynq PS—UDP—PC 端到端系统架构](../figures/difi_b5_system_architecture.svg)
+
+*图 3-2　B5 板级系统数据通路。PS 通过 AXI4-Lite 控制 PL 寄存器；DMA 经 HP0 访问片外 DDR。MM2S 提供原始 IQ；S2MM 收回完整 DIFI 报文；PS GEM0/lwIP 再将报文作为 UDP Payload 发往 PC。图示不表示 PL 内存在 UDP 协议栈或 B5 配置了 TX→RX 回环。*
 
 ### 3.3 软硬件划分依据
 

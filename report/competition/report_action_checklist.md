@@ -6,7 +6,7 @@
 
 - [ ] 审阅 `difi_design_report_draft.md` 的技术结论与表达范围。
 - [ ] 确认项目简介、正式参赛题目、参赛队员、指导教师等封面信息。
-- [ ] 将 RTL 架构框图绘成矢量图或高清 PNG，明确 TX、RX、控制与时间源。
+- [x] 绘制 RTL 收发架构图、B5 真实系统架构图（SVG + 高清 PNG），核对 RX/B5 边界，并已插入报告初稿。
 - [ ] 在 Vivado 打开 `difi_ip_test` 与 B5 `difi_system`，各保存一张真正的 BD 截图。
 - [ ] 从现有 CSV 和 Report 绘制三张证据图：OOC LUT/FF 对比；RTL 首 IQ 延迟分布；构建/验证层次图。
 - [ ] 整理 UDP Wireshark 的 22 包总览及 Version / Context / Data 三张解析截图。

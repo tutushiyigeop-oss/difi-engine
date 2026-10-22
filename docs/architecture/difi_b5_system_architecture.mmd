@@ -1,0 +1,30 @@
+flowchart LR
+  PC["PC / Python + Wireshark<br/>192.168.1.20:4991"]
+  subgraph PS["Zynq-7020 PS + board DDR"]
+    CPU["Cortex-A9 / Standalone C<br/>Vitis 2024.2 + lwIP"]
+    DDR["Off-chip DDR3<br/>IQ + DIFI buffers"]
+    GEM["GEM0 / Ethernet PHY"]
+    CPU <-->|read/write + cache| DDR
+    CPU --> GEM
+  end
+  subgraph PL["Zynq-7020 PL @ 100 MHz"]
+    SC["AXI SmartConnect<br/>control plane"]
+    DMA_TX["AXI DMA MM2S"]
+    ENGINE["DIFI 1.1 TX<br/>Data / Context / Version<br/>TX Scheduler"]
+    DMA_RX["AXI DMA S2MM"]
+    DMA_TX -->|32-bit IQ AXI4-Stream| ENGINE
+    ENGINE -->|32-bit complete DIFI packet AXI4-Stream| DMA_RX
+    SC -.->|AXI4-Lite CTRL/TIME| ENGINE
+    SC -.->|AXI4-Lite| DMA_TX
+  end
+  CPU -.->|PS M_AXI_GP0| SC
+  DDR -->|PS S_AXI_HP0 / MM2S| DMA_TX
+  DMA_RX -->|PS S_AXI_HP0 / S2MM| DDR
+  GEM -->|DIFI over UDP 4991| PC
+  PC -.->|START| GEM
+  classDef data fill:#e9f5ff,stroke:#2a75b2,color:#18334b
+  classDef ctrl fill:#fff7e9,stroke:#c99128,color:#57401b
+  classDef tx fill:#e8f7f5,stroke:#008e87,color:#123b39
+  class DMA_TX,DMA_RX,DDR data
+  class SC,CPU ctrl
+  class ENGINE tx
