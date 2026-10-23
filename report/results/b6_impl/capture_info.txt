@@ -1,0 +1,11 @@
+Evidence: REAL B6 implementation run; not independent rebuild.
+Vivado: 2024.2
+Part: xc7z020clg400-2
+Top: difi_ip_test_wrapper
+impl_1 status: write_bitstream Complete!
+impl_1 progress: 100%
+Worst setup path slack ns: 2.372
+Worst hold path slack ns: 0.053
+XSA export success: 1
+Board/Vitis outcome: SEE separately archived real UART log, NOT claimed here.
+Run pairing with tested ELF/Bitstream: TO BE CONFIRMED by project owner.
