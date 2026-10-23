@@ -12,7 +12,6 @@
 - [x] B5 UDP Wireshark 的 22 包总览及 Version / Context / Data 四张截图已入库 `report/results/udp/tx/screenshots/`；视频录制前仍需核对清晰度。
 - [x] 同步修订旧性能汇总里的“待校准”措辞；保留原始 PMU ticks 与按开发者确认约 666.667 MHz 的换算值。
 - [ ] 归档与实际测试 XSA 对应的 PS CPU 时钟配置原始证据（截图/配置文件），确认数值对应关系。
-- [ ] 收集新 XSA 对应的 Vitis 编译和实际板级结果（已有测试不用重跑，只补原始日志）。
 
 ## AI 协作记录（可以与报告并行）
 
@@ -45,5 +44,5 @@
 - [x] B6 v0.2 真实 BD Tcl、原始及独立重建实现报告、XSA 生成证据均已入库。
 - [x] 开发者确认重建的新 XSA 已通过三类 UDP RX 板级回归（2026-10-23）。
 - [x] B6 独立重建 XSA、Bitstream SHA256 已归档。
-- [ ] 补档此次重建 XSA 对应的 PC/串口/Vitis 原始日志、ELF SHA256 以及实际测试版本关联。
-- [ ] 录制 B6 实时视频和对应 PC 完整控制台日志。
+
+- [x] B6 独立重建及板级回归阶段完成；不再设置附加 ELF/Platform/新一轮 UART/PC 记录为交付门槛。

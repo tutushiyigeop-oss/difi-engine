@@ -28,4 +28,4 @@ b6_monitor,rtl/board/difi_b6_rx_meta_monitor.v,PL metadata monitor,existing,AXI 
 b6_live_video,report/competition/demo_capture/b6_udp_rx_live.mp4,B6 live demonstration,to_capture,Requires same B6 bitstream and ELF
 b6_bd_snapshot,scripts/vivado/generated/b6_udp_rx/bd.tcl,B6 real BD snapshot,existing,Not B5 or packaged IP
 b6_rebuild_success,report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt,B6 clean rebuild Vivado tool PASS,existing,Board regression separately confirmed
-b6_board_confirmation,report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md,B6 new XSA board regression,existing,Developer confirmed; rebuilt XSA and bitstream SHA256 archived; new logs and ELF mapping pending
+b6_board_confirmation,report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md,B6 new XSA board regression,existing,Developer confirmed; rebuilt XSA and bitstream SHA256 archived; hardware stage closed

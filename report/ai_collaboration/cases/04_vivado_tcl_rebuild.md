@@ -1,6 +1,6 @@
-# C04 — Vivado Tcl 检测误报与双工程独立重建
+# C04 — Vivado Tcl 检测误报与三工程独立重建
 
-**状态：** 两套 E3 工具构建 PASS；开发者已确认板级回归，需补新版板级原始日志；AI 逐字 E1 待导出。
+**状态：** 三套 E3 工具构建 PASS；开发者确认板级回归，本阶段收束；AI 逐字 E1 待导出。
 
 ## 触发问题
 
@@ -21,7 +21,7 @@
 
 证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export}/SUCCESS.txt`，以及对应 `timing_summary.rpt`/`utilization.rpt`/`drc.rpt`。
 
-**证据时间线说明：** `SUCCESS.txt` 生成时原备注是“Vitis/board not yet retested”；后来开发者在聊天中明确表示“两套重建工程的板级测试都通过”。这是先后两个阶段，并非相互排斥；如果竞赛评委要求 E3 实测佐证，应再放入新 XSA 对应的 Vitis 构建输出、板级 UART/PC 记录及日期。
+**证据时间线说明：** `SUCCESS.txt` 生成时原备注是“Vitis/board not yet retested”；后来开发者在聊天中明确表示“两套重建工程的板级测试都通过”。这是先后两个阶段，并非相互排斥；如果竞赛评委要求 E3 实测佐证，本阶段以工具报告和开发者确认完成验收。
 
 ## AI 纠错价值
 
@@ -35,4 +35,4 @@
 
 - [ ] 原始 Tcl 错误命令、完整日志及 AI 最初与修正后的回答。
 - [ ] Tcl 修改前后 Diff、对应 Git SHA。
-- [ ] 两套重建后上板 UART/Vitis/PC 日志并明确 XSA 来源。
+

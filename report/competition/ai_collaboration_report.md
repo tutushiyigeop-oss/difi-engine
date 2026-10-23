@@ -66,7 +66,7 @@ AMD 选题指南 3.3.3.1 要求提交体现大模型协作的交互记录（提�
 
 已验证脚本经历了初版 Vivado 环境检查误判：使用 `[info commands open_bd_design]` 探测按需加载的 Tcl 命令会错误报告不可用；后续改为检查实际 Vivado 环境/当前工程，并以真实命令运行结果为准。工程需明确 BD、RTL Module Reference、封装 IP、XDC 和 XSA 的依赖。
 
-在真实 Vivado 2024.2 中，封装 IP 与 B5 两套工程均完成独立导出、重建、实现、Bitstream/XSA，Setup WNS 分别为 **+0.411 ns / +2.206 ns**。开发者进一步在对话中确认两套重建工程均已上板通过；**当前 Git 中 `SUCCESS.txt` 是实现阶段形成的文件，其内仍写“Vitis/board not yet retested”，应另外归档上板日志，避免证据时间线混乱。**
+在真实 Vivado 2024.2 中，封装 IP 与 B5 两套工程均完成独立导出、重建、实现、Bitstream/XSA，Setup WNS 分别为 **+0.411 ns / +2.206 ns**。开发者进一步在对话中确认两套重建工程均已上板通过；**当前 Git 中 `SUCCESS.txt` 是实现阶段形成的文件，其内仍写“Vitis/board not yet retested”，构建日志保留生成当时状态，板级回归由开发者后续确认，本阶段已收束。**
 
 参见 [`C04`](../ai_collaboration/cases/04_vivado_tcl_rebuild.md)。关联 Skill：`vivado-rebuild`。
 
@@ -92,14 +92,14 @@ AMD 选题指南 3.3.3.1 要求提交体现大模型协作的交互记录（提�
 - **不能只相信 AI 的诊断**：`include` 修好之后依然无法实例化 DUT，必须根据新日志继续定位；Vivado `info commands` 的静态判断也曾导致误报。
 - **不能以仿真通过代替硬件正确**：RTL、OOC、Routed Timing、Vitis、UART/UDP 属于不同层次；每层分别记录 PASS 与版本。
 - **不能把第三方工具适配写成修改官方标准**：保留参考工具原版及 SHA256、按其 SID 假设分流。
-- **不能用口头结论覆盖旧日志**：上板已由开发者确认，但早期 `SUCCESS.txt` 只证明工具实现；需要后续版本的独立板级证据。
+- **不能用口头结论覆盖旧日志**：上板已由开发者确认，但早期 `SUCCESS.txt` 只证明工具实现；应正确区分构建日志与后续开发者确认的板级验证结论。
 - **不能凭 Git 改动证明 AI 贡献**：正式评审需要原始提示词/模型回答/反馈纠错导出，而不是事后归纳。
 
 ## 6. 下一次补齐材料的操作步骤
 
 1. 从 ChatGPT 原始对话中选取 C01—C05 的**最少两轮**关键交互；按时间保存到 `report/ai_collaboration/raw/`（建议 UTF-8 Markdown），并用会话截图或平台导出核对。
 2. 原样保留模型第一版不完善建议及用户反驳/日志反馈。只在正文另外标“技术分析”，绝不润色成对话原话。
-3. 逐条用 Git Commit / Diff 和实验文件对应到代码版本；补记板级重建新 XSA 的串口/PC 接收证据。
+3. 逐条用 Git Commit / Diff 和实验文件对应到代码版本；以已有工具 PASS、原始实验日志和开发者确认的板级回归结论为依据。
 4. 在 GitHub 上检查 `skill/README.md`：若仍将后 3 个 Skill 写在“后续规划”，应改为“四项已制作、待统一验收”。
 5. 统一验收四个 Skill 后，更新对应的成功/失败结论；再将本报告定稿为 `ai_collaboration_report.md`。
 

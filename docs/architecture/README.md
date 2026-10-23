@@ -48,4 +48,4 @@ B5 数据通路：DDR IQ → AXI DMA MM2S → PL DIFI TX → AXI DMA S2MM（完�
 
 ## B6 网络接收路径（2026-10-23）
 
-PC UDP → PS GEM0/lwIP → DDR → DMA MM2S → PL `S_AXIS_RX_PKT`。Data Parser 的 `M_AXIS_IQ` 经 DMA S2MM 输出 IQ，Version/Context 的 Metadata 有效握手由同域 `difi_b6_rx_meta_monitor` 统计，PS 通过 AXI GPIO 读取。已归档 `report/results/udp/rx/three_types_udp_rx.rtf`。B6 是独立硬件工程，不等于 B5 的 TX Packet 导出 BD；B6 真实 BD Tcl 已位于 `scripts/vivado/generated/b6_udp_rx/`，独立重建结果见 `report/results/vivado_rebuild/b6_udp_rx/`，开发者已确认新 XSA 三类 UDP RX 板级回归通过；新一轮 UART/PC 原始记录仍待归档。
+PC UDP → PS GEM0/lwIP → DDR → DMA MM2S → PL `S_AXIS_RX_PKT`。Data Parser 的 `M_AXIS_IQ` 经 DMA S2MM 输出 IQ，Version/Context 的 Metadata 有效握手由同域 `difi_b6_rx_meta_monitor` 统计，PS 通过 AXI GPIO 读取。已归档 `report/results/udp/rx/three_types_udp_rx.rtf`。B6 是独立硬件工程，不等于 B5 的 TX Packet 导出 BD；B6 真实 BD Tcl 已位于 `scripts/vivado/generated/b6_udp_rx/`，独立重建结果见 `report/results/vivado_rebuild/b6_udp_rx/`，开发者已确认新 XSA 三类 UDP RX 板级回归通过；工程重建及板级回归阶段已完成。

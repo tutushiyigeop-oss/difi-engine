@@ -36,7 +36,7 @@ vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs packa
 vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b5_raw_export
 ```
 
-已由开发者反馈：上述两套重建工程对应**新 XSA**的 Vitis 应用板级测试均通过。仍应将该轮的串口/PC 原始日志单独归档。
+已由开发者反馈：三套重建工程对应**新 XSA**的 Vitis 应用板级测试均通过。工程重建及功能回归阶段已收束。
 
 ## 已记录的 Vivado 实现结果（真实上传的 SUCCESS 报告）
 
@@ -63,7 +63,7 @@ vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b5_ra
 1. **失败现象**：初版 `export_bd.tcl` 调用 `info commands open_bd_design` 判断环境，报告 `open_bd_design unavailable`，未进入真实导出。
 2. **原因定位**：Vivado 可按需加载 Tcl 命令，预先要求它一定出现在 `info commands` 可能导致误判。
 3. **修改方案**：改用可执行的 `version -short`、`current_project` 检查运行环境，再调用真实 IP Integrator 命令。
-4. **复测结果**：Vivado 2024.2 成功导出 BD，随后两套设计均被重建，实现完成并生成 XSA。
+4. **复测结果**：Vivado 2024.2 成功导出 BD，随后三套设计均被重建，实现完成并生成 XSA。
 5. **边界**：这一修复解决了**误报环境错误**，并不保证 IP 兼容、外部 XDC、AXI 地址或板级程序天然正确。
 
 这些条目是对已发生协作的归纳，不是假装原始完整提示词/模型回复。参赛正式协作记录应附原始聊天导出或截图。

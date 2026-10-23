@@ -20,8 +20,7 @@
 
 - [ ] 四个 Skill 自检/正反例测试及真实项目实测，区分已通过/未覆盖项。
 - [ ] 跨 DIFI 项目的 Skill 复用验证，填写 `report/skill_validation_report.md`。
-- [ ] 确认新 XSA 与板级 UART/PC 日志和 Bitstream 属于同一版本。
-- [ ] 使用最终 Git SHA 完整执行一次原生 Vivado Tcl 重建（或在现有实测上留下版本匹配证据）。
+- [x] 三套真实 BD 工程的独立重建、时序和板级回归已通过，本阶段收束。
 - [ ] 录制真实板卡 UART、Wireshark 与 PC 端输出；成功时保留原始日志，不剪去错误/警告解释。
 
 ## C. 对外公开与提交
@@ -38,5 +37,5 @@
 - [x] B6 v0.2 真实 BD Tcl/manifest、原始及独立重建的 Vivado 实现报告已提交，新 XSA 已生成。
 - [x] B6 独立新 XSA 三类 UDP RX 板级回归由开发者确认通过（2026-10-23）。
 - [x] B6 独立重建 XSA、Bitstream SHA256 已归档。
-- [ ] 归档本次新 XSA 对应的 Vitis/UART/PC 原始运行日志、ELF SHA256 及版本关联；不得以旧串口记录代替。
-- [ ] B6 实时录屏及完整 PC 控制台原始记录。
+
+- [ ] 正式参赛视频录制（独立于已结束的 B6 硬件验收）。

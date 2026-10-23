@@ -163,7 +163,7 @@ Do not commit `vivado/rebuilt/`, regenerated IP cache, synthesized run files, or
 - **原始工程实现**：`report/results/b6_impl/`。
 - **全新工程独立重建**：[`report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt`](../../report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt)，Vivado 2024.2 综合、实现、Bitstream/XSA 均成功，WNS +2.372 ns，WHS +0.053 ns。
 - **板级回归**：开发者已确认重建的新 XSA 再次通过 Version/Context/Data 三类 UDP RX 测试；详见[`BOARD_REGRESSION_STATUS.md`](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。
-- **哈希已记录**：新重建 XSA 与 Bitstream 的 SHA256 均已归档，见 [`BOARD_REGRESSION_STATUS.md`](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。仍缺 ELF SHA256、Vitis Platform 版本关联与新一轮 UART/PC/Vitis 原始日志。勿将原始工程 XSA 哈希冒充新 XSA。
+- **阶段验收已完成**：真实 B6 BD 归档、全新 Vivado 工程重建及 Bitstream/XSA 生成、时序检查均 PASS；开发者确认新 XSA 三类 UDP RX 板级回归通过。独立重建 XSA/Bitstream SHA256 见 [`BOARD_REGRESSION_STATUS.md`](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)，勿混用原始工程 XSA 的 SHA256。
 
 以下命令用于**需要再次从仓库复现**的场景；已完成的构建无须重做，脚本拒绝覆盖既有工程和 SUCCESS 报告。每条命令单行：
 

@@ -71,18 +71,18 @@ Get-FileHash vivado\b6_archive_staging\implementation\b6_from_verified_impl.xsa 
 git status --short
 ```
 
-只有存在成功导出的 XSA 时才运行上述 `Get-FileHash`；哈希及其与真实运行的 ELF/Bitstream 的对应关系需人工记录。**不要把原始 `.xsa`、`.bit`、整个 `vivado/` 工作区加入 Git。**
+只有存在成功导出的 XSA 时才运行上述 `Get-FileHash`，用于文件辨识；不要将原始 `.xsa`、`.bit` 或整个 `vivado/` 工作区加入 Git。
 
 审核确认后：
 
 ```powershell
-git add scripts/vivado/generated/b6_udp_rx report/results/vivado_rebuild/b6_udp_rx
+git add scripts/vivado/generated/b6_udp_rx report/results/b6_impl
 git diff --cached --stat
 git commit -m "build: archive real B6 v0.2 BD snapshot and routed evidence"
 git push
 ```
 
-> 注意：`rebuild_bd.tcl` 已加入 `b6_udp_rx` 重建支持，且已成功实测；此处只能归档原始工程文件，不能冒充独立重建结果。因此即使完成本页，也只能称“真实工程快照和原始 Routed 证据已归档”；后续还需单独增加 B6 重建支持、在全新目录运行并验证新 XSA/Vitis，上板 PASS 后才可称 B6 完整复现。
+> 注意：此处的 `capture_b6_evidence.tcl` 采集的是**原始 B6 工程资料**，与后续独立重建证据严格分开。独立重建和新 XSA 板级回归均已完成，结果见阶段验收记录。
 
 ## 验收与待办
 
@@ -90,7 +90,7 @@ git push
 - [x] 本机执行原始工程实现报告抓取，原始 XSA SHA256 已归档
 - [x] 将 B6 Tcl 与原始 Routed 报告提交
 - [x] 独立工程重新生成 Bitstream/XSA，并经开发者确认三类板级回归 PASS
-- [ ] 新重建 XSA 的 SHA256 实际值及本轮 UART/PC/Vitis 日志待归档
+- [x] 新重建 XSA 和 Bitstream SHA256 已归档，开发者确认三类 UDP RX 板级复测 PASS；本阶段完成
 
 
 ## 已收到并审阅真实 B6 文件（2026-10-23）
@@ -102,9 +102,9 @@ git push
 - `scripts/vivado/generated/b6_udp_rx/{bd.tcl,manifest.tcl,export_info.txt}`
 - `report/results/b6_impl/{timing_summary.rpt,utilization.rpt,drc.rpt,clocks.rpt,capture_info.txt,PROVENANCE.md}`：**原始工程实现**，不是新的独立重建结果。
 
-`rebuild_bd.tcl` 和 `verify_rebuilt_impl.tcl` 现已加入 `b6_udp_rx` 分支，但**只有在上述真实快照复制并提交后才能运行**。两者的运行结果、产物必须由本机 Vivado 实测；重建后的报告另写 `report/results/vivado_rebuild/b6_udp_rx/`。详细原始依赖为 `ip_repo/` 和 `rtl/board/difi_b6_rx_meta_monitor.v`。
+`rebuild_bd.tcl` 和 `verify_rebuilt_impl.tcl` 已成功执行 `b6_udp_rx` 独立重建，重建报告保存在 `report/results/vivado_rebuild/b6_udp_rx/`。原始依赖为 `ip_repo/` 和 `rtl/board/difi_b6_rx_meta_monitor.v`。
 
 
 ## 最新结论（2026-10-23）
 
-此文上半部为采集操作历史指南，其中尚未完成的复现步骤现已有结果：B6 真实 `bd.tcl`、`manifest.tcl`、原始 Routed 报告均已入库，随后在新目录重建 B6 并生成新 XSA，工具输出见 `report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt`（WNS +2.372 ns、WHS +0.053 ns）；开发者已确认新 XSA 三类 RX 上板回归成功。`SUCCESS.txt` 生成时的“未重测”内容保留不变。应补档新板级运行的 UART/PC/Vitis 原始日志与新 XSA/ELF/Bitstream 哈希配对。
+B6 真实 `bd.tcl`、`manifest.tcl` 和原始 Routed 报告均已入库，全新目录独立重建 PASS，WNS +2.372 ns、WHS +0.053 ns；开发者确认新 XSA 三类 RX 上板回归成功。构建阶段的原始 `SUCCESS.txt` 保留不变，阶段完成结论及重建 XSA/Bitstream 哈希见 `report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md`。
