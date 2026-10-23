@@ -33,6 +33,55 @@ proc difi_b6::one_cell {purpose token property} {
     }
     return [lindex $matches 0]
 }
+# RTL module-reference BD cells may not have a REF_NAME property.
+# Recognize the B6 monitor by its unique FUNCTIONAL PORT SIGNATURE instead
+# of a cell name or a synthesized netlist-only property.
+proc difi_b6::monitor_candidates {} {
+    set matches {}
+    foreach c [get_bd_cells -quiet -hier] {
+        set matches_signature 1
+        foreach p {gpio_count gpio_detail m_ver_valid m_ver_ready m_ctx_valid m_ctx_ready rx_version_error_valid} {
+            if {[llength [get_bd_pins -quiet "${c}/${p}"]] != 1} {
+                set matches_signature 0
+                break
+            }
+        }
+        if {$matches_signature} { lappend matches $c }
+    }
+    return $matches
+}
+
+# Read-only diagnostic; safe even if the BD is incomplete.
+# In Vivado Tcl Console: difi_b6::diagnose_monitor
+proc difi_b6::diagnose_monitor {} {
+    set bd_files [get_files -quiet *.bd]
+    difi_b6::msg "Open project: [current_project]; BD files: $bd_files"
+    if {[llength $bd_files] == 1} {
+        open_bd_design [lindex $bd_files 0]
+    }
+    difi_b6::msg "BD cells (type / VLNV / monitor output pins):"
+    foreach c [get_bd_cells -quiet -hier] {
+        set typ "<unknown>"
+        set vlnv "<none>"
+        catch {set typ [get_property TYPE $c]}
+        catch {set vlnv [get_property VLNV $c]}
+        set nc [llength [get_bd_pins -quiet "${c}/gpio_count"]]
+        set nd [llength [get_bd_pins -quiet "${c}/gpio_detail"]]
+        difi_b6::msg "  $c | TYPE=$typ | VLNV=$vlnv | gpio_count=$nc gpio_detail=$nd"
+    }
+    difi_b6::msg "Signature matches: [difi_b6::monitor_candidates]"
+}
+
+proc difi_b6::find_monitor {} {
+    set matches [difi_b6::monitor_candidates]
+    if {[llength $matches] != 1} {
+        difi_b6::diagnose_monitor
+        difi_b6::die "Expected exactly one B6 Metadata Monitor matching its RTL port signature; found [llength $matches]. If zero, inspect the displayed cells and confirm the correct B6 v0.2 Block Design is open."
+    }
+    difi_b6::msg "PASS B6 Metadata Monitor by port signature: [lindex $matches 0]"
+    return [lindex $matches 0]
+}
+
 proc difi_b6::same_axis_net {pin_a pin_b} {
     set a [get_bd_intf_pins -quiet $pin_a]
     set b [get_bd_intf_pins -quiet $pin_b]
@@ -57,7 +106,7 @@ proc difi_b6::check_bd {} {
     set ps  [difi_b6::one_cell "Zynq PS7" "xilinx.com:ip:processing_system7:" VLNV]
     set dma [difi_b6::one_cell "AXI DMA" "xilinx.com:ip:axi_dma:" VLNV]
     set eng [difi_b6::one_cell "DIFI engine" "difi_engine_ip" VLNV]
-    set mon [difi_b6::one_cell "B6 Metadata Monitor" "difi_b6_rx_meta_monitor" REF_NAME]
+    set mon [difi_b6::find_monitor]
     set gpio [difi_b6::one_cell "monitor AXI GPIO" "xilinx.com:ip:axi_gpio:" VLNV]
 
     set gem [get_property CONFIG.PCW_EN_ENET0 $ps]
@@ -143,8 +192,8 @@ proc difi_b6::export_snapshot {} {
     puts $ff "Cells:"
     foreach c [get_bd_cells -quiet -hier] {
         set vn ""; catch {set vn [get_property VLNV $c]}
-        set rf ""; catch {set rf [get_property REF_NAME $c]}
-        puts $ff "  $c | $vn | $rf"
+        set typ ""; catch {set typ [get_property TYPE $c]}
+        puts $ff "  $c | TYPE=$typ | VLNV=$vn"
     }
     close $ff
     difi_b6::msg "STAGED BD Tcl, manifest, XDC and config: $out"
