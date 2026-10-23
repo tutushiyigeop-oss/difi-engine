@@ -13,7 +13,7 @@
 
 在 XC7Z020CLG400-2 上，项目完成了 RTL 系统级仿真、BRAM 存储结构优化、封装 IP 的真实布局布线、Zynq PS/PL AXI DMA 板级数据回环与完整 DIFI 报文的 UDP 网络发送与接收解析。100 MHz 理想 RTL 回环测试中，100 个数据包 / 25,600 个 IQ 样本均正确，IQ 有效吞吐率为 **196.916 MB/s**。封装 IP 的已布线资源占用为 **1,776 LUT、2,309 FF、1 RAMB18、0 DSP**，Setup WNS **+0.411 ns**。B5 网络验证中，PC 端收到 **1 Version + 1 Context + 20 Data** 共 22 个 DIFI Packet，5,120 个 IQ 样本全部正确；DIFI Consortium 开源参考工具以 DIFI 1.1 模式检查上述 B5 三类报文，结果均为 PASS。新增 B6 网络接收链路中，PC 经 UDP 发送 Version×1、Context×1、Data×20；PL Metadata Monitor 记录 Version/Context 各一次有效握手，Data 经 FPGA RX Parser 恢复 **5,120 IQ** 且全部匹配，Sequence 经历 **15→0** 回绕。
 
-为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建**三套硬件工程**，完成综合、实现和 Bitstream/XSA 导出。B6 v0.2 独立重建 Setup WNS 为 **+2.372 ns**，Hold WHS 为 **+0.053 ns**；开发者于 2026-10-23 确认新 XSA 已完成三类 UDP RX 上板回归。三套 Tcl 和实现工具证据已归档，但 B6 此次新 XSA 对应的 Vitis/UART/PC 原始日志与硬件版本哈希配对仍待补档。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
+为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建**三套硬件工程**，完成综合、实现和 Bitstream/XSA 导出。B6 v0.2 独立重建 Setup WNS 为 **+2.372 ns**，Hold WHS 为 **+0.053 ns**；开发者于 2026-10-23 确认新 XSA 已完成三类 UDP RX 上板回归。三套 Tcl 和实现工具证据已归档，但 B6 此次新 XSA 对应的 Vitis/UART/PC 原始日志及重建 XSA SHA256 与硬件版本哈希配对仍待补档；2026-10-23 的哈希命名提交并没有写入实际值。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
 
 **关键词：** FPGA；Zynq-7000；DIFI 1.1；VITA 49.2；AXI4-Stream；AXI DMA；UDP；可复现构建
 
@@ -91,7 +91,7 @@ flowchart LR
 
 > 此图为功能结构概括图，正式报告中的细节连线以源码及 Vivado BD 为准。
 
-### 3.2 Zynq 硬件测试：两套不能混淆的 BD
+### 3.2 Zynq 硬件测试：三套不能混淆的 BD
 
 **A. 封装 IP 回环工程**：`difi_ip_test` / `difi_ip_test_wrapper`
 
@@ -110,6 +110,16 @@ PS DDR → AXI DMA MM2S → DIFI TX → AXI DMA S2MM → PS DDR
 ```
 
 该路径 S2MM 接收的是**完整的 DIFI Packet**，PS 负责将 32 位报文 Word 按网络字节序序列化，并经 UDP 发送到 PC。此工程不是 TX/RX 自回环工程。B4 历史工程与 B5 使用同名 `difi_system`，重建时需根据 BD 内原始 Packet 导出模块识别。
+
+**C. B6 PC→FPGA UDP RX 工程**：`difi_ip_test` / `difi_ip_test_wrapper`（BD 与封装 IP 回环工程同名，但连接关系不同）
+
+```text
+PC UDP → PS GEM0/lwIP → DDR → AXI DMA MM2S → DIFI RX Parser
+                                               ├→ Data IQ → DMA S2MM → PS Golden 校验
+                                               └→ Version/Context Metadata → 监控器 → AXI GPIO → PS
+```
+
+使用 `scripts/vivado/generated/b6_udp_rx/bd.tcl` 真实快照；监控 GPIO 基址 `0x41200000`。B6 不包含 B5 UDP TX 原始 Packet 导出通路；与前两套 XSA 和 Vitis 软件不能混用。
 
 ![图 3-2：DIFI B5 FPGA—Zynq PS—UDP—PC 端到端系统架构](../figures/difi_b5_system_architecture.svg)
 
@@ -279,7 +289,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 1. **Data Parser（C01）**：Word0/RECV 错误优先级、握手、TLAST/TKEEP、丢包后恢复；结合最终 RTL 和异常 Testbench 核对。
 2. **BRAM 资源优化（C02）**：综合报告发现资源热点，讨论同步读预取改造，同口径 OOC LUT 4023→1516、FF 10446→2202、RAMB18 0→1。
 3. **Icarus 编译配置（C03）**：先解决 `include` 搜索路径，再解决 `Unknown module type` 源文件遗漏；区分 `-I` 和 Verilog 编译输入。
-4. **Vivado Tcl 重建（C04）**：修复 Tcl 环境命令可用性误判；两套独立工程均生成 Bitstream/XSA、时序 PASS，开发者确认上板通过，新 XSA 的详细上板日志待补归档。
+4. **Vivado Tcl 重建（C04）**：修复 Tcl 环境命令可用性误判；封装 IP、B5 和 B6 三套独立工程均生成 Bitstream/XSA、时序 PASS，开发者确认上板通过，新 XSA 的详细上板日志待补归档。
 5. **UDP 参考工具（C05）**：22 包真实 UDP 验证、不同 Stream ID 分流使用 DIFI Consortium 参考工具，三类报文均通过本轮参考检查。
 
 为保证 AI 协作证据的真实性，报告将**聊天逐字记录（E1）、Git 代码与提交（E2）、真实实验日志（E3）、事后技术复盘（E4）**分开。当前 E2/E3 证据较完整，但五个案例的原始多轮 AI 聊天尚待集中导出，不将历史摘要改写为模型逐字原话。具体关联 Git SHA、文件路径、原始数据及缺失项见 [`evidence_index.csv`](../ai_collaboration/evidence_index.csv)，留档要求见 [`report/ai_collaboration/README.md`](../ai_collaboration/README.md)。
@@ -313,21 +323,22 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 
 1. 检出最终提交时冻结的 Git SHA / Tag，确认 RTL、IP Repo、构建脚本和 XDC 完整。
 2. 运行 RTL 模块与系统级仿真；执行性能 Testbench 并检查 100 包黄金 IQ。
-3. 使用 `scripts/vivado/` 导入两套真实 BD 快照，在新的工程目录中重建并重新综合/实现。
+3. 使用 `scripts/vivado/` 导入三套真实 BD 快照，在新的工程目录中重建并重新综合/实现。
 4. 根据对应的 XSA 重新创建 Vitis Platform/BSP 和应用（需要在根 README/附录给出逐项设置）；下载匹配的新 Bitstream。
 5. 在封装 IP 工程复现板级 100 包 DMA IQ 回环。
 6. 在 B5 工程复现 UDP 22 包发送、PC IQ 比对及 Wireshark 抓包。
-7. 按 DIFI 1.1 模式分别验证 Version 与 Context/Data 流，并归档脚本版本、PCAP Hash、输出日志。
+7. 在 B6 独立重建 XSA 上执行 PC→FPGA 三类 UDP RX 回归：Version/Context Metadata 握手与 20×256 IQ Golden 对比。
+8. 对 B5 抓包按 DIFI 1.1 模式分别验证 Version 与 Context/Data 流，并归档脚本版本、PCAP Hash、输出日志。
 
 ### 10.3 交付核查清单
 
 - [x] RTL、Testbench、Vitis C、封装 IP 仓库及 Tcl 重建/实现脚本。
 - [x] 原始 RTL 性能、综合/实现、UDP/第三方工具的既有证据。
-- [x] 两套 Vivado Tcl 重建的实现输出与用户确认的板级通过结果。
+- [x] 三套 Vivado Tcl 独立重建的实现输出及开发者确认的对应板级通过结果。
 - [x] 四个 Skill 的初始内容。
 - [ ] Skill 的统一验收及交叉项目复用测试。
 - [ ] 大模型真实协作记录和失败→修复→验证的逐例证据。
-- [ ] 新重建 XSA 对应的 Vitis/板级回归原始日志补档。
+- [ ] 新重建 XSA 对应的 Vitis/板级回归原始日志与版本绑定补档（B6 重建 XSA 的 SHA256 数值尚未写入仓库）。
 - [ ] 文献/开源方案对比与参考文献、图片标注及最终校对。
 - [ ] 最终 Git Commit SHA/Tag、开源许可证及目录命名检查。
 

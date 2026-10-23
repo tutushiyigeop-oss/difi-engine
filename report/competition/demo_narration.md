@@ -24,7 +24,7 @@
 
 ## 复现与 Skill
 
-“除了 RTL 和板级程序，我们还将两套 Vivado BD 导出成 Tcl 快照，并在独立目录重新生成工程和 Bitstream/XSA，保留了资源、时序和构建结果。开发过程沉淀出 Vivado 重建、DMA 调试、AXI4-Stream 验证和 UDP 校验四个可复用 Skill。它们的结构和离线检查已经完成，跨项目统一实测将作为最终验收环节单独归档。”
+“除了 RTL 和板级程序，我们还将三套 Vivado BD 导出成 Tcl 快照，并在独立目录重新生成工程和 Bitstream/XSA，保留了资源、时序和构建结果。开发过程沉淀出 Vivado 重建、DMA 调试、AXI4-Stream 验证和 UDP 校验四个可复用 Skill。它们的结构和离线检查已经完成，跨项目统一实测将作为最终验收环节单独归档。”
 
 ## 结尾
 

@@ -15,44 +15,22 @@
 3. Version/Context Metadata READY 正确处理，不给这两类报文启动等待 IQ 的 S2MM。
 4. Metadata Monitor 与 DIFI IP 同一 PL clock/reset；两路 32-bit GPIO 输入分别连接计数和详情；Vitis 读取地址须匹配 Address Editor。
 
-## 当前未入库的 B6 专属构建产物和证据
+## 当前复现状态（2026-10-23）
 
-**不要把已有 `packaged_ip` Tcl 或 `b5_raw_export` Tcl 当成 B6 v0.2 BD。**
+- [x] 真实 B6 BD Tcl、manifest、IP 与 RTL 依赖已入库：`scripts/vivado/generated/b6_udp_rx/`。
+- [x] 原始 B6 Routed 证据已入库：`report/results/b6_impl/`。
+- [x] 全新工程重建通过：`report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt`，WNS +2.372 ns，WHS +0.053 ns；Bitstream/XSA 已生成。
+- [x] 开发者确认重建 XSA 上板 Version、Context、Data 三类 UDP RX 回归 PASS。
+- [ ] 新 XSA SHA256 **实际数值尚未入库**；也缺本轮 Vitis/UART/PC 原始记录、ELF/Bitstream 哈希关联。
+- [ ] 异机完整复现、Context/Version Metadata 全字段 PS 读回、无 ACK 连续吞吐、同时全双工测试均未完成。
 
-- 真实 B6 v0.2 `bd.tcl`、设计 part/版本、IP 依赖、地址清单、时钟与复位清单、manifest。
-- 对应 Bitstream/XSA 的版本关联记录和 B6 专属 Routed timing/utilization/DRC 报告。
-- 从独立工程复建 B6 BD、实现、新 XSA 再上板的完整验收记录。
-- 对 B6 Version/Context 所有 Metadata 字段逐项读回、持续吞吐和同时全双工尚无证据，不能宣称已完成。
+保留早期原始 `three_types_udp_rx.rtf` 的真实历史定位，不作为新 XSA 回归日志。见 [B6 板级回归记录](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。
 
-## 如何从本地 B6 真工程导出
-
-Vivado 2024.2 Tcl Console 在打开正确 Block Design 后执行：
-
-```tcl
-validate_bd_design
-save_bd_design
-write_bd_tcl -force {D:/Study/project/DIFI/b6_udp_rx_bd.tcl}
-```
-
-人工核对脚本中 IP VLNV、时钟、GPIO 地址和 PHY 设置后，提交到独立 `scripts/vivado/generated/b6_udp_rx/`，不要覆盖已验证的旧 Tcl 快照。脚本不保证无需其他 IP/XDC 依赖即可重建，必须随后用新目录实测。
-
-
-## 归档脚本已提供（2026-10-23）
-
-现已提供 [`capture_b6_evidence.tcl`](capture_b6_evidence.tcl) 来从**本机真实 B6 v0.2 Vivado 工程**采集 BD 快照与 Routed 实现报告，操作命令、隔离暂存目录和 Git 审核清单详见 [`B6_CAPTURE_GUIDE.md`](B6_CAPTURE_GUIDE.md)。这些工具脚本已提交，不代表本机真实导出物或独立 B6 构建 PASS 已产生。
-
-
-## 最新里程碑：真实快照已入库，独立重建及回归已成功（2026-10-23）
-
-本文上文“未入库/尚未重建”是早期阶段说明，不再代表当前状态。现有三类证据分别为：
-
-1. 原始工程：`scripts/vivado/generated/b6_udp_rx/` 和 `report/results/b6_impl/`；原始 XSA SHA256 见 `report/results/b6_impl/PROVENANCE.md`，不能冒认为新 XSA 哈希。
-2. 独立重建：`report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt` 及新 Routed 的时序、利用率、DRC、时钟报告。Vivado 2024.2 综合、实现、Bitstream/XSA PASS；WNS `+2.372 ns`、WHS `+0.053 ns`。
-3. 新 XSA 板级回归：开发者于 2026-10-23 明确确认，再次完成 Version/Context/Data 三类 UDP RX 联测，结果成功。回归的原始 Vitis 构建日志、UART、PC 端输出，以及 XSA/ELF/Bitstream SHA256 配对仍需归档：[`BOARD_REGRESSION_STATUS.md`](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。不得将早期 `report/results/udp/rx/three_types_udp_rx.rtf` 冒充新一轮复测日志。
-
-以下命令用于**新环境重新复现**，已验证工程无需重复执行；重建目录已存在时脚本会拒绝覆盖：
+从全新目录重建（Vivado 2024.2，每条单行命令；不要覆盖已成功工程）：
 
 ```powershell
 vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b6_udp_rx
 vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b6_udp_rx
 ```
+
+在新 XSA 上配套创建 Vitis Platform 并运行 `difi_b6_udp_rx_pro`；PC 端运行 `scripts/verify/tools/difi_b6_three_types.py`，须单独保存板级和 PC 原始输出。

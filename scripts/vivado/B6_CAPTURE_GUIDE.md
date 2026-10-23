@@ -1,8 +1,10 @@
+> **2026-10-23 状态：** 这是 B6 原始 BD/实现证据的**历史采集操作手册**。实际导出、仓库归档、全新工程重建、Bitstream/XSA 均已成功；开发者已确认新 XSA 三类 UDP RX 上板 PASS。最新进度请看 [B6_REPRODUCTION.md](B6_REPRODUCTION.md)。
+
 # B6 v0.2 原生 BD 与实现证据归档操作（2026-10-23）
 
 ## 目标与边界
 
-B6 v0.2 已有真实三类 UDP RX 的 UART 通过记录（`report/results/udp/rx/three_types_udp_rx.rtf`），但还没有提交对应 **真实 BD Tcl** 和 **B6 专属 Routed 报告**。本次交付的是**采集脚本**，并不意味着这些原始文件已经生成、提交或成功独立重建。
+B6 v0.2 已有真实三类 UDP RX 的 UART 通过记录（`report/results/udp/rx/three_types_udp_rx.rtf`），现已提交真实 BD、原始 Routed 报告以及独立重建报告。下列步骤仅用于未来再次采集新版本。
 
 旧脚本 `export_bd.tcl`、`rebuild_bd.tcl`、`verify_rebuilt_impl.tcl` 仍用于已经验证的 `packaged_ip` 和 `b5_raw_export`；**本次不会修改或覆盖它们**。
 
@@ -61,9 +63,9 @@ cd D:\Study\project\DIFI
 New-Item -ItemType Directory -Force scripts\vivado\generated\b6_udp_rx | Out-Null
 Copy-Item vivado\b6_archive_staging\snapshot\* scripts\vivado\generated\b6_udp_rx\ -Recurse
 
-New-Item -ItemType Directory -Force report\results\vivado_rebuild\b6_udp_rx | Out-Null
-Copy-Item vivado\b6_archive_staging\implementation\*.rpt report\results\vivado_rebuild\b6_udp_rx\
-Copy-Item vivado\b6_archive_staging\implementation\capture_info.txt report\results\vivado_rebuild\b6_udp_rx\
+New-Item -ItemType Directory -Force report\results\b6_impl | Out-Null
+Copy-Item vivado\b6_archive_staging\implementation\*.rpt report\results\b6_impl\
+Copy-Item vivado\b6_archive_staging\implementation\capture_info.txt report\results\b6_impl\
 
 Get-FileHash vivado\b6_archive_staging\implementation\b6_from_verified_impl.xsa -Algorithm SHA256
 git status --short
@@ -80,14 +82,15 @@ git commit -m "build: archive real B6 v0.2 BD snapshot and routed evidence"
 git push
 ```
 
-> 注意：新的 `b6_udp_rx` 快照并未纳入原 `rebuild_bd.tcl` 两目标的分支逻辑。因此即使完成本页，也只能称“真实工程快照和原始 Routed 证据已归档”；后续还需单独增加 B6 重建支持、在全新目录运行并验证新 XSA/Vitis，上板 PASS 后才可称 B6 完整复现。
+> 注意：`rebuild_bd.tcl` 已加入 `b6_udp_rx` 重建支持，且已成功实测；此处只能归档原始工程文件，不能冒充独立重建结果。因此即使完成本页，也只能称“真实工程快照和原始 Routed 证据已归档”；后续还需单独增加 B6 重建支持、在全新目录运行并验证新 XSA/Vitis，上板 PASS 后才可称 B6 完整复现。
 
 ## 验收与待办
 
-- [ ] 本机执行导出脚本；审核端口连接及 AXI 地址
-- [ ] 本机执行实现报告抓取、保留 XSA SHA256
-- [ ] 将 B6 Tcl 与 Routed 报告提交
-- [ ] 在全新工程独立重建并上板验证
+- [x] 本机执行导出脚本；审核端口连接及 AXI 地址
+- [x] 本机执行原始工程实现报告抓取，原始 XSA SHA256 已归档
+- [x] 将 B6 Tcl 与原始 Routed 报告提交
+- [x] 独立工程重新生成 Bitstream/XSA，并经开发者确认三类板级回归 PASS
+- [ ] 新重建 XSA 的 SHA256 实际值及本轮 UART/PC/Vitis 日志待归档
 
 
 ## 已收到并审阅真实 B6 文件（2026-10-23）

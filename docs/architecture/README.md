@@ -37,10 +37,10 @@ python scripts/figures/build_architecture_figures.py
 
 需要 `svgwrite`；PNG 导出还需要 `cairosvg`。不建议把 SVG 转为低分辨率 JPG 再插入报告。可以直接插入 SVG，或使用已导出的 3600 像素宽 PNG。
 
-## 在仓库根 README 中引用
+## 在当前架构文档中引用
 
 ```markdown
-![DIFI B5 UDP 系统架构](report/figures/difi_b5_system_architecture.svg)
+![DIFI B5 UDP 系统架构](../../report/figures/difi_b5_system_architecture.svg)
 
 B5 数据通路：DDR IQ → AXI DMA MM2S → PL DIFI TX → AXI DMA S2MM（完整报文）→ PS DDR / lwIP → GEM0 UDP → PC。此 BD 不包含 TX→RX 解析回环。
 ```
@@ -48,4 +48,4 @@ B5 数据通路：DDR IQ → AXI DMA MM2S → PL DIFI TX → AXI DMA S2MM（完�
 
 ## B6 网络接收路径（2026-10-23）
 
-PC UDP → PS GEM0/lwIP → DDR → DMA MM2S → PL `S_AXIS_RX_PKT`。Data Parser 的 `M_AXIS_IQ` 经 DMA S2MM 输出 IQ，Version/Context 的 Metadata 有效握手由同域 `difi_b6_rx_meta_monitor` 统计，PS 通过 AXI GPIO 读取。已归档 `report/results/udp/rx/three_types_udp_rx.rtf`。B6 是独立硬件工程，不等于 B5 的 TX Packet 导出 BD；B6 BD Tcl 仍需入库。
+PC UDP → PS GEM0/lwIP → DDR → DMA MM2S → PL `S_AXIS_RX_PKT`。Data Parser 的 `M_AXIS_IQ` 经 DMA S2MM 输出 IQ，Version/Context 的 Metadata 有效握手由同域 `difi_b6_rx_meta_monitor` 统计，PS 通过 AXI GPIO 读取。已归档 `report/results/udp/rx/three_types_udp_rx.rtf`。B6 是独立硬件工程，不等于 B5 的 TX Packet 导出 BD；B6 真实 BD Tcl 已位于 `scripts/vivado/generated/b6_udp_rx/`，独立重建结果见 `report/results/vivado_rebuild/b6_udp_rx/`，开发者已确认新 XSA 三类 UDP RX 板级回归通过；新一轮 UART/PC 原始记录仍待归档。

@@ -5,7 +5,7 @@
 ## A. 可不重新上板的整理工作
 
 - [ ] 许可证：完成源码权属、第三方组件及 MIT/Apache-2.0 许可核查；最终根目录含 `LICENSE`。
-- [x] 根 README：已说明两套历史 Tcl 快照与 B6 v0.2 的区别及重建边界。
+- [x] 根 README：已说明三套真实 Tcl 快照与 B6 v0.2 的区别及重建边界。
 - [x] `scripts/vivado/README.md`：已同步历史两套及 B6 独立重建的工程状态。
 - [x] `skill/README.md`：已统一为“已制作、待统一验收”。
 - [x] `report/results/perf/performance_summary.md`：PS CPU 频率 666.666666 MHz 已确认并同步。

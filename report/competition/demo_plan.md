@@ -19,7 +19,7 @@
 | 5. 封装 IP 板级回环 | 3:20–4:20 | 显示封装 IP BD、Vitis UART 回环测试 PASS | DMA 100 包、25,600 IQ 零失配 | `report/results/perf/board_IP_perf.rtf`；真实 BD 截图及新 XSA UART 需补档 |
 | 6. B5 UDP 真机闭环 | 4:20–6:20 | 切换到 B5 Bitstream/Vitis ELF；串口输入 UTC；PC 发 START；Wireshark 捕获；Python PASS | Version×1 / Context×1 / Data×20，共 22 包；5,120 IQ 无失配；PS 发 UDP | `vitis/vitis_ws/difi_b5_udp_tx/src/`、`scripts/verify/tools/difi_udp_receiver.py`、`report/results/udp/tx/screenshots/`；现场录屏待录 |
 | 7. 第三方检查 | 6:20–7:10 | 出示 Version 与 Context/Data 的 DIFI 1.1 参考工具 PASS | 独立参考程序所覆盖项目符合预期 | `report/results/udp/tx/consortium/`；强调非官方认证 |
-| 8. 可复现与 Skill | 7:10–8:00 | 浏览仓库、BD Tcl、两套 SUCCESS 报告、四个 Skill | 他人可以取走代码/脚本；四 Skill 已制作、统一实测待完成 | `scripts/vivado/`、`report/results/vivado_rebuild/`、`skill/` |
+| 8. 可复现与 Skill | 7:10–8:00 | 浏览仓库、BD Tcl、三套 SUCCESS 报告、四个 Skill | 他人可以取走代码/脚本；四 Skill 已制作、统一实测待完成 | `scripts/vivado/`、`report/results/vivado_rebuild/`、`skill/` |
 
 ## 录制前物料与环境
 

@@ -190,7 +190,7 @@ vvp sim/icarus/tb_difi_engine_perf.vvp +packets=100
 
 **不要混用三种 XSA / Vitis 应用。** 封装 IP 回环输出 IQ；B5 DMA S2MM 得到完整 DIFI Packet；B6 MM2S 输入完整 Packet、Data 的 S2MM 输出 IQ，Context/Version 通过 Metadata 监测。B6 的 PS Ethernet/MDIO 使用 B5 已联网成功的 MIO 配置（MDIO MIO 52/53），历史 `packaged_ip` 快照不代表 B6 的以太网配置。
 
-**目前已入库的三套可重建 Block Design Tcl 快照**：[`scripts/vivado/generated/packaged_ip/`](scripts/vivado/generated/packaged_ip/) 、[`scripts/vivado/generated/b5_raw_export/`](scripts/vivado/generated/b5_raw_export/) 和 [`scripts/vivado/generated/b6_udp_rx/`](scripts/vivado/generated/b6_udp_rx/)。原工程导出脚本、独立重建脚本及实现/XSA 导出脚本也已入库，且两套新工程均有综合、Bitstream/XSA 与时序通过记录。**仓库不提交 `.xpr`、`.bit`、`.xsa` 等可再生成的大型二进制构建产物**；评委需使用 Vivado 2024.2 执行重建，并据新 XSA 建立匹配的 Vitis Platform。开发者已确认两套重建工程上板回归通过，但新版 XSA 对应的完整 Vitis/UART 原始日志仍待集中归档；尚未验证独立陌生机器的端到端复现。完整命令、输出位置与限制见 [`scripts/vivado/README.md`](scripts/vivado/README.md)。**B6 v0.2 真实 BD Tcl 已入库，独立重建的综合、实现、Bitstream/XSA 与时序均 PASS；开发者于 2026-10-23 确认新 XSA 三类 UDP RX 再次上板 PASS**。本轮重新生成 XSA 对应的完整 Vitis 构建、UART/PC 原始记录及 SHA256 配对仍待归档；参见 [`B6 复现记录`](scripts/vivado/B6_REPRODUCTION.md) 与 [`构建工具报告`](report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt)。
+**目前已入库的三套可重建 Block Design Tcl 快照**：[`scripts/vivado/generated/packaged_ip/`](scripts/vivado/generated/packaged_ip/)、[`scripts/vivado/generated/b5_raw_export/`](scripts/vivado/generated/b5_raw_export/) 和 [`scripts/vivado/generated/b6_udp_rx/`](scripts/vivado/generated/b6_udp_rx/)。原工程导出脚本、独立重建脚本及实现/XSA 导出脚本也已入库，且三套工程均有综合、Bitstream/XSA 与时序通过记录。**仓库不提交 `.xpr`、`.bit`、`.xsa` 等可再生成的大型二进制构建产物**；评委需使用 Vivado 2024.2 执行重建，并据新 XSA 建立匹配的 Vitis Platform。封装 IP、B5 及 B6 的重建后板级回归均由开发者确认通过，其中原始新 XSA 对应的完整 Vitis/UART/PC 日志仍待分别补档；尚未验证独立陌生机器的端到端复现。完整命令、输出位置与限制见 [`scripts/vivado/README.md`](scripts/vivado/README.md)。**B6 v0.2 真实 BD Tcl 已入库，独立重建的综合、实现、Bitstream/XSA 与时序均 PASS；开发者于 2026-10-23 确认新 XSA 三类 UDP RX 再次上板 PASS**。本轮重新生成 XSA 对应的完整 Vitis 构建、UART/PC 原始记录，以及**真实重建 XSA SHA256 数值和 Bitstream/ELF 版本配对仍待归档**（最新状态文件暂未包含新 XSA 哈希）；参见 [`B6 复现记录`](scripts/vivado/B6_REPRODUCTION.md) 与 [`构建工具报告`](report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt)。
 
 ```powershell
 # 在仓库根目录、Vivado 2024.2 命令行环境中分别运行
@@ -257,7 +257,7 @@ python scripts/verify/tools/difi_b6_three_types.py --board 192.168.1.10 --local-
 
 已归档 [B6 v0.2 板级串口记录](report/results/udp/rx/three_types_udp_rx.rtf)：Version 44 B×1 与 Context 108 B×1 由 PL Metadata Monitor 观测到有效握手各 1 次，检查 Sequence、Changed 与相关错误事件；Data 1052 B×20 经 PL Parser 恢复 20×256 IQ 样本，PS Golden 比对均正确，Sequence 覆盖 15→0。B6 v0.1 的 Data-only 历史日志另见 [`data_udp_rx.rtf`](report/results/udp/rx/data_udp_rx.rtf)，勿与 v0.2 混淆。**当前 Metadata 监测未逐字段将全部 Context/Version 值回读至 PS；未完成持续无 ACK 流的吞吐、丢包或同时双向运行验证。**
 
-[PC 三类发包器](scripts/verify/tools/difi_b6_three_types.py)依赖同目录 [Data 报文生成器](scripts/verify/tools/difi_b6_sender.py)；[B6 复现说明](scripts/vivado/B6_REPRODUCTION.md)明确 XSA/BD 尚未入库的部分。
+[PC 三类发包器](scripts/verify/tools/difi_b6_three_types.py)依赖同目录 [Data 报文生成器](scripts/verify/tools/difi_b6_sender.py)；[B6 复现说明](scripts/vivado/B6_REPRODUCTION.md)说明真实 BD 与重建报告已归档、板级复测由开发者确认及仍待保存的新构建运行日志。
 
 ### 5.7 Wireshark 与 DIFI Consortium 参考验证
 
@@ -336,7 +336,7 @@ difi-engine/
 - **规范覆盖范围有限**：当前重点是 DIFI 1.1 的 Data/Context/Version Profile 与 I16/Q16 格式；未宣称支持全部 Packet 类型、射频源及跨厂商互操作组合。
 - **不是无丢包、高速连续 UDP 网关**：B5 使用 DMA Simple Mode 逐包接收、PS 侧 lwIP 发送，并人为插入发送间隔；B6 用单包一 ACK 的 Simple DMA 方式接收。两者没有持续高负载或同时双向吞吐测试，网络吞吐率上限、丢包率、长期运行稳定性尚未量化。
 - **时间源边界**：UTC 起点由 PS/UART 初始化，PL 按时钟推进；尚无外部高精度同步参考，不能声明 PTP/GPS 同步精度。
-- **可复现性仍有边界**：三套真实 BD 快照、独立重建脚本与综合/实现 PASS 报告已入库。B6 v0.2 的新 XSA 板级三类 UDP RX 回归已由开发者确认通过，但新一轮 UART/PC 原始日志、XSA/ELF/Bitstream 哈希关联和陌生机器复现仍待归档或终验；不能将工具实现成功等同于无需人工操作的一键板级部署。
+- **可复现性仍有边界**：三套真实 BD 快照、独立重建脚本与综合/实现 PASS 报告已入库。B6 v0.2 的新 XSA 板级三类 UDP RX 回归已由开发者确认通过，但新一轮 UART/PC 原始日志、新 XSA 的实际 SHA256、ELF/Bitstream 哈希关联和陌生机器复现仍待归档或终验；不能将工具实现成功等同于无需人工操作的一键板级部署。
 - **性能换算证据**：板级 PMU 原始计数已归档，两项 MB/s 按开发者确认的约 666.667 MHz CPU 时钟换算。最终仍应将与该次 XSA/板级运行对应的 PS CPU 时钟配置证据独立归档；不要将软件 DMA 轮询测值视为纯 PL 峰值吞吐率。
 - **开源许可**：当前仓库根目录未包含 `LICENSE` 文件；若要允许第三方明确再分发，需先选定并加入 MIT 或 Apache-2.0 等许可，勿默认无 LICENSE 即可自由复用。
 - **授权与参赛发布计划**：详见[发布工作台](docs/release/README.md)；许可证仍待权利人确认，尚未公开、合并 main 或冻结正式版本。

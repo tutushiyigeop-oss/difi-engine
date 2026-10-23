@@ -30,7 +30,7 @@
 1. OOC 资源对比并非完整 PL 的实现后资源。`difi_engine_top` 优化后 OOC LUT 为 `1,516`，封装 IP routed LUT 为 `1,776`，完整系统 routed LUT 为 `4,562`，三者边界不同。
 2. RTL 理想回环吞吐率不是板级 PS+DMA 或 UDP 网络吞吐率；图 5-3 只展示不同测试窗口所得结果，不能推论真实 PHY 速率或 PL 最大性能。
 3. DMA 回环程序检查了 IQ 失配数 `0`，但该次性能日志的协议错误事件 `NOT_MEASURED`，不能据此宣布板级协议错误数为 0。
-4. 两套 Vivado 重建工程板级复测已由开发者确认通过；原始新 XSA/Vitis/UART/PC 日志仍需补档。
+4. 封装 IP、B5 与 B6 **三套 Vivado 独立重建工程**的板级回归均由开发者确认通过。原始新 XSA/Vitis/UART/PC 日志及版本配对仍需补档；B6 的工具 PASS 见 `report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt`，开发者回归确认见同目录 `BOARD_REGRESSION_STATUS.md`。
 5. 仅凭 100 包测试不能证明长期稳定性。
 
 ## 脚本再生成

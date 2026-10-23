@@ -157,25 +157,19 @@ Do not commit `vivado/rebuilt/`, regenerated IP cache, synthesized run files, or
 | Rebuilt project validates but ELF fails | BD validation is not a substitute for implementation, XSA matching or Standalone/lwIP BSP configuration. |
 
 
-## B6 v0.2 UDP RX（2026-10-23）
+## B6 v0.2 UDP RX：独立重建及板级回归已完成（2026-10-23）
 
-已有 `rtl/board/difi_b6_rx_meta_monitor.v`、`vitis/vitis_ws/difi_b6_udp_rx_pro/src/`、`scripts/verify/tools/difi_b6_three_types.py` 和板级三类报文 PASS 记录 `report/results/udp/rx/three_types_udp_rx.rtf`。**但这里现存的 packaged_ip / b5_raw_export 两套 Tcl 不包括 B6 v0.2**；其 BD、独立实现和复现证据待补，操作说明见 [B6_REPRODUCTION.md](B6_REPRODUCTION.md)。B6 必须采用正确的 MDIO MIO 52/53 设置，不应照搬历史 packaged_ip Tcl 的 EMIO 配置。
+- **真实 BD、IP 依赖**：[`generated/b6_udp_rx/`](generated/b6_udp_rx/)；自定义 IP 在 `ip_repo/`，Module Reference 在 `rtl/board/difi_b6_rx_meta_monitor.v`。
+- **原始工程实现**：`report/results/b6_impl/`。
+- **全新工程独立重建**：[`report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt`](../../report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt)，Vivado 2024.2 综合、实现、Bitstream/XSA 均成功，WNS +2.372 ns，WHS +0.053 ns。
+- **板级回归**：开发者已确认重建的新 XSA 再次通过 Version/Context/Data 三类 UDP RX 测试；详见[`BOARD_REGRESSION_STATUS.md`](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。
+- **仍缺证据**：新重建 XSA 实际 SHA256 数值、与 Bitstream/ELF 的哈希关联，以及本轮 Vitis/UART/PC 原始运行日志。请勿误把原始工程 XSA 的 SHA256 当作重建 XSA 的值。
 
-
-## B6 v0.2 真实 BD 快照与独立重建命令（2026-10-23）
-
-原始 B6 已验证 BD 及 Routed 报告已完成审查：100 MHz Setup WNS +2.372 ns / Hold WHS +0.053 ns、DRC 存在普通 Warning。**仓库必须先放入真实 `scripts/vivado/generated/b6_udp_rx/bd.tcl`、`manifest.tcl`、`export_info.txt`**，再在 Vivado 2024.2 中从新目录运行：
+以下命令用于**需要再次从仓库复现**的场景；已完成的构建无须重做，脚本拒绝覆盖既有工程和 SUCCESS 报告。每条命令单行：
 
 ```powershell
 vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b6_udp_rx
 vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b6_udp_rx
 ```
 
-B6 模式先添加 `ip_repo/` 自定义 IP 和 Metadata Monitor RTL Module Reference，之后才 `source` 原生 BD Tcl。它不沿用 B5 的 module-reference wrapper。新建工程位于 `/vivado/rebuilt/b6_udp_rx/`（Git 忽略），独立重建产物报告为 `report/results/vivado_rebuild/b6_udp_rx/`。**这些命令尚未在你本机执行，因此不能预写 PASS 或使用原始 B6 实现报告替代重建结果。** 使用新 XSA 创建 Vitis Platform 和联测需再验证。参阅 [B6 捕获和归档说明](B6_CAPTURE_GUIDE.md)。
-
-
-## B6 v0.2 独立重建已完成（2026-10-23 最新状态）
-
-先前本文件中的“B6 快照尚未提交”“重建命令尚未执行”为阶段性历史说明。现在仓库已包含 `generated/b6_udp_rx/{bd.tcl,manifest.tcl,export_info.txt}`、`report/results/b6_impl/` 原始实现报告，以及 **`report/results/vivado_rebuild/b6_udp_rx/` 新工程独立重建报告**。
-
-`SUCCESS.txt` 保留生成当时的内容：Vivado 2024.2、`xc7z020clg400-2`，综合和 Bitstream 完成，Setup WNS `+2.372 ns`、Hold WHS `+0.053 ns`，新 XSA 已生成。2026-10-23 开发者后续确认：已使用重建生成的新 XSA，在 Zynq-7020 再次完成 Version/Context/Data 三类 UDP RX 联测，结果成功。工具日志中的 `Vitis/board not yet retested` 是其生成时的历史状态，不修改原始工具日志；后续人工确认见 [`BOARD_REGRESSION_STATUS.md`](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。完整的**本轮新 XSA 对应的** Vitis 编译、UART/PC 输出和硬件哈希配对仍待单独归档。独立陌生机器复现尚未完成。
+不要在 B6 中使用旧 `packaged_ip` 的 GEM0/MDIO 配置；实际 B6 MDIO 在 MIO 52/53，三套硬件的 XSA/ELF 互不通用。
