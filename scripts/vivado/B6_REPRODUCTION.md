@@ -35,3 +35,8 @@ write_bd_tcl -force {D:/Study/project/DIFI/b6_udp_rx_bd.tcl}
 ```
 
 人工核对脚本中 IP VLNV、时钟、GPIO 地址和 PHY 设置后，提交到独立 `scripts/vivado/generated/b6_udp_rx/`，不要覆盖已验证的旧 Tcl 快照。脚本不保证无需其他 IP/XDC 依赖即可重建，必须随后用新目录实测。
+
+
+## 归档脚本已提供（2026-10-23）
+
+现已提供 [`capture_b6_evidence.tcl`](capture_b6_evidence.tcl) 来从**本机真实 B6 v0.2 Vivado 工程**采集 BD 快照与 Routed 实现报告，操作命令、隔离暂存目录和 Git 审核清单详见 [`B6_CAPTURE_GUIDE.md`](B6_CAPTURE_GUIDE.md)。这些工具脚本已提交，不代表本机真实导出物或独立 B6 构建 PASS 已产生。
