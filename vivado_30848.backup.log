@@ -1,0 +1,721 @@
+#-----------------------------------------------------------
+# Vivado v2024.2 (64-bit)
+# SW Build 5239630 on Fri Nov 08 22:35:27 MST 2024
+# IP Build 5239520 on Sun Nov 10 16:12:51 MST 2024
+# SharedData Build 5239561 on Fri Nov 08 14:39:27 MST 2024
+# Start of session at: Fri Oct 23 13:36:38 2026
+# Process ID         : 30848
+# Current directory  : D:/Study/project/DIFI
+# Command line       : vivado.exe -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b6_udp_rx
+# Log file           : D:/Study/project/DIFI/vivado.log
+# Journal file       : D:/Study/project/DIFI\vivado.jou
+# Running On         : YXY_laptop
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 26300
+# Processor Detail   : AMD Ryzen 7 7840H with Radeon 780M Graphics    
+# CPU Frequency      : 3793 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 16
+# Host memory        : 29734 MB
+# Swap memory        : 34896 MB
+# Total Virtual      : 64630 MB
+# Available Virtual  : 44205 MB
+#-----------------------------------------------------------
+source scripts/vivado/rebuild_bd.tcl
+# namespace eval difi {
+#     variable root [file normalize [file join [file dirname [info script]] .. ..]]
+# }
+# proc difi::die {message} { error "DIFI REBUILD: $message" }
+# proc difi::msg {message} { puts "\[DIFI REBUILD\] $message" }
+# proc difi::check_vivado {} {
+#     # Vivado commands may be autoloaded and absent from [info commands]
+#     # until they are actually called.  Query a real Vivado command instead.
+#     if {[catch {version -short} ver]} {
+#         difi::die "Vivado version unavailable. Run with vivado -mode batch."
+#     }
+#     difi::msg "Vivado version: $ver"
+# }
+# proc difi::add_b5_sources {root} {
+#     set files {}
+#     foreach folder {include common context data rx tx version top} {
+#         set d [file join $root rtl $folder]
+#         if {![file isdirectory $d]} { difi::die "Missing RTL directory: $d" }
+#         foreach ext {v vh} {
+#             foreach file [glob -nocomplain -directory $d *.$ext] {
+#                 lappend files [file normalize $file]
+#             }
+#         }
+#     }
+#     set board_file [file join $root rtl board difi_engine_board_b5.v]
+#     if {![file exists $board_file]} { difi::die "Missing $board_file" }
+#     lappend files [file normalize $board_file]
+#     if {[llength $files] < 10} { difi::die "Suspiciously few RTL sources. Wrong checkout?" }
+#     add_files -fileset sources_1 -norecurse $files
+#     set_property include_dirs [list [file join $root rtl include]] [get_filesets sources_1]
+#     # Module-reference cells in BD Tcl depend on Vivado discovering the RTL
+#     # hierarchy before create_bd_cell -type module -reference is executed.
+#     update_compile_order -fileset sources_1
+#     difi::msg "Added [llength $files] source/header files, including B5 raw export."
+# }
+# proc difi::add_b6_sources {root} {
+#     set monitor [file join $root rtl board difi_b6_rx_meta_monitor.v]
+#     if {![file isfile $monitor]} {
+#         difi::die "Missing B6 monitor RTL: $monitor"
+#     }
+#     add_files -fileset sources_1 -norecurse [list $monitor]
+#     update_compile_order -fileset sources_1
+#     difi::msg "Added B6 Metadata Monitor Module Reference source."
+# }
+# proc difi::rebuild {target} {
+#     variable root
+#     difi::check_vivado
+#     if {$target ni {packaged_ip b5_raw_export b6_udp_rx}} {
+#         difi::die "Usage: -tclargs packaged_ip | b5_raw_export | b6_udp_rx"
+#     }
+#     set snapshot_dir [file normalize [file join $root scripts vivado generated $target]]
+#     set bd_script [file join $snapshot_dir bd.tcl]
+#     set manifest [file join $snapshot_dir manifest.tcl]
+#     if {![file isfile $bd_script] || ![file isfile $manifest]} {
+#         difi::die "Real BD export missing in $snapshot_dir. First OPEN ORIGINAL PROJECT and run export_bd.tcl."
+#     }
+#     catch {unset ::difi_manifest}
+#     source $manifest
+#     if {![array exists ::difi_manifest]} { difi::die "Corrupt or missing export manifest" }
+#     foreach key {target bd_name part original_top vivado_version exported_xdc} {
+#         if {![info exists ::difi_manifest($key)]} { difi::die "Manifest missing $key" }
+#     }
+#     if {$::difi_manifest(target) ne $target} { difi::die "Manifest target does not match requested target" }
+#     set bd_name $::difi_manifest(bd_name)
+#     set part $::difi_manifest(part)
+#     if {[version -short] ne $::difi_manifest(vivado_version)} {
+#         difi::die "Vivado version mismatch: exported $::difi_manifest(vivado_version), current [version -short]. Use same version (2024.2) first."
+#     }
+#     if {[llength [get_projects -quiet]] > 0} {
+#         difi::die "Another project is already open. Run in a fresh Vivado batch process."
+#     }
+# 
+#     # Generated .xpr, run data, and logs stay under vivado/, already ignored
+#     # in the project's .gitignore. Never overwrite existing project data.
+#     set name "difi_rebuilt_$target"
+#     set project_dir [file normalize [file join $root vivado rebuilt $target]]
+#     if {[file exists $project_dir]} {
+#         difi::die "Existing rebuild directory: $project_dir. Rename/remove it manually before retrying; refusing to overwrite."
+#     }
+#     file mkdir $project_dir
+#     difi::msg "Create $name for $part at $project_dir"
+#     create_project $name $project_dir -part $part
+#     set_property target_language Verilog [current_project]
+# 
+#     if {$target eq "packaged_ip" || $target eq "b6_udp_rx"} {
+#         set repo [file normalize [file join $root ip_repo difi_engine_ip]]
+#         if {![file isfile [file join $repo component.xml]]} {
+#             difi::die "Packaged IP component.xml missing: $repo"
+#         }
+#         set_property ip_repo_paths [list [file join $root ip_repo]] [current_project]
+#         update_ip_catalog -rebuild
+#         difi::msg "Using custom packaged DIFI IP from $repo"
+#         if {$target eq "b6_udp_rx"} { difi::add_b6_sources $root }
+#     } else {
+#         difi::add_b5_sources $root
+#     }
+# 
+#     # write_bd_tcl creates the COMPLETE block graph using saved Vivado IP
+#     # configuration and wiring. Do not create a same-name BD in advance.
+#     difi::msg "Source actual BD snapshot $bd_script"
+#     source $bd_script
+#     set bd_files [get_files -quiet *.bd]
+#     set bd_file ""
+#     foreach item $bd_files {
+#         if {[file rootname [file tail $item]] eq $bd_name} { set bd_file $item; break }
+#     }
+#     if {$bd_file eq ""} { difi::die "Reconstructed BD $bd_name.bd was not found" }
+#     open_bd_design $bd_file
+#     validate_bd_design
+#     save_bd_design
+#     difi::msg "Block Design validation passed: $bd_name"
+# 
+#     foreach rel $::difi_manifest(exported_xdc) {
+#         set file [file join $snapshot_dir $rel]
+#         if {![file isfile $file]} { difi::die "Missing exported XDC: $file" }
+#         add_files -fileset constrs_1 -norecurse $file
+#     }
+# 
+#     generate_target all [get_files $bd_file]
+#     set wrappers [make_wrapper -files [get_files $bd_file] -top]
+#     if {[llength $wrappers] == 0} { difi::die "make_wrapper returned no file" }
+#     add_files -norecurse $wrappers
+#     update_compile_order -fileset sources_1
+#     set_property top $::difi_manifest(original_top) [get_filesets sources_1]
+#     # create_project already created the .xpr.  Do not save_project_as here:
+#     # that would duplicate/overwrite the same project and generated IP tree.
+#     close_project
+#     if {![file isfile [file join $project_dir "$name.xpr"]]} {
+#         difi::die "Expected XPR not found after close_project"
+#     }
+#     difi::msg "Created and validated fresh project: $project_dir/$name.xpr"
+#     difi::msg "NEXT: inspect Address Editor, project constraints, GEM0/MIO, clocks, then run implementation."
+#     difi::msg "Do not claim end-to-end reproduction before bitstream/XSA/Vitis regression."
+# }
+# if {![info exists ::DIFI_SKIP_AUTORUN]} {
+#     if {![info exists ::argv] || [llength $::argv] != 1} {
+#         error "Usage: vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs packaged_ip|b5_raw_export|b6_udp_rx"
+#     }
+#     difi::rebuild [lindex $::argv 0]
+# }
+[DIFI REBUILD] Vivado version: 2024.2
+## array set ::difi_manifest {target b6_udp_rx bd_name difi_ip_test original_top difi_ip_test_wrapper part xc7z020clg400-2 vivado_version 2024.2 exported_xdc {} original_ip_repos {}}
+[DIFI REBUILD] Create difi_rebuilt_b6_udp_rx for xc7z020clg400-2 at D:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx
+INFO: [IP_Flow 19-234] Refreshing IP repositories
+INFO: [IP_Flow 19-1700] Loaded user IP repository 'd:/Study/project/DIFI/ip_repo'.
+INFO: [IP_Flow 19-2313] Loaded Vivado IP repository 'D:/software/xilinx_2024.2/Vivado/2024.2/data/ip'.
+[DIFI REBUILD] Using custom packaged DIFI IP from D:/Study/project/DIFI/ip_repo/difi_engine_ip
+[DIFI REBUILD] Added B6 Metadata Monitor Module Reference source.
+[DIFI REBUILD] Source actual BD snapshot D:/Study/project/DIFI/scripts/vivado/generated/b6_udp_rx/bd.tcl
+## namespace eval _tcl {
+## proc get_script_folder {} {
+##    set script_path [file normalize [info script]]
+##    set script_folder [file dirname $script_path]
+##    return $script_folder
+## }
+## }
+## variable script_folder
+## set script_folder [_tcl::get_script_folder]
+## set scripts_vivado_version 2024.2
+## set current_vivado_version [version -short]
+## if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
+##    puts ""
+##    if { [string compare $scripts_vivado_version $current_vivado_version] > 0 } {
+##       catch {common::send_gid_msg -ssname BD::TCL -id 2042 -severity "ERROR" " This script was generated using Vivado <$scripts_vivado_version> and is being run in <$current_vivado_version> of Vivado. Sourcing the script failed since it was created with a future version of Vivado."}
+## 
+##    } else {
+##      catch {common::send_gid_msg -ssname BD::TCL -id 2041 -severity "ERROR" "This script was generated using Vivado <$scripts_vivado_version> and is being run in <$current_vivado_version> of Vivado. Please run the script in Vivado <$scripts_vivado_version> then open the design in Vivado <$current_vivado_version>. Upgrade the design by running \"Tools => Report => Report IP Status...\", then run write_bd_tcl to create an updated script."}
+## 
+##    }
+## 
+##    return 1
+## }
+## set list_projs [get_projects -quiet]
+## if { $list_projs eq "" } {
+##    create_project project_1 myproj -part xc7z020clg400-2
+## }
+## variable design_name
+## set design_name difi_ip_test
+## set errMsg ""
+## set nRet 0
+## set cur_design [current_bd_design -quiet]
+## set list_cells [get_bd_cells -quiet]
+## if { ${design_name} eq "" } {
+##    # USE CASES:
+##    #    1) Design_name not set
+## 
+##    set errMsg "Please set the variable <design_name> to a non-empty value."
+##    set nRet 1
+## 
+## } elseif { ${cur_design} ne "" && ${list_cells} eq "" } {
+##    # USE CASES:
+##    #    2): Current design opened AND is empty AND names same.
+##    #    3): Current design opened AND is empty AND names diff; design_name NOT in project.
+##    #    4): Current design opened AND is empty AND names diff; design_name exists in project.
+## 
+##    if { $cur_design ne $design_name } {
+##       common::send_gid_msg -ssname BD::TCL -id 2001 -severity "INFO" "Changing value of <design_name> from <$design_name> to <$cur_design> since current design is empty."
+##       set design_name [get_property NAME $cur_design]
+##    }
+##    common::send_gid_msg -ssname BD::TCL -id 2002 -severity "INFO" "Constructing design in IPI design <$cur_design>..."
+## 
+## } elseif { ${cur_design} ne "" && $list_cells ne "" && $cur_design eq $design_name } {
+##    # USE CASES:
+##    #    5) Current design opened AND has components AND same names.
+## 
+##    set errMsg "Design <$design_name> already exists in your project, please set the variable <design_name> to another value."
+##    set nRet 1
+## } elseif { [get_files -quiet ${design_name}.bd] ne "" } {
+##    # USE CASES: 
+##    #    6) Current opened design, has components, but diff names, design_name exists in project.
+##    #    7) No opened design, design_name exists in project.
+## 
+##    set errMsg "Design <$design_name> already exists in your project, please set the variable <design_name> to another value."
+##    set nRet 2
+## 
+## } else {
+##    # USE CASES:
+##    #    8) No opened design, design_name not in project.
+##    #    9) Current opened design, has components, but diff names, design_name not in project.
+## 
+##    common::send_gid_msg -ssname BD::TCL -id 2003 -severity "INFO" "Currently there is no design <$design_name> in project, so creating one..."
+## 
+##    create_bd_design $design_name
+## 
+##    common::send_gid_msg -ssname BD::TCL -id 2004 -severity "INFO" "Making design <$design_name> as current_bd_design."
+##    current_bd_design $design_name
+## 
+## }
+INFO: [BD::TCL 103-2003] Currently there is no design <difi_ip_test> in project, so creating one...
+Wrote  : <D:\Study\project\DIFI\vivado\rebuilt\b6_udp_rx\difi_rebuilt_b6_udp_rx.srcs\sources_1\bd\difi_ip_test\difi_ip_test.bd> 
+INFO: [BD::TCL 103-2004] Making design <difi_ip_test> as current_bd_design.
+## common::send_gid_msg -ssname BD::TCL -id 2005 -severity "INFO" "Currently the variable <design_name> is equal to \"$design_name\"."
+INFO: [BD::TCL 103-2005] Currently the variable <design_name> is equal to "difi_ip_test".
+## if { $nRet != 0 } {
+##    catch {common::send_gid_msg -ssname BD::TCL -id 2006 -severity "ERROR" $errMsg}
+##    return $nRet
+## }
+## set bCheckIPsPassed 1
+## set bCheckIPs 1
+## if { $bCheckIPs == 1 } {
+##    set list_check_ips "\ 
+## user.org:user:difi_engine_ip:1.0\
+## xilinx.com:ip:processing_system7:5.5\
+## xilinx.com:ip:smartconnect:1.0\
+## xilinx.com:ip:proc_sys_reset:5.0\
+## xilinx.com:ip:axi_dma:7.1\
+## xilinx.com:ip:xlconstant:1.1\
+## xilinx.com:ip:axi_gpio:2.0\
+## "
+## 
+##    set list_ips_missing ""
+##    common::send_gid_msg -ssname BD::TCL -id 2011 -severity "INFO" "Checking if the following IPs exist in the project's IP catalog: $list_check_ips ."
+## 
+##    foreach ip_vlnv $list_check_ips {
+##       set ip_obj [get_ipdefs -all $ip_vlnv]
+##       if { $ip_obj eq "" } {
+##          lappend list_ips_missing $ip_vlnv
+##       }
+##    }
+## 
+##    if { $list_ips_missing ne "" } {
+##       catch {common::send_gid_msg -ssname BD::TCL -id 2012 -severity "ERROR" "The following IPs are not found in the IP Catalog:\n  $list_ips_missing\n\nResolution: Please add the repository containing the IP(s) to the project." }
+##       set bCheckIPsPassed 0
+##    }
+## 
+## }
+INFO: [BD::TCL 103-2011] Checking if the following IPs exist in the project's IP catalog:  
+user.org:user:difi_engine_ip:1.0 xilinx.com:ip:processing_system7:5.5 xilinx.com:ip:smartconnect:1.0 xilinx.com:ip:proc_sys_reset:5.0 xilinx.com:ip:axi_dma:7.1 xilinx.com:ip:xlconstant:1.1 xilinx.com:ip:axi_gpio:2.0  .
+## set bCheckModules 1
+## if { $bCheckModules == 1 } {
+##    set list_check_mods "\ 
+## difi_b6_rx_meta_monitor\
+## "
+## 
+##    set list_mods_missing ""
+##    common::send_gid_msg -ssname BD::TCL -id 2020 -severity "INFO" "Checking if the following modules exist in the project's sources: $list_check_mods ."
+## 
+##    foreach mod_vlnv $list_check_mods {
+##       if { [can_resolve_reference $mod_vlnv] == 0 } {
+##          lappend list_mods_missing $mod_vlnv
+##       }
+##    }
+## 
+##    if { $list_mods_missing ne "" } {
+##       catch {common::send_gid_msg -ssname BD::TCL -id 2021 -severity "ERROR" "The following module(s) are not found in the project: $list_mods_missing" }
+##       common::send_gid_msg -ssname BD::TCL -id 2022 -severity "INFO" "Please add source files for the missing module(s) above."
+##       set bCheckIPsPassed 0
+##    }
+## }
+INFO: [BD::TCL 103-2020] Checking if the following modules exist in the project's sources:  
+difi_b6_rx_meta_monitor  .
+## if { $bCheckIPsPassed != 1 } {
+##   common::send_gid_msg -ssname BD::TCL -id 2023 -severity "WARNING" "Will not continue with creation of design due to the error(s) above."
+##   return 3
+## }
+## proc create_root_design { parentCell } {
+## 
+##   variable script_folder
+##   variable design_name
+## 
+##   if { $parentCell eq "" } {
+##      set parentCell [get_bd_cells /]
+##   }
+## 
+##   # Get object for parentCell
+##   set parentObj [get_bd_cells $parentCell]
+##   if { $parentObj == "" } {
+##      catch {common::send_gid_msg -ssname BD::TCL -id 2090 -severity "ERROR" "Unable to find parent cell <$parentCell>!"}
+##      return
+##   }
+## 
+##   # Make sure parentObj is hier blk
+##   set parentType [get_property TYPE $parentObj]
+##   if { $parentType ne "hier" } {
+##      catch {common::send_gid_msg -ssname BD::TCL -id 2091 -severity "ERROR" "Parent <$parentObj> has TYPE = <$parentType>. Expected to be <hier>."}
+##      return
+##   }
+## 
+##   # Save current instance; Restore later
+##   set oldCurInst [current_bd_instance .]
+## 
+##   # Set parent object as current
+##   current_bd_instance $parentObj
+## 
+## 
+##   # Create interface ports
+##   set DDR [ create_bd_intf_port -mode Master -vlnv xilinx.com:interface:ddrx_rtl:1.0 DDR ]
+## 
+##   set FIXED_IO [ create_bd_intf_port -mode Master -vlnv xilinx.com:display_processing_system7:fixedio_rtl:1.0 FIXED_IO ]
+## 
+## 
+##   # Create ports
+## 
+##   # Create instance: difi_engine_ip_0, and set properties
+##   set difi_engine_ip_0 [ create_bd_cell -type ip -vlnv user.org:user:difi_engine_ip:1.0 difi_engine_ip_0 ]
+## 
+##   # Create instance: processing_system7_0, and set properties
+##   set processing_system7_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0 ]
+##   set_property -dict [list \
+##     CONFIG.PCW_ACT_APU_PERIPHERAL_FREQMHZ {666.666687} \
+##     CONFIG.PCW_ACT_CAN_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_DCI_PERIPHERAL_FREQMHZ {10.158730} \
+##     CONFIG.PCW_ACT_ENET0_PERIPHERAL_FREQMHZ {125.000000} \
+##     CONFIG.PCW_ACT_ENET1_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_FPGA0_PERIPHERAL_FREQMHZ {100.000000} \
+##     CONFIG.PCW_ACT_FPGA1_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_FPGA2_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_FPGA3_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_PCAP_PERIPHERAL_FREQMHZ {200.000000} \
+##     CONFIG.PCW_ACT_QSPI_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_SDIO_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_SMC_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_SPI_PERIPHERAL_FREQMHZ {10.000000} \
+##     CONFIG.PCW_ACT_TPIU_PERIPHERAL_FREQMHZ {200.000000} \
+##     CONFIG.PCW_ACT_TTC0_CLK0_PERIPHERAL_FREQMHZ {111.111115} \
+##     CONFIG.PCW_ACT_TTC0_CLK1_PERIPHERAL_FREQMHZ {111.111115} \
+##     CONFIG.PCW_ACT_TTC0_CLK2_PERIPHERAL_FREQMHZ {111.111115} \
+##     CONFIG.PCW_ACT_TTC1_CLK0_PERIPHERAL_FREQMHZ {111.111115} \
+##     CONFIG.PCW_ACT_TTC1_CLK1_PERIPHERAL_FREQMHZ {111.111115} \
+##     CONFIG.PCW_ACT_TTC1_CLK2_PERIPHERAL_FREQMHZ {111.111115} \
+##     CONFIG.PCW_ACT_UART_PERIPHERAL_FREQMHZ {100.000000} \
+##     CONFIG.PCW_ACT_WDT_PERIPHERAL_FREQMHZ {111.111115} \
+##     CONFIG.PCW_CLK0_FREQ {100000000} \
+##     CONFIG.PCW_CLK1_FREQ {10000000} \
+##     CONFIG.PCW_CLK2_FREQ {10000000} \
+##     CONFIG.PCW_CLK3_FREQ {10000000} \
+##     CONFIG.PCW_DDR_RAM_HIGHADDR {0x3FFFFFFF} \
+##     CONFIG.PCW_ENET0_ENET0_IO {MIO 16 .. 27} \
+##     CONFIG.PCW_ENET0_GRP_MDIO_ENABLE {1} \
+##     CONFIG.PCW_ENET0_GRP_MDIO_IO {MIO 52 .. 53} \
+##     CONFIG.PCW_ENET0_PERIPHERAL_CLKSRC {IO PLL} \
+##     CONFIG.PCW_ENET0_PERIPHERAL_ENABLE {1} \
+##     CONFIG.PCW_ENET0_PERIPHERAL_FREQMHZ {1000 Mbps} \
+##     CONFIG.PCW_EN_EMIO_ENET0 {0} \
+##     CONFIG.PCW_EN_EMIO_UART0 {0} \
+##     CONFIG.PCW_EN_ENET0 {1} \
+##     CONFIG.PCW_EN_UART0 {1} \
+##     CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ {100} \
+##     CONFIG.PCW_FPGA_FCLK0_ENABLE {1} \
+##     CONFIG.PCW_MIO_14_IOTYPE {LVCMOS 3.3V} \
+##     CONFIG.PCW_MIO_14_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_14_SLEW {slow} \
+##     CONFIG.PCW_MIO_15_IOTYPE {LVCMOS 3.3V} \
+##     CONFIG.PCW_MIO_15_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_15_SLEW {slow} \
+##     CONFIG.PCW_MIO_16_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_16_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_16_SLEW {slow} \
+##     CONFIG.PCW_MIO_17_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_17_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_17_SLEW {slow} \
+##     CONFIG.PCW_MIO_18_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_18_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_18_SLEW {slow} \
+##     CONFIG.PCW_MIO_19_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_19_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_19_SLEW {slow} \
+##     CONFIG.PCW_MIO_20_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_20_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_20_SLEW {slow} \
+##     CONFIG.PCW_MIO_21_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_21_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_21_SLEW {slow} \
+##     CONFIG.PCW_MIO_22_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_22_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_22_SLEW {slow} \
+##     CONFIG.PCW_MIO_23_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_23_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_23_SLEW {slow} \
+##     CONFIG.PCW_MIO_24_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_24_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_24_SLEW {slow} \
+##     CONFIG.PCW_MIO_25_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_25_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_25_SLEW {slow} \
+##     CONFIG.PCW_MIO_26_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_26_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_26_SLEW {slow} \
+##     CONFIG.PCW_MIO_27_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_27_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_27_SLEW {slow} \
+##     CONFIG.PCW_MIO_52_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_52_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_52_SLEW {slow} \
+##     CONFIG.PCW_MIO_53_IOTYPE {LVCMOS 1.8V} \
+##     CONFIG.PCW_MIO_53_PULLUP {enabled} \
+##     CONFIG.PCW_MIO_53_SLEW {slow} \
+##     CONFIG.PCW_MIO_TREE_PERIPHERALS {unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#UART 0#UART\
+## 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#Enet 0#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#Enet\
+## 0#Enet 0} \
+##     CONFIG.PCW_MIO_TREE_SIGNALS {unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#rx#tx#tx_clk#txd[0]#txd[1]#txd[2]#txd[3]#tx_ctl#rx_clk#rxd[0]#rxd[1]#rxd[2]#rxd[3]#rx_ctl#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#unassigned#mdc#mdio}\
+## \
+##     CONFIG.PCW_PRESET_BANK1_VOLTAGE {LVCMOS 1.8V} \
+##     CONFIG.PCW_UART0_GRP_FULL_ENABLE {0} \
+##     CONFIG.PCW_UART0_PERIPHERAL_ENABLE {1} \
+##     CONFIG.PCW_UART0_UART0_IO {MIO 14 .. 15} \
+##     CONFIG.PCW_UART_PERIPHERAL_FREQMHZ {100} \
+##     CONFIG.PCW_UART_PERIPHERAL_VALID {1} \
+##     CONFIG.PCW_UIPARAM_ACT_DDR_FREQ_MHZ {533.333374} \
+##     CONFIG.PCW_UIPARAM_DDR_PARTNO {MT41K256M16 RE-125} \
+##     CONFIG.PCW_USE_S_AXI_HP0 {1} \
+##   ] $processing_system7_0
+## 
+## 
+##   # Create instance: axi_smc, and set properties
+##   set axi_smc [ create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 axi_smc ]
+##   set_property -dict [list \
+##     CONFIG.NUM_MI {4} \
+##     CONFIG.NUM_SI {1} \
+##   ] $axi_smc
+## 
+## 
+##   # Create instance: rst_ps7_0_100M, and set properties
+##   set rst_ps7_0_100M [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps7_0_100M ]
+## 
+##   # Create instance: axi_dma_0, and set properties
+##   set axi_dma_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_dma:7.1 axi_dma_0 ]
+##   set_property CONFIG.c_include_sg {0} $axi_dma_0
+## 
+## 
+##   # Create instance: axi_mem_intercon, and set properties
+##   set axi_mem_intercon [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_mem_intercon ]
+##   set_property -dict [list \
+##     CONFIG.NUM_MI {1} \
+##     CONFIG.NUM_SI {2} \
+##   ] $axi_mem_intercon
+## 
+## 
+##   # Create instance: xlconstant_0, and set properties
+##   set xlconstant_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_0 ]
+## 
+##   # Create instance: xlconstant_1, and set properties
+##   set xlconstant_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 xlconstant_1 ]
+##   set_property CONFIG.CONST_VAL {0} $xlconstant_1
+## 
+## 
+##   # Create instance: difi_b6_rx_meta_moni_0, and set properties
+##   set block_name difi_b6_rx_meta_monitor
+##   set block_cell_name difi_b6_rx_meta_moni_0
+##   if { [catch {set difi_b6_rx_meta_moni_0 [create_bd_cell -type module -reference $block_name $block_cell_name] } errmsg] } {
+##      catch {common::send_gid_msg -ssname BD::TCL -id 2095 -severity "ERROR" "Unable to add referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+##      return 1
+##    } elseif { $difi_b6_rx_meta_moni_0 eq "" } {
+##      catch {common::send_gid_msg -ssname BD::TCL -id 2096 -severity "ERROR" "Unable to referenced block <$block_name>. Please add the files for ${block_name}'s definition into the project."}
+##      return 1
+##    }
+##   
+##   # Create instance: axi_gpio_0, and set properties
+##   set axi_gpio_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 axi_gpio_0 ]
+##   set_property -dict [list \
+##     CONFIG.C_ALL_INPUTS {1} \
+##     CONFIG.C_ALL_INPUTS_2 {1} \
+##     CONFIG.C_IS_DUAL {1} \
+##   ] $axi_gpio_0
+## 
+## 
+##   # Create interface connections
+##   connect_bd_intf_net -intf_net axi_dma_0_M_AXIS_MM2S [get_bd_intf_pins difi_engine_ip_0/S_AXIS_RX_PKT] [get_bd_intf_pins axi_dma_0/M_AXIS_MM2S]
+##   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_MM2S [get_bd_intf_pins axi_dma_0/M_AXI_MM2S] [get_bd_intf_pins axi_mem_intercon/S00_AXI]
+##   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_S2MM [get_bd_intf_pins axi_dma_0/M_AXI_S2MM] [get_bd_intf_pins axi_mem_intercon/S01_AXI]
+##   connect_bd_intf_net -intf_net axi_mem_intercon_M00_AXI [get_bd_intf_pins axi_mem_intercon/M00_AXI] [get_bd_intf_pins processing_system7_0/S_AXI_HP0]
+##   connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins difi_engine_ip_0/S_AXI_CTRL]
+##   connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins difi_engine_ip_0/S_AXI_TIME]
+##   connect_bd_intf_net -intf_net axi_smc_M02_AXI [get_bd_intf_pins axi_smc/M02_AXI] [get_bd_intf_pins axi_dma_0/S_AXI_LITE]
+##   connect_bd_intf_net -intf_net axi_smc_M03_AXI [get_bd_intf_pins axi_smc/M03_AXI] [get_bd_intf_pins axi_gpio_0/S_AXI]
+##   connect_bd_intf_net -intf_net difi_engine_ip_0_M_AXIS_IQ [get_bd_intf_pins difi_engine_ip_0/M_AXIS_IQ] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
+##   connect_bd_intf_net -intf_net processing_system7_0_DDR [get_bd_intf_ports DDR] [get_bd_intf_pins processing_system7_0/DDR]
+##   connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports FIXED_IO] [get_bd_intf_pins processing_system7_0/FIXED_IO]
+##   connect_bd_intf_net -intf_net processing_system7_0_M_AXI_GP0 [get_bd_intf_pins processing_system7_0/M_AXI_GP0] [get_bd_intf_pins axi_smc/S00_AXI]
+## 
+##   # Create port connections
+##   connect_bd_net -net difi_b6_rx_meta_moni_0_gpio_count  [get_bd_pins difi_b6_rx_meta_moni_0/gpio_count] \
+##   [get_bd_pins axi_gpio_0/gpio_io_i]
+##   connect_bd_net -net difi_b6_rx_meta_moni_0_gpio_detail  [get_bd_pins difi_b6_rx_meta_moni_0/gpio_detail] \
+##   [get_bd_pins axi_gpio_0/gpio2_io_i]
+##   connect_bd_net -net difi_engine_ip_0_m_ctx_changed  [get_bd_pins difi_engine_ip_0/m_ctx_changed] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/m_ctx_changed]
+##   connect_bd_net -net difi_engine_ip_0_m_ctx_seq  [get_bd_pins difi_engine_ip_0/m_ctx_seq] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/m_ctx_seq]
+##   connect_bd_net -net difi_engine_ip_0_m_ctx_valid  [get_bd_pins difi_engine_ip_0/m_ctx_valid] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/m_ctx_valid]
+##   connect_bd_net -net difi_engine_ip_0_m_ver_changed  [get_bd_pins difi_engine_ip_0/m_ver_changed] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/m_ver_changed]
+##   connect_bd_net -net difi_engine_ip_0_m_ver_seq  [get_bd_pins difi_engine_ip_0/m_ver_seq] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/m_ver_seq]
+##   connect_bd_net -net difi_engine_ip_0_m_ver_valid  [get_bd_pins difi_engine_ip_0/m_ver_valid] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/m_ver_valid]
+##   connect_bd_net -net difi_engine_ip_0_rx_context_error_valid  [get_bd_pins difi_engine_ip_0/rx_context_error_valid] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/rx_context_error_valid]
+##   connect_bd_net -net difi_engine_ip_0_rx_data_error_valid  [get_bd_pins difi_engine_ip_0/rx_data_error_valid] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/rx_data_error_valid]
+##   connect_bd_net -net difi_engine_ip_0_rx_dispatch_error_valid  [get_bd_pins difi_engine_ip_0/rx_dispatch_error_valid] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/rx_dispatch_error_valid]
+##   connect_bd_net -net difi_engine_ip_0_rx_version_error_valid  [get_bd_pins difi_engine_ip_0/rx_version_error_valid] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/rx_version_error_valid]
+##   connect_bd_net -net processing_system7_0_FCLK_CLK0  [get_bd_pins processing_system7_0/FCLK_CLK0] \
+##   [get_bd_pins processing_system7_0/M_AXI_GP0_ACLK] \
+##   [get_bd_pins axi_smc/aclk] \
+##   [get_bd_pins difi_engine_ip_0/aclk] \
+##   [get_bd_pins rst_ps7_0_100M/slowest_sync_clk] \
+##   [get_bd_pins axi_dma_0/s_axi_lite_aclk] \
+##   [get_bd_pins axi_dma_0/m_axi_mm2s_aclk] \
+##   [get_bd_pins axi_mem_intercon/S00_ACLK] \
+##   [get_bd_pins processing_system7_0/S_AXI_HP0_ACLK] \
+##   [get_bd_pins axi_mem_intercon/M00_ACLK] \
+##   [get_bd_pins axi_mem_intercon/ACLK] \
+##   [get_bd_pins axi_dma_0/m_axi_s2mm_aclk] \
+##   [get_bd_pins axi_mem_intercon/S01_ACLK] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/aclk] \
+##   [get_bd_pins axi_gpio_0/s_axi_aclk]
+##   connect_bd_net -net processing_system7_0_FCLK_RESET0_N  [get_bd_pins processing_system7_0/FCLK_RESET0_N] \
+##   [get_bd_pins rst_ps7_0_100M/ext_reset_in]
+##   connect_bd_net -net rst_ps7_0_100M_peripheral_aresetn  [get_bd_pins rst_ps7_0_100M/peripheral_aresetn] \
+##   [get_bd_pins difi_engine_ip_0/aresetn] \
+##   [get_bd_pins axi_smc/aresetn] \
+##   [get_bd_pins axi_dma_0/axi_resetn] \
+##   [get_bd_pins axi_mem_intercon/S00_ARESETN] \
+##   [get_bd_pins axi_mem_intercon/M00_ARESETN] \
+##   [get_bd_pins axi_mem_intercon/ARESETN] \
+##   [get_bd_pins axi_mem_intercon/S01_ARESETN] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/aresetn] \
+##   [get_bd_pins axi_gpio_0/s_axi_aresetn]
+##   connect_bd_net -net xlconstant_0_dout  [get_bd_pins xlconstant_0/dout] \
+##   [get_bd_pins difi_engine_ip_0/m_data_meta_ready] \
+##   [get_bd_pins rst_ps7_0_100M/dcm_locked] \
+##   [get_bd_pins difi_engine_ip_0/m_ver_ready] \
+##   [get_bd_pins difi_engine_ip_0/m_ctx_ready] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/m_ver_ready] \
+##   [get_bd_pins difi_b6_rx_meta_moni_0/m_ctx_ready]
+##   connect_bd_net -net xlconstant_1_dout  [get_bd_pins xlconstant_1/dout] \
+##   [get_bd_pins difi_engine_ip_0/data_available] \
+##   [get_bd_pins difi_engine_ip_0/s_axis_iq_tvalid]
+## 
+##   # Create address segments
+##   assign_bd_address -offset 0x40400000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_dma_0/S_AXI_LITE/Reg] -force
+##   assign_bd_address -offset 0x41200000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_gpio_0/S_AXI/Reg] -force
+##   assign_bd_address -offset 0x40000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs difi_engine_ip_0/S_AXI_CTRL/reg0] -force
+##   assign_bd_address -offset 0x40001000 -range 0x00001000 -with_name SEG_difi_engine_ip_0_reg0_1 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs difi_engine_ip_0/S_AXI_TIME/reg0] -force
+##   assign_bd_address -offset 0x00000000 -range 0x40000000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_MM2S] [get_bd_addr_segs processing_system7_0/S_AXI_HP0/HP0_DDR_LOWOCM] -force
+##   assign_bd_address -offset 0x00000000 -range 0x40000000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_S2MM] [get_bd_addr_segs processing_system7_0/S_AXI_HP0/HP0_DDR_LOWOCM] -force
+## 
+## 
+##   # Restore current instance
+##   current_bd_instance $oldCurInst
+## 
+##   validate_bd_design
+##   save_bd_design
+## }
+## create_root_design ""
+INFO: [BD 5-1043] It is recommended to use inline hdl version xilinx.com:inline_hdl:ilconstant:1.0 for the IP type xilinx.com:ip:xlconstant:1.1 for improved performance and reduced disk space. IPs with VLNV xilinx.com:ip:xlconstant:1.1 may be deprecated in future releases. More information on inline hdl IP is available in UG994 
+INFO: [BD 5-1043] It is recommended to use inline hdl version xilinx.com:inline_hdl:ilconstant:1.0 for the IP type xilinx.com:ip:xlconstant:1.1 for improved performance and reduced disk space. IPs with VLNV xilinx.com:ip:xlconstant:1.1 may be deprecated in future releases. More information on inline hdl IP is available in UG994 
+INFO: [IP_Flow 19-5107] Inferred bus interface 'aresetn' of definition 'xilinx.com:signal:reset:1.0' (from Xilinx Repository).
+INFO: [IP_Flow 19-5107] Inferred bus interface 'aclk' of definition 'xilinx.com:signal:clock:1.0' (from Xilinx Repository).
+INFO: [IP_Flow 19-4728] Bus Interface 'aresetn': Added interface parameter 'POLARITY' with value 'ACTIVE_LOW'.
+INFO: [IP_Flow 19-4728] Bus Interface 'aclk': Added interface parameter 'ASSOCIATED_RESET' with value 'aresetn'.
+WARNING: [IP_Flow 19-5661] Bus Interface 'aclk' does not have any bus interfaces associated with it.
+WARNING: [IP_Flow 19-11770] Clock interface 'aclk' has no FREQ_HZ parameter.
+WARNING: [BD 41-1306] The connection to interface pin </axi_gpio_0/gpio_io_i> is being overridden by the user with net <difi_b6_rx_meta_moni_0_gpio_count>. This pin will not be connected as a part of interface connection <GPIO>, and might not recreate the connectivity as expected using the writ_bd_tcl command.
+WARNING: [BD 41-1306] The connection to interface pin </axi_gpio_0/gpio2_io_i> is being overridden by the user with net <difi_b6_rx_meta_moni_0_gpio_detail>. This pin will not be connected as a part of interface connection <GPIO2>, and might not recreate the connectivity as expected using the writ_bd_tcl command.
+WARNING: [BD 41-1306] The connection to interface pin </difi_engine_ip_0/s_axis_iq_tvalid> is being overridden by the user with net <xlconstant_1_dout>. This pin will not be connected as a part of interface connection <S_AXIS_IQ>, and might not recreate the connectivity as expected using the writ_bd_tcl command.
+Slave segment '/axi_dma_0/S_AXI_LITE/Reg' is being assigned into address space '/processing_system7_0/Data' at <0x4040_0000 [ 64K ]>.
+Slave segment '/axi_gpio_0/S_AXI/Reg' is being assigned into address space '/processing_system7_0/Data' at <0x4120_0000 [ 64K ]>.
+Slave segment '/difi_engine_ip_0/S_AXI_CTRL/reg0' is being assigned into address space '/processing_system7_0/Data' at <0x4000_0000 [ 4K ]>.
+Slave segment '/difi_engine_ip_0/S_AXI_TIME/reg0' is being assigned into address space '/processing_system7_0/Data' at <0x4000_1000 [ 4K ]>.
+Slave segment '/processing_system7_0/S_AXI_HP0/HP0_DDR_LOWOCM' is being assigned into address space '/axi_dma_0/Data_MM2S' at <0x0000_0000 [ 1G ]>.
+Slave segment '/processing_system7_0/S_AXI_HP0/HP0_DDR_LOWOCM' is being assigned into address space '/axi_dma_0/Data_S2MM' at <0x0000_0000 [ 1G ]>.
+INFO: [BD 5-943] Reserving offset range <0x4000_0000 [ 4K ]> from slave interface '/axi_smc/S00_AXI' to master interface '/axi_smc/M00_AXI'. This will be used by smartconnect on path for routing.
+INFO: [BD 5-943] Reserving offset range <0x4000_1000 [ 4K ]> from slave interface '/axi_smc/S00_AXI' to master interface '/axi_smc/M01_AXI'. This will be used by smartconnect on path for routing.
+INFO: [BD 5-943] Reserving offset range <0x4040_0000 [ 64K ]> from slave interface '/axi_smc/S00_AXI' to master interface '/axi_smc/M02_AXI'. This will be used by smartconnect on path for routing.
+INFO: [BD 5-943] Reserving offset range <0x4120_0000 [ 64K ]> from slave interface '/axi_smc/S00_AXI' to master interface '/axi_smc/M03_AXI'. This will be used by smartconnect on path for routing.
+INFO: [xilinx.com:ip:smartconnect:1.0-1] difi_ip_test_axi_smc_0: SmartConnect difi_ip_test_axi_smc_0 is in Low-Area Mode.
+WARNING: [xilinx.com:ip:smartconnect:1.0-1] difi_ip_test_axi_smc_0: IP difi_ip_test_axi_smc_0 is configured in Low-area mode as all propagated traffic is low-bandwidth (AXI4LITE). SI S00_AXI has property HAS_BURST == 1. WRAP bursts are not supported in Low-area mode and will result in DECERR if received.
+WARNING: [xilinx.com:ip:smartconnect:1.0-1] difi_ip_test_axi_smc_0: If WRAP transactions are required then turn off Low-area mode using ADVANCED_PROPERTIES. Execute following: set_property CONFIG.ADVANCED_PROPERTIES {__experimental_features__ {disable_low_area_mode 1}} [get_bd_cells /difi_ip_test_axi_smc_0]
+Wrote  : <D:\Study\project\DIFI\vivado\rebuilt\b6_udp_rx\difi_rebuilt_b6_udp_rx.srcs\sources_1\bd\difi_ip_test\difi_ip_test.bd> 
+INFO: [BD 5-320] Validate design is not run, since the design is already validated.
+[DIFI REBUILD] Block Design validation passed: difi_ip_test
+INFO: [BD 41-1662] The design 'difi_ip_test.bd' is already validated. Therefore parameter propagation will not be re-run.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/axi_mem_intercon/m00_couplers/auto_pc/m_axi_bid'(1) to pin: '/axi_mem_intercon/m00_couplers/M_AXI_bid'(6) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/axi_mem_intercon/m00_couplers/auto_pc/m_axi_rid'(1) to pin: '/axi_mem_intercon/m00_couplers/M_AXI_rid'(6) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/processing_system7_0/S_AXI_HP0_WID'(6) to pin: '/axi_mem_intercon/M00_AXI_wid'(1) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/processing_system7_0/S_AXI_HP0_ARID'(6) to pin: '/axi_mem_intercon/M00_AXI_arid'(1) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/processing_system7_0/S_AXI_HP0_AWID'(6) to pin: '/axi_mem_intercon/M00_AXI_awid'(1) - Only lower order bits will be connected.
+Verilog Output written to : D:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/synth/difi_ip_test.v
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/axi_mem_intercon/m00_couplers/auto_pc/m_axi_bid'(1) to pin: '/axi_mem_intercon/m00_couplers/M_AXI_bid'(6) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/axi_mem_intercon/m00_couplers/auto_pc/m_axi_rid'(1) to pin: '/axi_mem_intercon/m00_couplers/M_AXI_rid'(6) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/processing_system7_0/S_AXI_HP0_WID'(6) to pin: '/axi_mem_intercon/M00_AXI_wid'(1) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/processing_system7_0/S_AXI_HP0_ARID'(6) to pin: '/axi_mem_intercon/M00_AXI_arid'(1) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/processing_system7_0/S_AXI_HP0_AWID'(6) to pin: '/axi_mem_intercon/M00_AXI_awid'(1) - Only lower order bits will be connected.
+Verilog Output written to : D:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/sim/difi_ip_test.v
+Verilog Output written to : D:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/hdl/difi_ip_test_wrapper.v
+INFO: [BD 41-1029] Generation completed for the IP Integrator block difi_engine_ip_0 .
+INFO: [IP_Flow 19-5611] Unable to find an associated reset port for the interface 'M_AXI_GP0'. A default connection has been created.
+INFO: [IP_Flow 19-5611] Unable to find an associated reset port for the interface 'S_AXI_HP0'. A default connection has been created.
+INFO: [BD 41-1029] Generation completed for the IP Integrator block processing_system7_0 .
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/s00_nodes/s00_ar_node/s_sc_payld'(147) to pin: '/s00_nodes/S_SC_AR_payld'(143) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/s00_nodes/s00_aw_node/s_sc_payld'(147) to pin: '/s00_nodes/S_SC_AW_payld'(143) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m00_nodes/m00_r_node/s_sc_payld'(55) to pin: '/m00_nodes/S_SC_R_payld'(53) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m00_nodes/m00_b_node/s_sc_payld'(9) to pin: '/m00_nodes/S_SC_B_payld'(7) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m01_nodes/m01_r_node/s_sc_payld'(55) to pin: '/m01_nodes/S_SC_R_payld'(53) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m01_nodes/m01_b_node/s_sc_payld'(9) to pin: '/m01_nodes/S_SC_B_payld'(7) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m02_nodes/m02_r_node/s_sc_payld'(55) to pin: '/m02_nodes/S_SC_R_payld'(53) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m02_nodes/m02_b_node/s_sc_payld'(9) to pin: '/m02_nodes/S_SC_B_payld'(7) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m03_nodes/m03_r_node/s_sc_payld'(55) to pin: '/m03_nodes/S_SC_R_payld'(53) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m03_nodes/m03_b_node/s_sc_payld'(9) to pin: '/m03_nodes/S_SC_B_payld'(7) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/s00_axi2sc/s_sc_r_payld'(53) to pin: '/s00_nodes/M_SC_R_payld'(55) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/s00_axi2sc/s_sc_b_payld'(7) to pin: '/s00_nodes/M_SC_B_payld'(9) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m00_sc2axi/s_sc_ar_payld'(143) to pin: '/m00_nodes/M_SC_AR_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m00_sc2axi/s_sc_aw_payld'(143) to pin: '/m00_nodes/M_SC_AW_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m01_sc2axi/s_sc_ar_payld'(143) to pin: '/m01_nodes/M_SC_AR_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m01_sc2axi/s_sc_aw_payld'(143) to pin: '/m01_nodes/M_SC_AW_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m02_sc2axi/s_sc_ar_payld'(143) to pin: '/m02_nodes/M_SC_AR_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m02_sc2axi/s_sc_aw_payld'(143) to pin: '/m02_nodes/M_SC_AW_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m03_sc2axi/s_sc_ar_payld'(143) to pin: '/m03_nodes/M_SC_AR_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m03_sc2axi/s_sc_aw_payld'(143) to pin: '/m03_nodes/M_SC_AW_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/s00_nodes/s00_ar_node/s_sc_payld'(147) to pin: '/s00_nodes/S_SC_AR_payld'(143) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/s00_nodes/s00_aw_node/s_sc_payld'(147) to pin: '/s00_nodes/S_SC_AW_payld'(143) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m00_nodes/m00_r_node/s_sc_payld'(55) to pin: '/m00_nodes/S_SC_R_payld'(53) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m00_nodes/m00_b_node/s_sc_payld'(9) to pin: '/m00_nodes/S_SC_B_payld'(7) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m01_nodes/m01_r_node/s_sc_payld'(55) to pin: '/m01_nodes/S_SC_R_payld'(53) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m01_nodes/m01_b_node/s_sc_payld'(9) to pin: '/m01_nodes/S_SC_B_payld'(7) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m02_nodes/m02_r_node/s_sc_payld'(55) to pin: '/m02_nodes/S_SC_R_payld'(53) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m02_nodes/m02_b_node/s_sc_payld'(9) to pin: '/m02_nodes/S_SC_B_payld'(7) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m03_nodes/m03_r_node/s_sc_payld'(55) to pin: '/m03_nodes/S_SC_R_payld'(53) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m03_nodes/m03_b_node/s_sc_payld'(9) to pin: '/m03_nodes/S_SC_B_payld'(7) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/s00_axi2sc/s_sc_r_payld'(53) to pin: '/s00_nodes/M_SC_R_payld'(55) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/s00_axi2sc/s_sc_b_payld'(7) to pin: '/s00_nodes/M_SC_B_payld'(9) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m00_sc2axi/s_sc_ar_payld'(143) to pin: '/m00_nodes/M_SC_AR_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m00_sc2axi/s_sc_aw_payld'(143) to pin: '/m00_nodes/M_SC_AW_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m01_sc2axi/s_sc_ar_payld'(143) to pin: '/m01_nodes/M_SC_AR_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m01_sc2axi/s_sc_aw_payld'(143) to pin: '/m01_nodes/M_SC_AW_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m02_sc2axi/s_sc_ar_payld'(143) to pin: '/m02_nodes/M_SC_AR_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m02_sc2axi/s_sc_aw_payld'(143) to pin: '/m02_nodes/M_SC_AW_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m03_sc2axi/s_sc_ar_payld'(143) to pin: '/m03_nodes/M_SC_AR_payld'(147) - Only lower order bits will be connected.
+WARNING: [BD 41-2384] Width mismatch when connecting pin: '/m03_sc2axi/s_sc_aw_payld'(143) to pin: '/m03_nodes/M_SC_AW_payld'(147) - Only lower order bits will be connected.
+Exporting to file d:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/ip/difi_ip_test_axi_smc_0/bd_0/hw_handoff/difi_ip_test_axi_smc_0.hwh
+Generated Hardware Definition File d:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/ip/difi_ip_test_axi_smc_0/bd_0/synth/difi_ip_test_axi_smc_0.hwdef
+INFO: [BD 41-1029] Generation completed for the IP Integrator block axi_smc .
+INFO: [BD 41-1029] Generation completed for the IP Integrator block rst_ps7_0_100M .
+INFO: [BD 41-1029] Generation completed for the IP Integrator block axi_dma_0 .
+INFO: [BD 41-1029] Generation completed for the IP Integrator block axi_mem_intercon/xbar .
+WARNING: [IP_Flow 19-4994] Overwriting existing constraint file 'd:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/ip/difi_ip_test_axi_mem_intercon_imp_auto_us_0/difi_ip_test_axi_mem_intercon_imp_auto_us_0_ooc.xdc'
+INFO: [BD 41-1029] Generation completed for the IP Integrator block axi_mem_intercon/s00_couplers/auto_us .
+WARNING: [IP_Flow 19-4994] Overwriting existing constraint file 'd:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/ip/difi_ip_test_axi_mem_intercon_imp_auto_us_1/difi_ip_test_axi_mem_intercon_imp_auto_us_1_ooc.xdc'
+INFO: [BD 41-1029] Generation completed for the IP Integrator block axi_mem_intercon/s01_couplers/auto_us .
+WARNING: [IP_Flow 19-4994] Overwriting existing constraint file 'd:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/ip/difi_ip_test_axi_mem_intercon_imp_auto_pc_0/difi_ip_test_axi_mem_intercon_imp_auto_pc_0_ooc.xdc'
+INFO: [BD 41-1029] Generation completed for the IP Integrator block axi_mem_intercon/m00_couplers/auto_pc .
+INFO: [BD 41-1029] Generation completed for the IP Integrator block xlconstant_0 .
+INFO: [BD 41-1029] Generation completed for the IP Integrator block xlconstant_1 .
+INFO: [BD 41-1029] Generation completed for the IP Integrator block difi_b6_rx_meta_moni_0 .
+INFO: [BD 41-1029] Generation completed for the IP Integrator block axi_gpio_0 .
+Exporting to file D:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/hw_handoff/difi_ip_test.hwh
+Generated Hardware Definition File D:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.gen/sources_1/bd/difi_ip_test/synth/difi_ip_test.hwdef
+generate_target: Time (s): cpu = 00:00:20 ; elapsed = 00:00:26 . Memory (MB): peak = 755.918 ; gain = 80.480
+[DIFI REBUILD] Created and validated fresh project: D:/Study/project/DIFI/vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.xpr
+[DIFI REBUILD] NEXT: inspect Address Editor, project constraints, GEM0/MIO, clocks, then run implementation.
+[DIFI REBUILD] Do not claim end-to-end reproduction before bitstream/XSA/Vitis regression.
+INFO: [Common 17-206] Exiting Vivado at Fri Oct 23 13:37:22 2026...
