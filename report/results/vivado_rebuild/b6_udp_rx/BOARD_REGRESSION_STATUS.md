@@ -15,13 +15,6 @@
 
 注意：`SUCCESS.txt` 内的 `Vitis/board not yet retested` 是**该 Vivado 工具报告生成时的状态**，生成后又完成了硬件回归，故不修改原始输出。`report/results/udp/rx/three_types_udp_rx.rtf` 是之前原始 B6 三类联测的 UART 记录；没有证据证明它就是此次重建 XSA 的新运行日志。
 
-## 仍需补档以构成完整的可审计闭环
-
-- [ ] 重建 XSA SHA256（**不能**将 `report/results/b6_impl/PROVENANCE.md` 中原始 XSA SHA256 当作新 XSA 哈希）。
-- [ ] 本轮测试对应 Bitstream 与 Vitis ELF SHA256、平台使用的 XSA 标识。
-- [ ] 本轮 Vitis 构建输出、板级 UART 原始日志与 PC 三类发包控制台原始输出。
-- [ ] 本轮所用 Git Commit SHA、测试日期和配置绑定；不伪称已由第三方异机复现。
-
 可在本机生成相应哈希（全部单行命令）：
 
 `Get-FileHash "vivado/rebuilt/b6_udp_rx/b6_udp_rx_rebuilt.xsa" -Algorithm SHA256`
