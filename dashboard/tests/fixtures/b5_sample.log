@@ -1,0 +1,27 @@
+# SIMULATED TEST FIXTURE; NOT A HARDWARE RUN. Parse only with source=REPLAY.
+[INFO] UDP listening on replay-fixture:4991
+[INFO] sending START to replay-fixture:4991
+[PASS] #00 type=5 seq= 0 words= 11 bytes=  44
+[PASS] #01 type=4 seq= 0 words= 27 bytes= 108
+[PASS] #02 type=1 seq= 0 words=263 bytes=1052
+[PASS] #03 type=1 seq= 1 words=263 bytes=1052
+[PASS] #04 type=1 seq= 2 words=263 bytes=1052
+[PASS] #05 type=1 seq= 3 words=263 bytes=1052
+[PASS] #06 type=1 seq= 4 words=263 bytes=1052
+[PASS] #07 type=1 seq= 5 words=263 bytes=1052
+[PASS] #08 type=1 seq= 6 words=263 bytes=1052
+[PASS] #09 type=1 seq= 7 words=263 bytes=1052
+[PASS] #10 type=1 seq= 8 words=263 bytes=1052
+[PASS] #11 type=1 seq= 9 words=263 bytes=1052
+[PASS] #12 type=1 seq=10 words=263 bytes=1052
+[PASS] #13 type=1 seq=11 words=263 bytes=1052
+[PASS] #14 type=1 seq=12 words=263 bytes=1052
+[PASS] #15 type=1 seq=13 words=263 bytes=1052
+[PASS] #16 type=1 seq=14 words=263 bytes=1052
+[PASS] #17 type=1 seq=15 words=263 bytes=1052
+[PASS] #18 type=1 seq= 0 words=263 bytes=1052
+[PASS] #19 type=1 seq= 1 words=263 bytes=1052
+[PASS] #20 type=1 seq= 2 words=263 bytes=1052
+[PASS] #21 type=1 seq= 3 words=263 bytes=1052
+[PASS] DIFI UDP full chain: 1 Version + 1 Context + 20 Data, 5120 IQ correct
+[INFO] captured 21192 UDP payload bytes in 0.050s; saved to synthetic fixture capture

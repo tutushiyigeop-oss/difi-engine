@@ -6,6 +6,8 @@
 
 [架构与功能](#1-项目概述) · [实测结果](#2-验证状态与实测结果) · [快速复现](#5-快速复现) · [文件索引](#7-仓库目录与提交物对照) · [限制与待办](#8-已知限制与后续工作)
 
+**Windows 桌面演示台：** [DIFI ENGINE CONTROL CENTER](dashboard/README.md) 使用 PySide6 + pyqtgraph 集成现有 B5/B6 校验工具，提供链路动画、逐包统计、IQ 波形、日志与会话导出；默认 Replay / Offline，无开发板也可演示。安装 `dashboard/requirements.txt` 后运行 `python dashboard/main.py`，硬件模式仅在点击 Run 后通信。
+
 ## 1. 项目概述
 
 ### 1.1 背景与目标
