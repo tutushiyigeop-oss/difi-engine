@@ -1,19 +1,19 @@
-# DIFI 1.1 FPGA Digital IF Protocol Engine：设计与验证报告（初稿 v0.2）
+# DIFI 1.1 FPGA Digital IF Protocol Engine：设计与验证报告（初稿 v0.3）
 
 > 全国大学生嵌入式芯片与系统设计竞赛（AMD 自主选题赛道）  
 > 队伍、成员、学校：[提交前填写]  
 > 项目仓库：`https://github.com/tutushiyigeop-oss/difi-engine`  
 > 参考分支：`feature/rtl-integration`（最终提交前固定 Commit SHA / Tag）  
 > 报告状态：**工程内容初稿；AI 协作原始记录、Skill 最终验收及参考工作比较尚待补齐**  
-> 文档基准日期：2026-10-22
+> 文档基准日期：2026-10-23
 
 ## 摘要
 
 本项目针对数字中频（Digital IF）场景中的 IQ 数据封装与跨系统互操作需求，设计实现了基于 **VITA 49.2 / DIFI Profile 1.1** 的 FPGA 协议收发引擎。引擎采用 Verilog RTL 实现，提供 AXI4-Stream IQ 输入/输出及协议报文输入/输出，使用 AXI4-Lite 完成配置与状态访问，支持 Signal Data、Standard Flow Signal Context 与 Version Flow Context 三类报文的生成和解析，并提供 Stream ID 过滤、Sequence 检查、时间戳与协议错误事件等功能。
 
-在 XC7Z020CLG400-2 上，项目完成了 RTL 系统级仿真、BRAM 存储结构优化、封装 IP 的真实布局布线、Zynq PS/PL AXI DMA 板级数据回环与完整 DIFI 报文的 UDP 网络发送。100 MHz 理想 RTL 回环测试中，100 个数据包 / 25,600 个 IQ 样本均正确，IQ 有效吞吐率为 **196.916 MB/s**。封装 IP 的已布线资源占用为 **1,776 LUT、2,309 FF、1 RAMB18、0 DSP**，Setup WNS **+0.411 ns**。B5 网络验证中，PC 端收到 **1 Version + 1 Context + 20 Data** 共 22 个 DIFI Packet，5,120 个 IQ 样本全部正确；DIFI Consortium 开源参考工具以 DIFI 1.1 模式检查上述三类报文，结果均为 PASS。
+在 XC7Z020CLG400-2 上，项目完成了 RTL 系统级仿真、BRAM 存储结构优化、封装 IP 的真实布局布线、Zynq PS/PL AXI DMA 板级数据回环与完整 DIFI 报文的 UDP 网络发送与接收解析。100 MHz 理想 RTL 回环测试中，100 个数据包 / 25,600 个 IQ 样本均正确，IQ 有效吞吐率为 **196.916 MB/s**。封装 IP 的已布线资源占用为 **1,776 LUT、2,309 FF、1 RAMB18、0 DSP**，Setup WNS **+0.411 ns**。B5 网络验证中，PC 端收到 **1 Version + 1 Context + 20 Data** 共 22 个 DIFI Packet，5,120 个 IQ 样本全部正确；DIFI Consortium 开源参考工具以 DIFI 1.1 模式检查上述 B5 三类报文，结果均为 PASS。新增 B6 网络接收链路中，PC 经 UDP 发送 Version×1、Context×1、Data×20；PL Metadata Monitor 记录 Version/Context 各一次有效握手，Data 经 FPGA RX Parser 恢复 **5,120 IQ** 且全部匹配，Sequence 经历 **15→0** 回绕。
 
-为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建两套硬件工程，再次完成综合、实现、Bitstream/XSA 导出及板级回归。相关 Tcl、软件、日志和证据按照仓库路径保存。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
+为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建两套硬件工程，再次完成综合、实现、Bitstream/XSA 导出及板级回归。这两套 Tcl、软件和工具证据已归档；B6 v0.2 的软件、监控 RTL 与板级日志已保存，但 BD Tcl、重建记录及新 XSA 对应性材料仍需补档。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
 
 **关键词：** FPGA；Zynq-7000；DIFI 1.1；VITA 49.2；AXI4-Stream；AXI DMA；UDP；可复现构建
 
@@ -25,7 +25,7 @@
 
 数字中频系统需要在信号采集、数字处理及通信传输节点之间传递 IQ 样本及配套元数据。直接发送原始 IQ 字节流难以统一表达样本属性、时间戳、流标识等信息。DIFI Profile 在 VITA 49.2 的基础上规定了特定互操作约束，适合作为可验证的数字中频报文接口。
 
-本项目聚焦**可独立集成的 FPGA 端协议收发组件**及其在 Zynq PS/PL 协同架构下的工程化验证，而非在 FPGA 内实现完整以太网协议栈。协议部分位于 PL；UDP 网络发送示例由 Zynq PS 侧 lwIP 完成。
+本项目聚焦**可独立集成的 FPGA 端协议收发组件**及其在 Zynq PS/PL 协同架构下的工程化验证，而非在 FPGA 内实现完整以太网协议栈。协议部分位于 PL；UDP 网络收发示例由 Zynq PS 侧 lwIP 完成。
 
 ### 1.2 设计目标与边界
 
@@ -33,7 +33,7 @@
 - 对 IQ、元数据和协议报文提供明确定义的 AXI4-Stream 接口，支持 TVALID/TREADY 背压。
 - 提供 AXI4-Lite 配置与状态接口，支持 Shadow→Active Commit、时间源和流标识配置。
 - 通过资源优化将接收端整包缓存映射到 FPGA Block RAM。
-- 在 Zynq-7020 上完成封装 IP 回环测试，以及完整 DIFI Packet 经 PS UDP 发送到 PC 的端到端测试。
+- 在 Zynq-7020 上完成封装 IP 回环测试、B5 PL→PS UDP→PC 发送测试，以及 B6 PC→PS UDP→PL RX 解析与 IQ/Metadata 接收测试。
 - 保存第三方协议参考工具验证证据、综合/实现报告和可重建的 Vivado Tcl 脚本。
 
 **边界声明：** 当前报告覆盖上述已经实现和测试的功能范围；不宣称支持 DIFI 1.1 全部可选功能，不声称取得正式认证，不把简单 DMA 轮询性能等同于纯 PL 吞吐上限。
@@ -52,8 +52,8 @@
 | 功能 | 已实现内容 | 验证方式 |
 |---|---|---|
 | Signal Data Packet | IQ 样本打包、解包、元数据提取 | 模块级及系统级 Testbench；板级 IQ 数据对比；UDP PC 解析 |
-| Standard Flow Signal Context | Context 生成及解析 | RTL 测试、UDP 抓包、参考工具校验 |
-| Version Flow Context | Version 生成及解析 | RTL 测试、UDP 抓包、参考工具校验 |
+| Standard Flow Signal Context | Context 生成及解析 | RTL 测试、B5 UDP 抓包/参考工具、B6 PL Metadata 握手计数 |
+| Version Flow Context | Version 生成及解析 | RTL 测试、B5 UDP 抓包/参考工具、B6 PL Metadata 握手计数 |
 | TX 调度与 Packet Mux | 三类报文调度、包边界切换 | System Testbench |
 | RX 类型分发 | 分类路由、错误类型丢弃 | RX Dispatch Testbench |
 | AXI4-Lite 配置 | Shadow/Active Commit、状态读取和流配置 | 仿真及 Vitis 控制配置 |
@@ -196,16 +196,16 @@ Setup WNS = **+0.411 ns**；TNS = **0 ns**；规定约束满足。此处的封�
 
 ### 5.4 板级 DMA 回环
 
-在 Zynq-7020 上，封装 IP 回环使用 100 包 × 256 IQ 的数据集，共 **25,600 IQ 全部正确、失配为 0**。计时数据来自 Cortex-A9 PMU 周期计数器，PS CPU 配置频率在后续核对中确认为约 **666.667 MHz**。据已归档的 `2,729,306` 完整窗口 ticks 和 `636,916` 次 DMA 事务窗口总 ticks 换算，分别约 **25.01 MB/s** 与 **107.18 MB/s**。报告应继续保留原始 ticks 和换算公式：
+在 Zynq-7020 上，封装 IP 回环使用 100 包 × 256 IQ 的数据集，共 **25,600 IQ 全部正确、失配为 0**。计时数据来自 Cortex-A9 PMU 周期计数器，PS CPU 配置频率在后续核对中确认为**666.666666 MHz**（显示时约 666.667 MHz）。据已归档的 `2,729,306` 完整窗口 ticks 和 `636,916` 次 DMA 事务窗口总 ticks 换算，分别约 **25.01 MB/s** 与 **107.18 MB/s**。报告应继续保留原始 ticks 和换算公式：
 
-- `system_MBps = 102400 × 666666667 / (2729306 × 10^6)`
-- `dma_window_MBps = 102400 × 666666667 / (636916 × 10^6)`
+- `system_MBps = 102400 × 666666666 / (2729306 × 10^6)`
+- `dma_window_MBps = 102400 × 666666666 / (636916 × 10^6)`
 
 **口径说明：** 该系统级结果包含 Simple DMA 逐包重新启动、PS 轮询及 DDR/软件开销，不能用于宣称 PL 协议引擎最大处理性能。现已将 `report/results/perf/performance_summary.md` 的换算口径与本报告同步；最终仍须为开发者确认的约 666.667 MHz CPU 时钟补档与该次 XSA 相对应的原始配置证据。
 
 ![图 5-3：三种不同测量窗口的有效 IQ 吞吐率](../figures/difi_throughput_measurement_scopes.svg)
 
-*图 5-3　RTL 理想回环 196.916 MB/s；板级 DMA 事务窗口约 107.18 MB/s；完整 PS 软件测试窗口约 25.01 MB/s。板级换算以开发者确认的 PS CPU 666.667 MHz 配置及 PMU 每周期递增 1 为前提，仍须在最终验收时归档时钟配置证据。三组数据并非同一环境下的端到端性能比较，不能根据横条差额推出协议引擎的 PL 吞吐退化。*
+*图 5-3　RTL 理想回环 196.916 MB/s；板级 DMA 事务窗口约 107.18 MB/s；完整 PS 软件测试窗口约 25.01 MB/s。板级换算以开发者确认的 PS CPU 666.666666 MHz 配置及 PMU 每周期递增 1 为前提，仍需归档同次 XSA 的 PS 时钟配置对应关系（频率本身已确认）。三组数据并非同一环境下的端到端性能比较，不能根据横条差额推出协议引擎的 PL 吞吐退化。*
 
 ## 6. Zynq UDP 端到端验证与第三方检查
 
@@ -224,9 +224,23 @@ PC 接收脚本 `scripts/verify/tools/difi_udp_receiver.py` 对类型、长度�
 - **20 × 256 = 5,120 IQ** 全部匹配；Sequence 计数按 4 bit 回绕。
 - 程序人为设置 2 ms 的报文间隔，**本轮不是 UDP 最高吞吐测试**。
 
-证据：`report/results/udp/validation_notes.md`、完整 `.pcapng`、PC 侧日志和截图。
+证据：`report/results/udp/tx/validation_notes.md`、完整 `.pcapng`、PC 侧日志和截图。
 
-### 6.3 DIFI Consortium 开源参考工具校验
+### 6.3 B6 PC UDP→PL RX 板级验收（2026-10-23）
+
+B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Payload，Zynq PS GEM0/lwIP 将完整 32-bit 网络大端报文转换并写入 DDR，AXI DMA MM2S 发送至 PL `S_AXIS_RX_PKT`。Data Parser 输出 256 个 I16/Q16 样本，经 DMA S2MM 返回 PS 与 Golden 比对；Version 和 Context 没有 IQ 输出，使用接在同一 PL 时钟域的 [Metadata Monitor](../../rtl/board/difi_b6_rx_meta_monitor.v) 统计各自 `VALID && READY` 握手，状态经双通道 AXI GPIO (`0x41200000`) 提供给 PS。
+
+正式三类接收程序为 [`difi_b6_udp_rx_pro/src/main.c`](../../vitis/vitis_ws/difi_b6_udp_rx_pro/src/main.c)，PC 端使用 [`difi_b6_three_types.py`](../../scripts/verify/tools/difi_b6_three_types.py)，早期 [`difi_b6_udp_rx`](../../vitis/vitis_ws/difi_b6_udp_rx/src/main.c) 为仅接收 Data 的 v0.1 历史版本。
+
+| B6 类型 | 本轮网络输入 | FPGA 验证依据 | 结果 |
+|---|---:|---|---|
+| Version | 1 × 44 B | Metadata 有效握手计数 +1；Sequence/Changed/错误事件检查 | PASS |
+| Context | 1 × 108 B | Metadata 有效握手计数 +1；Sequence/Changed/错误事件检查 | PASS |
+| Data | 20 × 1,052 B | DMA 恢复 20 × 256 = 5,120 IQ，PS Golden 对比；Sequence 15→0 | PASS |
+
+原始依据：[`report/results/udp/rx/three_types_udp_rx.rtf`](../results/udp/rx/three_types_udp_rx.rtf)；v0.1 单独 Data 回归记录：[`data_udp_rx.rtf`](../results/udp/rx/data_udp_rx.rtf)。**验证边界：** 未经 PS 逐字段回读核验 Version/Context 所有 Metadata；不声称 B6 已经获得 DIFI Consortium 第三方认证、并发全双工或无 ACK 连续传输性能。B6 已提交软件与 RTL、尚未提交对应真实 BD Tcl / B6 专属实现报告，见 [B6 工程复现清单](../../scripts/vivado/B6_REPRODUCTION.md)。
+
+### 6.4 DIFI Consortium 开源参考工具校验（仅 B5 TX 真实 PCAP）
 
 使用 DIFI Consortium 的 `certify_source.py --difi-version 1.1`。由于测试中 Version 与 Context/Data 使用不同 Stream ID，为避免参考工具的跨流统计产生歧义，保存原始完整 PCAP 并分别导出两组流进行离线检查。
 
@@ -236,11 +250,11 @@ PC 接收脚本 `scripts/verify/tools/difi_udp_receiver.py` 对类型、长度�
 | Context | 1 | 0 | PASS |
 | Data | 20 | 0 | PASS |
 
-**边界：** 此结果表示第三方开源参考程序在本轮检查范围内 PASS，**不等于 DIFI Consortium 的正式认证**。证据保存在 `report/results/udp/consortium/`。
+**边界：** 此结果表示第三方开源参考程序在本轮检查范围内 PASS，**不等于 DIFI Consortium 的正式认证**。证据保存在 `report/results/udp/tx/consortium/`；该参考工具检查对象是 B5 TX 抓包，并非 B6 RX 链路。
 
 ![图 6-1：RTL、DMA、UDP 多层 IQ 正确性验证规模](../figures/difi_multilayer_validation_evidence.svg)
 
-*图 6-1　三条测试链路的黄金数据比对规模：RTL 回环 25,600 IQ、板级 DMA 回环 25,600 IQ、B5 UDP 到 PC 5,120 IQ，已记录样本均无失配。图中没有展示未测试场景的通过率；第三方参考工具检查的 PASS 也不是正式认证。*
+*图 6-1　三条测试链路的黄金数据比对规模：RTL 回环 25,600 IQ、板级 DMA 回环 25,600 IQ、B5 UDP 到 PC 5,120 IQ，已记录样本均无失配。图中没有展示新增 B6 的 5,120 IQ 恢复和 Version/Context Metadata 事件，它们另有串口证据；第三方参考工具检查的 PASS 也不是正式认证。*
 
 ## 7. Tcl 构建可复现性验证
 

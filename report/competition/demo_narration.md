@@ -29,3 +29,8 @@
 ## 结尾
 
 “这件作品的重点不是单个报文演示，而是贯穿协议 RTL 设计、资源优化、Zynq PS/PL 协同、真实网络发送、独立参考检查及可复现构建的完整工程链路。”
+
+
+## B6 UDP RX 补充讲解（2026-10-23）
+
+“此外，我们在独立的 B6 硬件工程中完成 PC→FPGA 的 UDP 接收。PC 发送 1 个 Version、1 个 Context 和 20 个 Data Packet；PS 使用 lwIP 接收后通过 DMA 送往 PL RX Parser。Version/Context 分别由 PL Metadata 握手计数与 Sequence/Changed 检查验证；Data 通过 DMA S2MM 恢复 5,120 个 IQ，逐样本 Golden 比对全部通过，还覆盖 15→0 序号回绕。两方向分别测试，不表示已经具备持续同时收发的全双工吞吐指标。” 真实 UART 证据为 `report/results/udp/rx/three_types_udp_rx.rtf`。

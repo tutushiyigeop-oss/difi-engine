@@ -2,7 +2,7 @@
 
 > 面向 AMD Zynq-7000 SoC 的可配置 Digital IF 协议收发引擎：从 32-bit I/Q 样本到 DIFI Packet，再到真实 UDP 网络传输与独立协议验证。
 >
-> **项目状态（2026-10-22）：** RTL 功能仿真、Zynq-7020 板级回环、UDP 端到端发送及 DIFI Consortium 开源参考工具验证均已取得通过结果。本文只描述当前实现及已留存的证据，不将演示结果等同于全规范覆盖或正式认证。
+> **项目状态（2026-10-23）：** RTL 功能仿真、Zynq-7020 封装 IP 板级回环、B5 FPGA→PC UDP TX，以及 B6 PC→FPGA UDP RX 三类报文联测均有归档证据。B6 Version/Context 以 PL Metadata 握手、序列号和错误事件监测为依据，Data 通过 DMA 恢复 IQ 并进行 Golden 比对。DIFI Consortium 开源参考工具 PASS 仅针对 B5 流量，不等于正式认证或整个 DIFI 1.1 规范覆盖。
 
 [架构与功能](#1-项目概述) · [实测结果](#2-验证状态与实测结果) · [快速复现](#5-快速复现) · [文件索引](#7-仓库目录与提交物对照) · [限制与待办](#8-已知限制与后续工作)
 
@@ -24,7 +24,8 @@ DIFI（Digital Intermediate Frequency Interoperability）基于 VITA 49.x 数据
 | 调度与分流 | 三种 TX 报文的包级调度；RX 按类型分流 | [`rtl/tx/`](rtl/tx/)、[`rtl/rx/`](rtl/rx/) |
 | 配置与时间 | AXI4-Lite 寄存器、配置 Commit、时间初始化/递增与周期触发 | [`rtl/common/`](rtl/common/)、[`rtl/include/`](rtl/include/) |
 | 封装 IP | `difi_engine_ip`，对外提供 AXI4-Stream IQ/Packet、AXI4-Lite 配置/时间接口 | [`rtl/top/difi_engine_ip.v`](rtl/top/difi_engine_ip.v)、[`ip_repo/difi_engine_ip/`](ip_repo/difi_engine_ip/) |
-| 板级与 UDP | Zynq PS、AXI DMA、lwIP RAW API，将 PL 产生的完整 DIFI Packet 经 UDP 发送到 PC | [`rtl/board/`](rtl/board/)、[`vitis/vitis_ws/difi_b5_udp_tx/src/`](vitis/vitis_ws/difi_b5_udp_tx/src/) |
+| 板级 UDP TX（B5） | PL 生成完整 DIFI Packet，DMA 回传 DDR，由 PS/lwIP/GEM0 经 UDP 发到 PC | [`vitis/vitis_ws/difi_b5_udp_tx/src/`](vitis/vitis_ws/difi_b5_udp_tx/src/) |
+| 板级 UDP RX（B6 v0.2） | PC UDP→PS DDR→DMA MM2S→PL RX；Version/Context 监测 Metadata 握手，Data DMA 恢复 IQ 并由 PS 校验 | [`vitis/vitis_ws/difi_b6_udp_rx_pro/src/`](vitis/vitis_ws/difi_b6_udp_rx_pro/src/)、[`rtl/board/difi_b6_rx_meta_monitor.v`](rtl/board/difi_b6_rx_meta_monitor.v) |
 
 **当前 Profile 的主要边界：** Data Payload 为复数笛卡尔格式 **I16/Q16**（每个 IQ 样本 32 bit）；应用示例为每包 256 个 IQ 样本；Data Packet 含 7 个 32-bit 协议头 Word，Context 固定 27 Word，Version 固定 11 Word。项目没有实现全部 VITA 49.2/DIFI 可选 Packet 类型或任意格式的 IQ 数据；请勿按“完整 DIFI 规范实现”理解。
 
@@ -49,7 +50,7 @@ flowchart LR
 32-bit IQ -> DIFI TX -> DIFI Packet -> DIFI RX -> 32-bit IQ + Metadata
 ```
 
-此完整 TX→RX 路径在 RTL 与**封装 IP 回环工程**中验证；B5 原始 Packet 导出工程则绕过 RX Parser，直接把 TX Packet 交给 DMA。**这两套硬件设计不可互换其 Vitis 软件或 XSA。**
+此完整 TX→RX 路径在 RTL 与**封装 IP 回环工程**中验证；B5 原始 Packet 导出工程则绕过 RX Parser，直接把 TX Packet 交给 DMA。另有独立 **B6 UDP RX** 硬件工程：PC UDP→PS/lwIP→DMA MM2S→PL `S_AXIS_RX_PKT`，Data 由 PL `M_AXIS_IQ`→DMA S2MM 返回 PS，Context/Version 由 Metadata Monitor 经 AXI GPIO 供 PS 观测。**三套硬件的 XSA/ELF 不可互换，B5 与 B6 是不同配置下分别完成的两向验证，不等于同时全双工。**
 
 ## 2. 验证状态与实测结果
 
@@ -65,10 +66,11 @@ flowchart LR
 | 板级 DMA 事务窗口有效吞吐率 | **约 107.18 MB/s** | 100 次 DMA 提交至完成计时窗口之和；**仍非纯 PL/IP 吞吐率** | 同上 |
 | 封装 IP 资源 | **1,776 LUT / 2,309 FF / 1 RAMB18 / 0 DSP** | 包含协议核心、时间源及封装外层功能 | [`utilization.rpt`](report/results/packaged_ip_impl/utilization.rpt) |
 | 100 MHz 时序 | **WNS +0.411 ns，TNS 0** | XC7Z020CLG400-2，Vivado 2024.2，布局布线后满足时序 | [`timing_summary.rpt`](report/results/packaged_ip_impl/timing_summary.rpt) |
-| UDP 端到端 | **22/22 Packet；5,120/5,120 IQ 正确** | Version×1、Context×1、Data×20；22 包 UDP Payload 合计 21,192 Byte | [`report/results/udp/`](report/results/udp/) |
-| 第三方 DIFI 1.1 参考校验 | **Version 1/1、Context 1/1、Data 20/20，均 PASS** | Version 与 Context/Data 两条 Stream ID 分别校验 | [`report/results/udp/consortium/`](report/results/udp/consortium/) |
+| B5 UDP TX：FPGA→PC | **22/22 Packet；5,120/5,120 IQ 正确** | Version×1、Context×1、Data×20；UDP Payload 合计 21,192 B | [`TX 原始记录`](report/results/udp/tx/validation_notes.md) |
+| B6 UDP RX：PC→FPGA | **Version×1、Context×1、Data×20，5,120 IQ 匹配** | Version/Context PL Metadata 握手计数均 +1；Data 20 包序列号 15→0 回绕，串口归档 | [`B6 v0.2 串口记录`](report/results/udp/rx/three_types_udp_rx.rtf) |
+| 第三方 DIFI 1.1 参考校验 | **Version 1/1、Context 1/1、Data 20/20，均 PASS** | Version 与 Context/Data 两条 Stream ID 分别校验 | [`report/results/udp/tx/consortium/`](report/results/udp/tx/consortium/) |
 
-**吞吐率校准说明：** 板级 PMU 实测完整测试窗口为 2,729,306 CPU cycles，100 次 DMA 事务窗口累计 636,916 CPU cycles；PS CPU 时钟已在对应 Vivado 配置中确认为约 **666.667 MHz**。据此计算得约 **25.01 MB/s** 和 **107.18 MB/s**。这是短时软件驱动回环测试，不能作为 DIFI RTL 的板级峰值吞吐率，亦不等同于网络线速。`report/results/perf/performance_summary.md` 中仍有较早的“时钟待确认”说明，以本次频率确认及原始 PMU 数据为准，后续需同步维护该文件。
+**吞吐率校准说明：** 板级 PMU 实测完整测试窗口为 2,729,306 CPU cycles，100 次 DMA 事务窗口累计 636,916 CPU cycles；PS CPU 工作频率确认为 **666.666666 MHz**（表内约 666.667 MHz）。据此计算得约 **25.01 MB/s** 和 **107.18 MB/s**。这是短时软件驱动回环测试，不能作为 DIFI RTL 的板级峰值吞吐率，亦不等同于网络线速。`report/results/perf/performance_summary.md` 已同步记录上述换算；PS CPU 时钟 **666.666666 MHz（已确认）**，原有表格中 666.667 MHz 仅为三位小数显示。与此次实际测试版本的 XSA/时钟设置对应关系仍应留存证据，但不是“频率待确认”。
 
 **UDP 结果说明：** 当前 UDP Demo 每包人为间隔约 **2 ms**，只用于正确性验证，不以接收耗时推导 UDP 最大吞吐率。Consortium 开源工具的 PASS 是指定报文及约束的**独立参考检查结果**，**不是 DIFI Consortium 正式认证**。
 
@@ -177,16 +179,17 @@ vvp sim/icarus/tb_difi_engine_perf.vvp +packets=100
 
 预期以 `[PASS] tb_difi_engine_perf` 结束，延迟明细输出到 `sim/perf/difi_perf_latency.csv`。重新运行会覆盖此 CSV；**若只需复核历史结果，优先阅读 `report/results/perf/` 中已经归档的证据**。此仿真不包括 PS、DMA、UDP、物理网络或实际 DDR 访问。
 
-### 5.3 Vivado：区分两套板级硬件设计
+### 5.3 Vivado：区分封装 IP、B5 与 B6 三类硬件设计
 
 | 目的 | RTL/BD 选择 | DMA S2MM 最终收到的内容 | 对应 Vitis App |
 | --- | --- | --- | --- |
 | 封装 IP 收发回环与性能 | 封装 IP `ip_repo/difi_engine_ip/`，BD `difi_ip_test`（已实现报告顶层：`difi_ip_test_wrapper`） | **解封装 IQ 数据** | [`difi_ip_loopback_test`](vitis/vitis_ws/difi_ip_loopback_test/src/)、[`difi_ip_perf_test`](vitis/vitis_ws/difi_ip_perf_test/src/) |
 | B5 原始 Packet / UDP 导出 | [`rtl/board/difi_engine_board_b5.v`](rtl/board/difi_engine_board_b5.v)，模块 `difi_board_raw_packet_export` | **DIFI 完整 Packet（头部+IQ）** | [`difi_stage_b5-b_test`](vitis/vitis_ws/difi_stage_b5-b_test/src/)、[`difi_b5_udp_tx`](vitis/vitis_ws/difi_b5_udp_tx/src/) |
+| B6 PC→UDP→PL RX | DMA MM2S 接 DIFI `S_AXIS_RX_PKT`；DIFI `M_AXIS_IQ` 接 DMA S2MM；Metadata Monitor→双通道 AXI GPIO | **Data 恢复的 IQ**；Context/Version 不输出 IQ | [`difi_b6_udp_rx_pro`](vitis/vitis_ws/difi_b6_udp_rx_pro/src/) |
 
-**严禁直接用封装 IP 的回环 XSA 运行 B5 UDP 程序。** 前者输出 IQ，后者要求收到完整 DIFI Packet（S2MM 按每包 `TLAST` 结束）。
+**不要混用三种 XSA / Vitis 应用。** 封装 IP 回环输出 IQ；B5 DMA S2MM 得到完整 DIFI Packet；B6 MM2S 输入完整 Packet、Data 的 S2MM 输出 IQ，Context/Version 通过 Metadata 监测。B6 的 PS Ethernet/MDIO 使用 B5 已联网成功的 MIO 配置（MDIO MIO 52/53），历史 `packaged_ip` 快照不代表 B6 的以太网配置。
 
-**两套真实 Block Design 的 Tcl 快照已提交**：[`scripts/vivado/generated/packaged_ip/`](scripts/vivado/generated/packaged_ip/) 和 [`scripts/vivado/generated/b5_raw_export/`](scripts/vivado/generated/b5_raw_export/)。原工程导出脚本、独立重建脚本及实现/XSA 导出脚本也已入库，且两套新工程均有综合、Bitstream/XSA 与时序通过记录。**仓库不提交 `.xpr`、`.bit`、`.xsa` 等可再生成的大型二进制构建产物**；评委需使用 Vivado 2024.2 执行重建，并据新 XSA 建立匹配的 Vitis Platform。开发者已确认两套重建工程上板回归通过，但新版 XSA 对应的完整 Vitis/UART 原始日志仍待集中归档；尚未验证独立陌生机器的端到端复现。完整命令、输出位置与限制见 [`scripts/vivado/README.md`](scripts/vivado/README.md)。
+**目前已入库的两套可重建 Block Design Tcl 快照**：[`scripts/vivado/generated/packaged_ip/`](scripts/vivado/generated/packaged_ip/) 和 [`scripts/vivado/generated/b5_raw_export/`](scripts/vivado/generated/b5_raw_export/)。原工程导出脚本、独立重建脚本及实现/XSA 导出脚本也已入库，且两套新工程均有综合、Bitstream/XSA 与时序通过记录。**仓库不提交 `.xpr`、`.bit`、`.xsa` 等可再生成的大型二进制构建产物**；评委需使用 Vivado 2024.2 执行重建，并据新 XSA 建立匹配的 Vitis Platform。开发者已确认两套重建工程上板回归通过，但新版 XSA 对应的完整 Vitis/UART 原始日志仍待集中归档；尚未验证独立陌生机器的端到端复现。完整命令、输出位置与限制见 [`scripts/vivado/README.md`](scripts/vivado/README.md)。**B6 v0.2 的 BD Tcl、manifest、专属实现时序报告和 XSA 关联清单尚未提交**，暂不能声称可从仓库独立重建 B6；详见 [`B6 复现缺口`](scripts/vivado/B6_REPRODUCTION.md)。
 
 ```powershell
 # 在仓库根目录、Vivado 2024.2 命令行环境中分别运行
@@ -234,14 +237,26 @@ report_timing_summary -file timing_summary.rpt
    ```powershell
    python scripts/verify/tools/difi_udp_receiver.py `
      --board 192.168.1.10 --pc-ip 192.168.1.20 `
-     --output report/results/udp/difi_udp_capture.bin
+     --output report/results/udp/tx/difi_udp_capture.bin
    ```
 
 5. PC 发出 `START` 后，Zynq 会把目标 IP/端口设置为**该 UDP 命令的来源**，依次传输 Version×1、Context×1、Data×20。`DATA_SID=1`、`VERSION_SID=2`，Data Sequence Number 为 `0..15,0..3`。预期 PC 端输出 `[PASS] DIFI UDP full chain`，合计 **5,120 个 IQ 样本正确**。
 
 串口/接收端所采用的测试用 IQ 为确定性模式，不代表接入实际 ADC 或射频前端。`difi_udp_receiver.py` 输出的是长度前缀的原始 UDP Payload 拼接文件 **`.bin`**，**不是 `.pcap` / `.pcapng`**；真实网络包须由 Wireshark 单独抓取。
 
-### 5.6 Wireshark 与 DIFI Consortium 参考验证
+### 5.6 Zynq B6：PC UDP→PL RX 三类报文验收
+
+**硬件前提：使用增加了 Metadata Monitor + 双通道 AXI GPIO 的 B6 v0.2 XSA/Bitstream，运行 [`difi_b6_udp_rx_pro`](vitis/vitis_ws/difi_b6_udp_rx_pro/src/main.c)（不是 B6 v0.1 Data-only ELF）。** 端口 `4991`，板端 `192.168.1.10`，PC `192.168.1.20`。PC 命令：
+
+```powershell
+python scripts/verify/tools/difi_b6_three_types.py --board 192.168.1.10 --local-ip 192.168.1.20 --types version,context,data --rounds 20
+```
+
+已归档 [B6 v0.2 板级串口记录](report/results/udp/rx/three_types_udp_rx.rtf)：Version 44 B×1 与 Context 108 B×1 由 PL Metadata Monitor 观测到有效握手各 1 次，检查 Sequence、Changed 与相关错误事件；Data 1052 B×20 经 PL Parser 恢复 20×256 IQ 样本，PS Golden 比对均正确，Sequence 覆盖 15→0。B6 v0.1 的 Data-only 历史日志另见 [`data_udp_rx.rtf`](report/results/udp/rx/data_udp_rx.rtf)，勿与 v0.2 混淆。**当前 Metadata 监测未逐字段将全部 Context/Version 值回读至 PS；未完成持续无 ACK 流的吞吐、丢包或同时双向运行验证。**
+
+[PC 三类发包器](scripts/verify/tools/difi_b6_three_types.py)依赖同目录 [Data 报文生成器](scripts/verify/tools/difi_b6_sender.py)；[B6 复现说明](scripts/vivado/B6_REPRODUCTION.md)明确 XSA/BD 尚未入库的部分。
+
+### 5.7 Wireshark 与 DIFI Consortium 参考验证
 
 **Wireshark**：在 PC 连接板卡的有线网卡抓包，显示过滤器：
 
@@ -249,7 +264,7 @@ report_timing_summary -file timing_summary.rpt
 ip.src == 192.168.1.10 && ip.dst == 192.168.1.20 && udp.dstport == 4991
 ```
 
-预期为 1 个 44 B、1 个 108 B、20 个 1052 B **UDP Payload**。保存完整抓包为 [`report/results/udp/difi_b5_udp_22.pcapng`](report/results/udp/difi_b5_udp_22.pcapng)，解析界面截图见 [`report/results/udp/screenshots/`](report/results/udp/screenshots/)。Wireshark 内置 VITA 49 解析器有时优先占用协议识别，显示 `VITA 49` 并不等于协议校验失败。
+预期为 1 个 44 B、1 个 108 B、20 个 1052 B **UDP Payload**。保存完整抓包为 [`report/results/udp/tx/difi_b5_udp_22.pcapng`](report/results/udp/tx/difi_b5_udp_22.pcapng)，解析界面截图见 [`report/results/udp/tx/screenshots/`](report/results/udp/tx/screenshots/)。Wireshark 内置 VITA 49 解析器有时优先占用协议识别，显示 `VITA 49` 并不等于协议校验失败。
 
 **独立验证**：DIFI Consortium 开源仓库：[DIFI-Certification](https://github.com/DIFI-Consortium/DIFI-Certification)。根据其安装说明设置 Python 环境，并运行 `certify_source.py`；**必须显式指定 `--difi-version 1.1`**（官方脚本默认版本可能不是 1.1）：
 
@@ -264,7 +279,7 @@ ip.src == 192.168.1.10 && ip.dst == 192.168.1.20 && udp.dstport == 4991
   --difi-version 1.1
 ```
 
-本项目 Version 使用 Stream ID 2，而 Context/Data 使用 Stream ID 1。所用版本的官方参考脚本会跨报文复用一个 Stream ID 状态，因此**按流分开校验**以避免混流检查的误报。已归档结果：Version **1/1 PASS**，Context **1/1 PASS**，Data **20/20 PASS**；原始 `console.txt`、`error_log.txt`、`result.txt` 和 YAML 位于 [`report/results/udp/consortium/`](report/results/udp/consortium/)。这不是官方认证证书。
+本项目 Version 使用 Stream ID 2，而 Context/Data 使用 Stream ID 1。所用版本的官方参考脚本会跨报文复用一个 Stream ID 状态，因此**按流分开校验**以避免混流检查的误报。已归档结果：Version **1/1 PASS**，Context **1/1 PASS**，Data **20/20 PASS**；原始 `console.txt`、`error_log.txt`、`result.txt` 和 YAML 位于 [`report/results/udp/tx/consortium/`](report/results/udp/tx/consortium/)。这不是官方认证证书。
 
 ## 6. 可复核的工程证据
 
@@ -275,10 +290,10 @@ ip.src == 192.168.1.10 && ip.dst == 192.168.1.20 && udp.dstport == 4991
 | Zynq 板级 PMU/回环串口日志 | [`report/results/perf/board_IP_perf.rtf`](report/results/perf/board_IP_perf.rtf) |
 | 封装 IP 利用率与时序、关键路径、DRC | [`report/results/packaged_ip_impl/`](report/results/packaged_ip_impl/) |
 | B4/B5 板级实现报告 | [`report/results/b4_impl/`](report/results/b4_impl/)、[`report/results/b5_impl/`](report/results/b5_impl/) |
-| 完整 UDP 网络抓包 | [`report/results/udp/difi_b5_udp_22.pcapng`](report/results/udp/difi_b5_udp_22.pcapng) |
-| 分流后的第三方验证输入 | [`report/results/udp/difi_b5_udp_version_only.pcapng`](report/results/udp/difi_b5_udp_version_only.pcapng)、[`difi_b5_udp_context_data.pcapng`](report/results/udp/difi_b5_udp_context_data.pcapng) |
-| 参考工具校验输出与截图 | [`report/results/udp/consortium/`](report/results/udp/consortium/)、[`report/results/udp/screenshots/`](report/results/udp/screenshots/) |
-| UDP 验证文字记录 | [`report/results/udp/validation_notes.md`](report/results/udp/validation_notes.md) |
+| 完整 UDP 网络抓包 | [`report/results/udp/tx/difi_b5_udp_22.pcapng`](report/results/udp/tx/difi_b5_udp_22.pcapng) |
+| 分流后的第三方验证输入 | [`report/results/udp/tx/difi_b5_udp_version_only.pcapng`](report/results/udp/tx/difi_b5_udp_version_only.pcapng)、[`difi_b5_udp_context_data.pcapng`](report/results/udp/tx/difi_b5_udp_context_data.pcapng) |
+| 参考工具校验输出与截图 | [`report/results/udp/tx/consortium/`](report/results/udp/tx/consortium/)、[`report/results/udp/tx/screenshots/`](report/results/udp/tx/screenshots/) |
+| UDP 验证文字记录 | [`report/results/udp/tx/validation_notes.md`](report/results/udp/tx/validation_notes.md) |
 | 历史分阶段的工具/验证归档 | [`verification/`](verification/) |
 
 ## 7. 仓库目录与提交物对照
@@ -291,7 +306,7 @@ difi-engine/
 ├── vitis/vitis_ws/       # 各阶段应用的 src/*.c / *.h（生成工作区被忽略）
 ├── scripts/              # RTL/Vivado Tcl、Python 验证、绘图与审查脚本
 ├── verification/         # 旧阶段的 PCAP、标准校验与记录
-├── report/results/       # RTL、封装 IP、B4/B5、UDP 的原始证据
+├── report/results/       # RTL、封装 IP、B4/B5 与 B6 TX/RX UDP 证据
 ├── report/competition/   # 设计报告初稿、AI 协作复盘、量化证据索引（尚待终验）
 ├── docs/                 # 接口规格及开发备注
 ├── board/                # 板级目录（部分为预留）
@@ -316,9 +331,9 @@ difi-engine/
 ## 8. 已知限制与后续工作
 
 - **规范覆盖范围有限**：当前重点是 DIFI 1.1 的 Data/Context/Version Profile 与 I16/Q16 格式；未宣称支持全部 Packet 类型、射频源及跨厂商互操作组合。
-- **不是无丢包、高速连续 UDP 网关**：B5 使用 DMA Simple Mode 逐包接收、PS 侧 lwIP 发送，并人为插入发送间隔。网络吞吐率上限、丢包率、长期运行稳定性尚未量化。
+- **不是无丢包、高速连续 UDP 网关**：B5 使用 DMA Simple Mode 逐包接收、PS 侧 lwIP 发送，并人为插入发送间隔；B6 用单包一 ACK 的 Simple DMA 方式接收。两者没有持续高负载或同时双向吞吐测试，网络吞吐率上限、丢包率、长期运行稳定性尚未量化。
 - **时间源边界**：UTC 起点由 PS/UART 初始化，PL 按时钟推进；尚无外部高精度同步参考，不能声明 PTP/GPS 同步精度。
-- **可复现性仍有边界**：两套真实 BD 快照、重建/实现脚本和工具 PASS 报告已入库；开发者已确认新工程上板，但新版 XSA 所对应的完整 Vitis/UART 证据与独立陌生机器复现仍待终验。不能将工具实现成功等同于无需人工操作的一键板级部署。
+- **可复现性仍有边界**：两套历史 BD 快照、重建/实现脚本和工具 PASS 报告已入库；B6 v0.2 的 RTL/Vitis/PC 程序及 UART 成功记录已入库，但其真实 BD Tcl、专属实现报告和 XSA 版本映射待补。独立陌生机器复现仍待终验。不能将工具实现成功等同于无需人工操作的一键板级部署。
 - **性能换算证据**：板级 PMU 原始计数已归档，两项 MB/s 按开发者确认的约 666.667 MHz CPU 时钟换算。最终仍应将与该次 XSA/板级运行对应的 PS CPU 时钟配置证据独立归档；不要将软件 DMA 轮询测值视为纯 PL 峰值吞吐率。
 - **开源许可**：当前仓库根目录未包含 `LICENSE` 文件；若要允许第三方明确再分发，需先选定并加入 MIT 或 Apache-2.0 等许可，勿默认无 LICENSE 即可自由复用。
 - **授权与参赛发布计划**：详见[发布工作台](docs/release/README.md)；许可证仍待权利人确认，尚未公开、合并 main 或冻结正式版本。

@@ -106,3 +106,8 @@ AMD 选题指南 3.3.3.1 要求提交体现大模型协作的交互记录（提�
 ## 7. 原始证据清单
 
 具体提交哈希、GitHub 链接与原始文件路径见 [`evidence_index.csv`](../ai_collaboration/evidence_index.csv)。用户提供的 AMD 原始赛题文件为 `AMD(1).pdf`，相关强制要求位于 3.3.3.1、3.3.5.2 和 3.3.5.3。
+
+
+## 2026-10-23 B6 工程进展
+
+B6 v0.2 三类 UDP RX 的真实串口证据已归档：`report/results/udp/rx/three_types_udp_rx.rtf`；主程序 `vitis/vitis_ws/difi_b6_udp_rx_pro/src/main.c`，PC 工具 `scripts/verify/tools/difi_b6_three_types.py`。此追加记录属于工程 E2/E3 事实，不代表原先五个 AI 协作案例的 E1 原始对话已收集完成。

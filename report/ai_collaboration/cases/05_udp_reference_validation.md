@@ -18,7 +18,7 @@ B5 不是板级 TX→RX 的 DIFI 解析回环：PL 从 `AXI DMA MM2S` 读取 DDR
 
 在第三方 DIFI Consortium 参考工具中，混合不同 Stream ID 的抓包可能触发单流假设检查；本项目将 Version 与 Context+Data 分成两个验证流，**保持原版验证器不修改**，使用 `--difi-version 1.1` 检查，结果为：Version 1/0、Context 1/0、Data 20/0（合规/不合规）。
 
-证据：`report/results/udp/validation_notes.md`、`difi_b5_udp_22.pcapng`、`report/results/udp/consortium/{version,data_context}/console.txt`、`scripts/verify/tools/difi_udp_receiver.py`。提交：[`a25ded8a`](https://github.com/tutushiyigeop-oss/difi-engine/commit/a25ded8aa8817b55bd69b6dc2651a53ac16c9506)。
+证据：`report/results/udp/tx/validation_notes.md`、`difi_b5_udp_22.pcapng`、`report/results/udp/tx/consortium/{version,data_context}/console.txt`、`scripts/verify/tools/difi_udp_receiver.py`。提交：[`a25ded8a`](https://github.com/tutushiyigeop-oss/difi-engine/commit/a25ded8aa8817b55bd69b6dc2651a53ac16c9506)。
 
 ## AI 迭代的可恢复要点
 
@@ -37,3 +37,8 @@ B5 不是板级 TX→RX 的 DIFI 解析回环：PL 从 `AXI DMA MM2S` 读取 DDR
 - [ ] 原始修改验证器/分流方案相关的用户提问与模型回答。
 - [ ] 初次混流失败完整原始控制台日志。
 - [ ] 分流操作具体命令、原始结果截图和关联 SHA。
+
+
+## B6 RX 后续独立实验（2026-10-23）
+
+本 C05 为历史 B5 UDP TX 参考工具验证案例；B6 v0.2 另已完成 Version×1、Context×1 的 PL Metadata 握手及 Data×20 的 5,120 IQ 恢复与 Golden 验证，记录见 `report/results/udp/rx/three_types_udp_rx.rtf`。B6 不等于在第三方参考工具上重新取得认证，且尚未补齐对应原始 AI 多轮对话。

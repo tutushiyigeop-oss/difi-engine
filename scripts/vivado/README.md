@@ -128,7 +128,7 @@ Original evidence to compare:
 
 - `report/results/packaged_ip_impl/{utilization,timing_summary}.rpt`
 - `report/results/b5_impl/{utilization,timing_summary}.rpt`
-- `report/results/udp/validation_notes.md`
+- `report/results/udp/tx/validation_notes.md`
 
 ## 5. Commit only source and the exported snapshots
 
@@ -155,3 +155,8 @@ Do not commit `vivado/rebuilt/`, regenerated IP cache, synthesized run files, or
 | `module reference not found` | Source RTL list/version doesn't match the BD snapshot. |
 | `validate_bd_design` fails | The project isn't yet reproduced; inspect PS settings, IP VLNVs, AXI and source dependencies. |
 | Rebuilt project validates but ELF fails | BD validation is not a substitute for implementation, XSA matching or Standalone/lwIP BSP configuration. |
+
+
+## B6 v0.2 UDP RX（2026-10-23）
+
+已有 `rtl/board/difi_b6_rx_meta_monitor.v`、`vitis/vitis_ws/difi_b6_udp_rx_pro/src/`、`scripts/verify/tools/difi_b6_three_types.py` 和板级三类报文 PASS 记录 `report/results/udp/rx/three_types_udp_rx.rtf`。**但这里现存的 packaged_ip / b5_raw_export 两套 Tcl 不包括 B6 v0.2**；其 BD、独立实现和复现证据待补，操作说明见 [B6_REPRODUCTION.md](B6_REPRODUCTION.md)。B6 必须采用正确的 MDIO MIO 52/53 设置，不应照搬历史 packaged_ip Tcl 的 EMIO 配置。

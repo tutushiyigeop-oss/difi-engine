@@ -5,10 +5,11 @@
 ## A. 可不重新上板的整理工作
 
 - [ ] 许可证：完成源码权属、第三方组件及 MIT/Apache-2.0 许可核查；最终根目录含 `LICENSE`。
-- [ ] 根 README：修正两套 Vivado Tcl 快照已提交的现状；明确版本、硬件类型、BD 区别以及最短重建命令。
-- [ ] `scripts/vivado/README.md`：把“待执行”状态改为真实工具 PASS、板级结果及日志存档状态。
-- [ ] `skill/README.md`：四个 Skill 的状态统一为“已制作、待统一验收”。
-- [ ] `report/results/perf/performance_summary.md`：CPU 时钟与 PMU 换算说明统一，并附 PS 配置证据。
+- [x] 根 README：已说明两套历史 Tcl 快照与 B6 v0.2 的区别及重建边界。
+- [x] `scripts/vivado/README.md`：历史两套 Vivado 重建 PASS 已同步，B6 Tcl 单独待补。
+- [x] `skill/README.md`：已统一为“已制作、待统一验收”。
+- [x] `report/results/perf/performance_summary.md`：PS CPU 频率 666.666666 MHz 已确认并同步。
+- [ ] 将既有测试与原始 XSA 的时钟设置进行文件级关联归档。
 - [ ] 原始 AI 聊天记录：逐字提示词/回复/纠错链路；完整性不足的案例保留待补标注。
 - [ ] 导入两套原生 BD 截图；检查已存四张 UDP 截图的可读性。
 - [ ] 将早期 `INTEGRATION.md` 归档到适当位置，确保根目录入口清晰。
@@ -30,3 +31,9 @@
 - [ ] 创建不可随意重写的固定提交/Tag，并在报告和演示中引用同一 SHA。
 - [ ] 仅发布允许再分发的文件，避免泄漏 Token/用户名/学校个人信息以及未授权文档。
 - [ ] 对照大赛当期公告检查是否需要指定格式的 PDF、视频、PPT 或在线平台提交；本清单**不假设所有文件类型都是强制**。
+
+## B6 v0.2 交付
+
+- [x] Version/Context/Data 三类 UDP RX 串口证据、PC 发包脚本、PS 软件和监控 RTL 已归档。
+- [ ] B6 v0.2 真实 BD Tcl/manifest、专属 Vivado 实现报告、XSA/版本清单。
+- [ ] B6 实时录屏及完整 PC 控制台原始记录。

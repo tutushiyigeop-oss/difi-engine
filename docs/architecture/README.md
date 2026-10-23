@@ -23,7 +23,7 @@
 ## 图示证据与限制
 
 1. 连接及寄存器映射已依据 GitHub `feature/rtl-integration` 分支中的 `scripts/vivado/generated/b5_raw_export/bd.tcl` 和对应顶层 RTL 核对。
-2. 现有板级证据保存在 `report/results/udp/validation_notes.md`：共 22 个 UDP DIFI Packet，21,192 字节 UDP 有效载荷，5,120 个 IQ 样本比对正确；第三方参考工具检查并非正式 DIFI 认证。
+2. 现有板级证据保存在 `report/results/udp/tx/validation_notes.md`：共 22 个 UDP DIFI Packet，21,192 字节 UDP 有效载荷，5,120 个 IQ 样本比对正确；第三方参考工具检查并非正式 DIFI 认证。
 3. 图示是**人工排版、源码核对的逻辑架构图**，不是 Vivado 原生 BD Screenshot。正式报告仍应另外保留原生 BD 截图和 DIFI UDP Wireshark 截图。
 4. 线条省略中间 AXI Interconnect、PHY 引脚、Clock/Reset、驱动与硬件内部细节，并非可以直接照图生成网表的严格电气连线图。
 
@@ -44,3 +44,8 @@ python scripts/figures/build_architecture_figures.py
 
 B5 数据通路：DDR IQ → AXI DMA MM2S → PL DIFI TX → AXI DMA S2MM（完整报文）→ PS DDR / lwIP → GEM0 UDP → PC。此 BD 不包含 TX→RX 解析回环。
 ```
+
+
+## B6 网络接收路径（2026-10-23）
+
+PC UDP → PS GEM0/lwIP → DDR → DMA MM2S → PL `S_AXIS_RX_PKT`。Data Parser 的 `M_AXIS_IQ` 经 DMA S2MM 输出 IQ，Version/Context 的 Metadata 有效握手由同域 `difi_b6_rx_meta_monitor` 统计，PS 通过 AXI GPIO 读取。已归档 `report/results/udp/rx/three_types_udp_rx.rtf`。B6 是独立硬件工程，不等于 B5 的 TX Packet 导出 BD；B6 BD Tcl 仍需入库。

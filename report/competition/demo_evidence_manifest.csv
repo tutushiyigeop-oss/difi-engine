@@ -9,15 +9,20 @@ impl_timing,report/results/packaged_ip_impl/timing_summary.rpt,Post-route 100MHz
 board_loopback,report/results/perf/board_IP_perf.rtf,Zynq real IQ loopback and PMU evidence,existing,100 packets 25600 samples
 vivado_rebuild_pkg,report/results/vivado_rebuild/packaged_ip/SUCCESS.txt,New packaged-IP build PASS,existing,Tool output not substitute for board raw UART
 vivado_rebuild_b5,report/results/vivado_rebuild/b5_raw_export/SUCCESS.txt,New B5 build PASS,existing,Tool output not substitute for board raw UART
-udp_capture,report/results/udp/difi_b5_udp_22.pcapng,Original 22 packet PCAPNG,existing,Not same as length-prefixed .bin
-udp_overview,report/results/udp/screenshots/01_udp_overview.png,Wireshark 22 packet overview,existing,Open file for demo readability check
-udp_version,report/results/udp/screenshots/02_version.png,Version packet Wireshark details,existing,44B UDP payload
-udp_context,report/results/udp/screenshots/03_context.png,Context packet Wireshark details,existing,108B UDP payload
-udp_data,report/results/udp/screenshots/04_data.png,Data packet Wireshark details,existing,1052B UDP payload
-consortium_version,report/results/udp/consortium/version/console.txt,Third-party reference result for Version,existing,Not formal certification
-consortium_context_data,report/results/udp/consortium/data_context/console.txt,Third-party reference result for Context Data,existing,Not formal certification
+udp_capture,report/results/udp/tx/difi_b5_udp_22.pcapng,Original 22 packet PCAPNG,existing,Not same as length-prefixed .bin
+udp_overview,report/results/udp/tx/screenshots/01_udp_overview.png,Wireshark 22 packet overview,existing,Open file for demo readability check
+udp_version,report/results/udp/tx/screenshots/02_version.png,Version packet Wireshark details,existing,44B UDP payload
+udp_context,report/results/udp/tx/screenshots/03_context.png,Context packet Wireshark details,existing,108B UDP payload
+udp_data,report/results/udp/tx/screenshots/04_data.png,Data packet Wireshark details,existing,1052B UDP payload
+consortium_version,report/results/udp/tx/consortium/version/console.txt,Third-party reference result for Version,existing,Not formal certification
+consortium_context_data,report/results/udp/tx/consortium/data_context/console.txt,Third-party reference result for Context Data,existing,Not formal certification
 original_ip_bd,report/competition/demo_capture/original_ip_bd.png,Vivado packaged IP BD screenshot,to_capture,Use real Vivado GUI screenshot
 original_b5_bd,report/competition/demo_capture/original_b5_bd.png,Vivado B5 BD screenshot,to_capture,Do not reuse B4 same-named BD
 board_camera,report/competition/demo_capture/board_setup.mp4,Actual Zynq hardware and cable connection,to_capture,Do not claim archived screenshots are live
 board_uart,report/competition/demo_capture/rebuilt_board_uart.log,New XSA matching board UART evidence,to_capture,If original exists archive instead of rerun
 live_udp,report/competition/demo_capture/live_udp_demo.mp4,Real UDP run screen recording,to_capture,Observe UTC START and packet count
+b6_uart_v02,report/results/udp/rx/three_types_udp_rx.rtf,B6 3-type UART validation,existing,Version Context PL metadata plus Data 5120 IQ
+b6_uart_v01,report/results/udp/rx/data_udp_rx.rtf,B6 Data-only older log,existing,Do not confuse with v0.2
+b6_sender,scripts/verify/tools/difi_b6_three_types.py,PC 3-type sender,existing,Source file
+b6_monitor,rtl/board/difi_b6_rx_meta_monitor.v,PL metadata monitor,existing,AXI GPIO readback
+b6_live_video,report/competition/demo_capture/b6_udp_rx_live.mp4,B6 live demonstration,to_capture,Requires same B6 bitstream and ELF
