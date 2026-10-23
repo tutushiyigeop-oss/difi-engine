@@ -24,6 +24,11 @@ build/
 __pycache__/
 *.pyc
 
+# DIFI desktop dashboard: isolated Python and local session artifacts
+/.venv/
+/dashboard/output/
+/.pytest_cache/
+
 # Windows
 Thumbs.db
 .DS_Store
