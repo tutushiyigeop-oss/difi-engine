@@ -13,7 +13,8 @@
 
 ## 交付质量
 - [x] 封装 IP、B5、B6 三套真实 BD Tcl、独立重建综合/实现及 Bitstream/XSA 工具证据已归档；板级回归均由开发者确认通过。
-- [ ] 三套重建 XSA 对应的 Vitis/UART/PC 原始证据及版本绑定补档，尤其 B6 的新 XSA SHA256 实际数值尚未入库。
+- [x] 独立重建与板级回归阶段已收束；B6 新 XSA 与 Bitstream 的 SHA256 已归档（见 `report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md`）。
+- [x] Dashboard B5/B6 两种 Live / Hardware 模式开发者已确认上板成功；本项仅确认 GUI 与既有板级验证流程的集成。
 - [ ] 四个 Skill 完成真实、负例与跨项目统一验收。
 - [ ] AI 原始提示词、模型回答与错误修复记录脱敏归档。
 - [ ] RTL、综合、时序、板级、UDP 结论和报告核对完成。

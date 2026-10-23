@@ -37,5 +37,6 @@
 - [x] B6 v0.2 真实 BD Tcl/manifest、原始及独立重建的 Vivado 实现报告已提交，新 XSA 已生成。
 - [x] B6 独立新 XSA 三类 UDP RX 板级回归由开发者确认通过（2026-10-23）。
 - [x] B6 独立重建 XSA、Bitstream SHA256 已归档。
+- [x] Dashboard B5 UDP TX、B6 UDP RX 两种 Live / Hardware 模式均由开发者确认在实体板上运行成功，见 `dashboard_live_acceptance_20261023.md`。
 
 - [ ] 正式参赛视频录制（独立于已结束的 B6 硬件验收）。

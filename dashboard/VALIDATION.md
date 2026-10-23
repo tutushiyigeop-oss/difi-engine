@@ -72,7 +72,7 @@ SMOKE PASS: Qt=windows source=REPLAY mode=B6 state=COMPLETED packets=22 IQ=5120
 - 原 `scripts/verify/tools/`、RTL、Vivado Tcl、Vitis C 及原始验证报告没有改动。
 - 无远程推送、发布 Tag、破坏性 Git 操作或大型 FPGA 二进制新增。
 
-## 仍须实体板现场验收
+## 初次交付时尚未完成的实体板现场验收（以下为历史记录）
 
 1. B5：匹配 Bitstream/ELF、UART UTC 初始化、START 一次触发、完整报文捕获与真实 IQ 曲线。
 2. B6 v0.2：真实 STATUS、三类 ACK、跨次累计轮数、板端 Golden 比对结果和对应链路动画。
@@ -80,3 +80,9 @@ SMOKE PASS: Qt=windows source=REPLAY mode=B6 state=COMPLETED packets=22 IQ=5120
 4. 实际网卡 IPv4、以太网/防火墙配置、现场 1080p/1440p 显示与 DPI、录像字号。
 
 当前版本未实现串口日志采集或自动 UTC 初始化；需要已有 UART 终端。ACK 不包含完整 FPGA IQ，B6 曲线始终是 Golden Reference。逐包 ACK 功能验证和归档性能指标均不能作为当前网络极限吞吐率。
+
+## 后续实机确认（2026-10-23）
+
+**与上文首次交付时的状态相比，开发者后来明确确认：Dashboard 的 B5 UDP TX、B6 UDP RX 两种 `Live / Hardware` 模式均已在实际开发板上成功运行，UI 可正常使用。** 因此 B5/B6 GUI 与现有板卡固定验证流程的集成验收本阶段已完成，详见 [`report/competition/dashboard_live_acceptance_20261023.md`](../report/competition/dashboard_live_acceptance_20261023.md)。
+
+上述确认不意味着此前 Codex 的 101 项离线自动测试变成了板级测试，也不意味着已完成任意并发全双工、现场视频录制、故障恢复全场景验证。首次交付时记录仍按时间保留。

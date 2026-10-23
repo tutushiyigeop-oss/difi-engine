@@ -1,6 +1,18 @@
 # AMD 自主选题赛道：接下来工作的执行清单
 
-> 文档基准：2026-10-22；四个 Skill 已制作，统一验证暂缓。此文件可放入 `report/competition/`。
+> 文档基准：2026-10-23；B5/B6 Dashboard Live 实机已由开发者确认通过，四个 Skill 的统一验收仍待执行。此文件可放入 `report/competition/`。
+
+## 方向 A：竞赛展示与材料定稿（2026-10-23 启动）
+
+- [x] DIFI Dashboard 首版实现、101 项本机自动化测试归档（`dashboard/VALIDATION.md`）。
+- [x] Dashboard B5 UDP TX 和 B6 UDP RX 两种 Live / Hardware 模式实体板联调成功（`dashboard_live_acceptance_20261023.md`）。
+- [x] 以 Dashboard 为主线重写 `demo_plan.md` 与 `demo_narration.md` 的可执行拍摄方案。
+- [ ] 录制真实 B5 Live + B6 Live 两段独立画面；说明更换不同硬件配置，界面保留真实来源标签。
+- [ ] 提供作品最终演示视频与必要截图；官方时长、提交格式以当期公告为准。
+- [ ] 审核设计报告第 6 章 Dashboard 实机集成小节及整份材料的证据口径。
+- [ ] 整理真实原始 AI 协作记录并注明模型纠错过程。
+- [ ] 完成四个 Skill 的通用功能、正反例及跨项目适配验收；如无法实际跨项目测试，明确标注未验证。
+- [ ] 核查权属、LICENSE、第三方依赖与公开仓库文件隐私，冻结最终交付版本。
 
 ## 本周先完成（不需要重新上板）
 

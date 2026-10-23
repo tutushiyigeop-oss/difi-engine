@@ -266,6 +266,14 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 
 *图 6-1　三条测试链路的黄金数据比对规模：RTL 回环 25,600 IQ、板级 DMA 回环 25,600 IQ、B5 UDP 到 PC 5,120 IQ，已记录样本均无失配。图中没有展示新增 B6 的 5,120 IQ 恢复和 Version/Context Metadata 事件，它们另有串口证据；第三方参考工具检查的 PASS 也不是正式认证。*
 
+### 6.5 PC 端可视化 Dashboard 实机集成（2026-10-23）
+
+项目新增 `dashboard/` 中的 **DIFI ENGINE CONTROL CENTER**，使用 PySide6 / pyqtgraph，通过非阻塞 QProcess 对接既有 B5 UDP 接收验证和 B6 UDP 发送/ACK 校验程序，提供链路动画、三类 Packet 统计、Sequence 时间轴、IQ 波形、日志及会话结果导出。Re​​play/Offline 仅用于标注的离线演示样例。
+
+开发者于 2026-10-23 确认：**B5 UDP TX 与 B6 UDP RX 两种 Dashboard Live / Hardware 模式均已在实体开发板上运行成功，界面正常工作**。新增 GUI 的首次交付静态/离线 101 项自动化测试见 `dashboard/VALIDATION.md`，后续开发者实机确认见 `report/competition/dashboard_live_acceptance_20261023.md`。两者属于不同证据层次。
+
+界面未改变 B5/B6 固定实验的 FPGA 硬件边界：B5 波形来自 PC 实收并验证的 Packet；B6 波形是发包脚本 Golden Reference，板卡 ACK 仅确认内部 IQ/Metadata 验证结果。B5/B6 需要切换各自 XSA 与 Vitis 程序，**不是**单套 XSA 同时全双工运行，也不是 GUI 任意自定义 Packet 生成/实时返回能力。演示录制安排见 `report/competition/demo_plan.md`。
+
 ## 7. Tcl 构建可复现性验证
 
 使用 `scripts/vivado/export_bd.tcl`、`rebuild_bd.tcl` 和 `verify_rebuilt_impl.tcl`，分别对封装 IP (`packaged_ip`)、B5 原始 Packet (`b5_raw_export`) 和 B6 UDP RX (`b6_udp_rx`) 执行：原始工程导出 BD Tcl → 独立目录重建 → Vivado 综合实现 → Bitstream/XSA → Vitis 使用新平台再上板。
