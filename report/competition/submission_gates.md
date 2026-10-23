@@ -6,7 +6,7 @@
 
 - [ ] 许可证：完成源码权属、第三方组件及 MIT/Apache-2.0 许可核查；最终根目录含 `LICENSE`。
 - [x] 根 README：已说明两套历史 Tcl 快照与 B6 v0.2 的区别及重建边界。
-- [x] `scripts/vivado/README.md`：历史两套 Vivado 重建 PASS 已同步，B6 Tcl 单独待补。
+- [x] `scripts/vivado/README.md`：已同步历史两套及 B6 独立重建的工程状态。
 - [x] `skill/README.md`：已统一为“已制作、待统一验收”。
 - [x] `report/results/perf/performance_summary.md`：PS CPU 频率 666.666666 MHz 已确认并同步。
 - [ ] 将既有测试与原始 XSA 的时钟设置进行文件级关联归档。
@@ -35,5 +35,7 @@
 ## B6 v0.2 交付
 
 - [x] Version/Context/Data 三类 UDP RX 串口证据、PC 发包脚本、PS 软件和监控 RTL 已归档。
-- [ ] B6 v0.2 真实 BD Tcl/manifest、专属 Vivado 实现报告、XSA/版本清单。
+- [x] B6 v0.2 真实 BD Tcl/manifest、原始及独立重建的 Vivado 实现报告已提交，新 XSA 已生成。
+- [x] B6 独立新 XSA 三类 UDP RX 板级回归由开发者确认通过（2026-10-23）。
+- [ ] 归档本次新 XSA 对应的 Vitis/UART/PC 原始运行日志、ELF/Bitstream 哈希关联；不得以旧串口记录代替。
 - [ ] B6 实时录屏及完整 PC 控制台原始记录。

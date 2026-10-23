@@ -67,7 +67,8 @@ flowchart LR
 | 封装 IP 资源 | **1,776 LUT / 2,309 FF / 1 RAMB18 / 0 DSP** | 包含协议核心、时间源及封装外层功能 | [`utilization.rpt`](report/results/packaged_ip_impl/utilization.rpt) |
 | 100 MHz 时序 | **WNS +0.411 ns，TNS 0** | XC7Z020CLG400-2，Vivado 2024.2，布局布线后满足时序 | [`timing_summary.rpt`](report/results/packaged_ip_impl/timing_summary.rpt) |
 | B5 UDP TX：FPGA→PC | **22/22 Packet；5,120/5,120 IQ 正确** | Version×1、Context×1、Data×20；UDP Payload 合计 21,192 B | [`TX 原始记录`](report/results/udp/tx/validation_notes.md) |
-| B6 UDP RX：PC→FPGA | **Version×1、Context×1、Data×20，5,120 IQ 匹配** | Version/Context PL Metadata 握手计数均 +1；Data 20 包序列号 15→0 回绕，串口归档 | [`B6 v0.2 串口记录`](report/results/udp/rx/three_types_udp_rx.rtf) |
+| B6 UDP RX：PC→FPGA | **Version×1、Context×1、Data×20，5,120 IQ 匹配** | 原始工程三类报文串口 PASS；新 XSA 板级复测由开发者确认通过，原始复测日志待补 | [`B6 v0.2 串口记录`](report/results/udp/rx/three_types_udp_rx.rtf) |
+| B6 从真实 BD Tcl 独立重建 | **综合、实现、Bitstream/XSA PASS；WNS +2.372 ns、WHS +0.053 ns** | Vivado 2024.2；工具原始 SUCCESS 与独立实现报告已入库 | [`重建工具报告`](report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt) |
 | 第三方 DIFI 1.1 参考校验 | **Version 1/1、Context 1/1、Data 20/20，均 PASS** | Version 与 Context/Data 两条 Stream ID 分别校验 | [`report/results/udp/tx/consortium/`](report/results/udp/tx/consortium/) |
 
 **吞吐率校准说明：** 板级 PMU 实测完整测试窗口为 2,729,306 CPU cycles，100 次 DMA 事务窗口累计 636,916 CPU cycles；PS CPU 工作频率确认为 **666.666666 MHz**（表内约 666.667 MHz）。据此计算得约 **25.01 MB/s** 和 **107.18 MB/s**。这是短时软件驱动回环测试，不能作为 DIFI RTL 的板级峰值吞吐率，亦不等同于网络线速。`report/results/perf/performance_summary.md` 已同步记录上述换算；PS CPU 时钟 **666.666666 MHz（已确认）**，原有表格中 666.667 MHz 仅为三位小数显示。与此次实际测试版本的 XSA/时钟设置对应关系仍应留存证据，但不是“频率待确认”。
@@ -189,15 +190,17 @@ vvp sim/icarus/tb_difi_engine_perf.vvp +packets=100
 
 **不要混用三种 XSA / Vitis 应用。** 封装 IP 回环输出 IQ；B5 DMA S2MM 得到完整 DIFI Packet；B6 MM2S 输入完整 Packet、Data 的 S2MM 输出 IQ，Context/Version 通过 Metadata 监测。B6 的 PS Ethernet/MDIO 使用 B5 已联网成功的 MIO 配置（MDIO MIO 52/53），历史 `packaged_ip` 快照不代表 B6 的以太网配置。
 
-**目前已入库的两套可重建 Block Design Tcl 快照**：[`scripts/vivado/generated/packaged_ip/`](scripts/vivado/generated/packaged_ip/) 和 [`scripts/vivado/generated/b5_raw_export/`](scripts/vivado/generated/b5_raw_export/)。原工程导出脚本、独立重建脚本及实现/XSA 导出脚本也已入库，且两套新工程均有综合、Bitstream/XSA 与时序通过记录。**仓库不提交 `.xpr`、`.bit`、`.xsa` 等可再生成的大型二进制构建产物**；评委需使用 Vivado 2024.2 执行重建，并据新 XSA 建立匹配的 Vitis Platform。开发者已确认两套重建工程上板回归通过，但新版 XSA 对应的完整 Vitis/UART 原始日志仍待集中归档；尚未验证独立陌生机器的端到端复现。完整命令、输出位置与限制见 [`scripts/vivado/README.md`](scripts/vivado/README.md)。**B6 v0.2 的 BD Tcl、manifest、专属实现时序报告和 XSA 关联清单尚未提交**，暂不能声称可从仓库独立重建 B6；详见 [`B6 复现缺口`](scripts/vivado/B6_REPRODUCTION.md)。
+**目前已入库的三套可重建 Block Design Tcl 快照**：[`scripts/vivado/generated/packaged_ip/`](scripts/vivado/generated/packaged_ip/) 、[`scripts/vivado/generated/b5_raw_export/`](scripts/vivado/generated/b5_raw_export/) 和 [`scripts/vivado/generated/b6_udp_rx/`](scripts/vivado/generated/b6_udp_rx/)。原工程导出脚本、独立重建脚本及实现/XSA 导出脚本也已入库，且两套新工程均有综合、Bitstream/XSA 与时序通过记录。**仓库不提交 `.xpr`、`.bit`、`.xsa` 等可再生成的大型二进制构建产物**；评委需使用 Vivado 2024.2 执行重建，并据新 XSA 建立匹配的 Vitis Platform。开发者已确认两套重建工程上板回归通过，但新版 XSA 对应的完整 Vitis/UART 原始日志仍待集中归档；尚未验证独立陌生机器的端到端复现。完整命令、输出位置与限制见 [`scripts/vivado/README.md`](scripts/vivado/README.md)。**B6 v0.2 真实 BD Tcl 已入库，独立重建的综合、实现、Bitstream/XSA 与时序均 PASS；开发者于 2026-10-23 确认新 XSA 三类 UDP RX 再次上板 PASS**。本轮重新生成 XSA 对应的完整 Vitis 构建、UART/PC 原始记录及 SHA256 配对仍待归档；参见 [`B6 复现记录`](scripts/vivado/B6_REPRODUCTION.md) 与 [`构建工具报告`](report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt)。
 
 ```powershell
 # 在仓库根目录、Vivado 2024.2 命令行环境中分别运行
 vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs packaged_ip
 vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b5_raw_export
+vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b6_udp_rx
 # 在每套新工程独立重建成功后运行对应实现；脚本会保护已有 SUCCESS.txt
 vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs packaged_ip
 vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b5_raw_export
+vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b6_udp_rx
 ```
 
 上述命令是**重新复现时的操作说明**，不是要求对现有已完成工程重复执行；重建目标目录已存在时必须先手动核对并另行处理。原始 BD 的 AXI 连接和 PS/PL 设置还应核对以下项目：
@@ -333,7 +336,7 @@ difi-engine/
 - **规范覆盖范围有限**：当前重点是 DIFI 1.1 的 Data/Context/Version Profile 与 I16/Q16 格式；未宣称支持全部 Packet 类型、射频源及跨厂商互操作组合。
 - **不是无丢包、高速连续 UDP 网关**：B5 使用 DMA Simple Mode 逐包接收、PS 侧 lwIP 发送，并人为插入发送间隔；B6 用单包一 ACK 的 Simple DMA 方式接收。两者没有持续高负载或同时双向吞吐测试，网络吞吐率上限、丢包率、长期运行稳定性尚未量化。
 - **时间源边界**：UTC 起点由 PS/UART 初始化，PL 按时钟推进；尚无外部高精度同步参考，不能声明 PTP/GPS 同步精度。
-- **可复现性仍有边界**：两套历史 BD 快照、重建/实现脚本和工具 PASS 报告已入库；B6 v0.2 的 RTL/Vitis/PC 程序及 UART 成功记录已入库，但其真实 BD Tcl、专属实现报告和 XSA 版本映射待补。独立陌生机器复现仍待终验。不能将工具实现成功等同于无需人工操作的一键板级部署。
+- **可复现性仍有边界**：三套真实 BD 快照、独立重建脚本与综合/实现 PASS 报告已入库。B6 v0.2 的新 XSA 板级三类 UDP RX 回归已由开发者确认通过，但新一轮 UART/PC 原始日志、XSA/ELF/Bitstream 哈希关联和陌生机器复现仍待归档或终验；不能将工具实现成功等同于无需人工操作的一键板级部署。
 - **性能换算证据**：板级 PMU 原始计数已归档，两项 MB/s 按开发者确认的约 666.667 MHz CPU 时钟换算。最终仍应将与该次 XSA/板级运行对应的 PS CPU 时钟配置证据独立归档；不要将软件 DMA 轮询测值视为纯 PL 峰值吞吐率。
 - **开源许可**：当前仓库根目录未包含 `LICENSE` 文件；若要允许第三方明确再分发，需先选定并加入 MIT 或 Apache-2.0 等许可，勿默认无 LICENSE 即可自由复用。
 - **授权与参赛发布计划**：详见[发布工作台](docs/release/README.md)；许可证仍待权利人确认，尚未公开、合并 main 或冻结正式版本。

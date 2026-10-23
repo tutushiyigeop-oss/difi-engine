@@ -172,3 +172,10 @@ vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b6_ud
 ```
 
 B6 模式先添加 `ip_repo/` 自定义 IP 和 Metadata Monitor RTL Module Reference，之后才 `source` 原生 BD Tcl。它不沿用 B5 的 module-reference wrapper。新建工程位于 `/vivado/rebuilt/b6_udp_rx/`（Git 忽略），独立重建产物报告为 `report/results/vivado_rebuild/b6_udp_rx/`。**这些命令尚未在你本机执行，因此不能预写 PASS 或使用原始 B6 实现报告替代重建结果。** 使用新 XSA 创建 Vitis Platform 和联测需再验证。参阅 [B6 捕获和归档说明](B6_CAPTURE_GUIDE.md)。
+
+
+## B6 v0.2 独立重建已完成（2026-10-23 最新状态）
+
+先前本文件中的“B6 快照尚未提交”“重建命令尚未执行”为阶段性历史说明。现在仓库已包含 `generated/b6_udp_rx/{bd.tcl,manifest.tcl,export_info.txt}`、`report/results/b6_impl/` 原始实现报告，以及 **`report/results/vivado_rebuild/b6_udp_rx/` 新工程独立重建报告**。
+
+`SUCCESS.txt` 保留生成当时的内容：Vivado 2024.2、`xc7z020clg400-2`，综合和 Bitstream 完成，Setup WNS `+2.372 ns`、Hold WHS `+0.053 ns`，新 XSA 已生成。2026-10-23 开发者后续确认：已使用重建生成的新 XSA，在 Zynq-7020 再次完成 Version/Context/Data 三类 UDP RX 联测，结果成功。工具日志中的 `Vitis/board not yet retested` 是其生成时的历史状态，不修改原始工具日志；后续人工确认见 [`BOARD_REGRESSION_STATUS.md`](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。完整的**本轮新 XSA 对应的** Vitis 编译、UART/PC 输出和硬件哈希配对仍待单独归档。独立陌生机器复现尚未完成。

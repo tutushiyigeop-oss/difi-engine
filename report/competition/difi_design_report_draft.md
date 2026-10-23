@@ -13,7 +13,7 @@
 
 在 XC7Z020CLG400-2 上，项目完成了 RTL 系统级仿真、BRAM 存储结构优化、封装 IP 的真实布局布线、Zynq PS/PL AXI DMA 板级数据回环与完整 DIFI 报文的 UDP 网络发送与接收解析。100 MHz 理想 RTL 回环测试中，100 个数据包 / 25,600 个 IQ 样本均正确，IQ 有效吞吐率为 **196.916 MB/s**。封装 IP 的已布线资源占用为 **1,776 LUT、2,309 FF、1 RAMB18、0 DSP**，Setup WNS **+0.411 ns**。B5 网络验证中，PC 端收到 **1 Version + 1 Context + 20 Data** 共 22 个 DIFI Packet，5,120 个 IQ 样本全部正确；DIFI Consortium 开源参考工具以 DIFI 1.1 模式检查上述 B5 三类报文，结果均为 PASS。新增 B6 网络接收链路中，PC 经 UDP 发送 Version×1、Context×1、Data×20；PL Metadata Monitor 记录 Version/Context 各一次有效握手，Data 经 FPGA RX Parser 恢复 **5,120 IQ** 且全部匹配，Sequence 经历 **15→0** 回绕。
 
-为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建两套硬件工程，再次完成综合、实现、Bitstream/XSA 导出及板级回归。这两套 Tcl、软件和工具证据已归档；B6 v0.2 的软件、监控 RTL 与板级日志已保存，但 BD Tcl、重建记录及新 XSA 对应性材料仍需补档。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
+为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建**三套硬件工程**，完成综合、实现和 Bitstream/XSA 导出。B6 v0.2 独立重建 Setup WNS 为 **+2.372 ns**，Hold WHS 为 **+0.053 ns**；开发者于 2026-10-23 确认新 XSA 已完成三类 UDP RX 上板回归。三套 Tcl 和实现工具证据已归档，但 B6 此次新 XSA 对应的 Vitis/UART/PC 原始日志与硬件版本哈希配对仍待补档。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
 
 **关键词：** FPGA；Zynq-7000；DIFI 1.1；VITA 49.2；AXI4-Stream；AXI DMA；UDP；可复现构建
 
@@ -238,7 +238,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 | Context | 1 × 108 B | Metadata 有效握手计数 +1；Sequence/Changed/错误事件检查 | PASS |
 | Data | 20 × 1,052 B | DMA 恢复 20 × 256 = 5,120 IQ，PS Golden 对比；Sequence 15→0 | PASS |
 
-原始依据：[`report/results/udp/rx/three_types_udp_rx.rtf`](../results/udp/rx/three_types_udp_rx.rtf)；v0.1 单独 Data 回归记录：[`data_udp_rx.rtf`](../results/udp/rx/data_udp_rx.rtf)。**验证边界：** 未经 PS 逐字段回读核验 Version/Context 所有 Metadata；不声称 B6 已经获得 DIFI Consortium 第三方认证、并发全双工或无 ACK 连续传输性能。B6 已提交软件与 RTL、尚未提交对应真实 BD Tcl / B6 专属实现报告，见 [B6 工程复现清单](../../scripts/vivado/B6_REPRODUCTION.md)。
+原始依据：[`report/results/udp/rx/three_types_udp_rx.rtf`](../results/udp/rx/three_types_udp_rx.rtf)；v0.1 单独 Data 回归记录：[`data_udp_rx.rtf`](../results/udp/rx/data_udp_rx.rtf)。**验证边界：** 未经 PS 逐字段回读核验 Version/Context 所有 Metadata；不声称 B6 已经获得 DIFI Consortium 第三方认证、并发全双工或无 ACK 连续传输性能。B6 已提交软件、RTL、真实 BD Tcl、原始与独立重建的实现报告；新 XSA 板级回归由开发者确认成功，原始回归 UART/PC 日志待单独归档。见 [B6 工程复现清单](../../scripts/vivado/B6_REPRODUCTION.md)。
 
 ### 6.4 DIFI Consortium 开源参考工具校验（仅 B5 TX 真实 PCAP）
 
@@ -258,19 +258,19 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 
 ## 7. Tcl 构建可复现性验证
 
-使用 `scripts/vivado/export_bd.tcl`、`rebuild_bd.tcl` 和 `verify_rebuilt_impl.tcl`，分别对封装 IP (`packaged_ip`) 与 B5 原始 Packet (`b5_raw_export`) 执行：原始工程导出 BD Tcl → 独立目录重建 → Vivado 综合实现 → Bitstream/XSA → Vitis 使用新平台再上板。
+使用 `scripts/vivado/export_bd.tcl`、`rebuild_bd.tcl` 和 `verify_rebuilt_impl.tcl`，分别对封装 IP (`packaged_ip`)、B5 原始 Packet (`b5_raw_export`) 和 B6 UDP RX (`b6_udp_rx`) 执行：原始工程导出 BD Tcl → 独立目录重建 → Vivado 综合实现 → Bitstream/XSA → Vitis 使用新平台再上板。
 
-| 验证项 | 封装 IP 工程 | B5 UDP 工程 |
-|---|---:|---:|
-| 目标 Part | xc7z020clg400-2 | xc7z020clg400-2 |
-| 顶层 | `difi_ip_test_wrapper` | `difi_system_wrapper` |
-| 综合/实现/Bitstream | PASS | PASS |
-| Setup WNS | +0.411 ns | +2.206 ns |
-| Hold WHS | +0.046 ns | +0.021 ns |
-| 重建 XSA | 已生成 | 已生成 |
-| 新重建工程上板回归 | 开发者确认通过 | 开发者确认通过 |
+| 验证项 | 封装 IP 工程 | B5 UDP 工程 | B6 UDP RX 工程 |
+|---|---:|---:|---:|
+| 目标 Part | xc7z020clg400-2 | xc7z020clg400-2 | xc7z020clg400-2 |
+| 顶层 | `difi_ip_test_wrapper` | `difi_system_wrapper` | `difi_ip_test_wrapper` |
+| 综合/实现/Bitstream | PASS | PASS | PASS |
+| Setup WNS | +0.411 ns | +2.206 ns | +2.372 ns |
+| Hold WHS | +0.046 ns | +0.021 ns | +0.053 ns |
+| 重建 XSA | 已生成 | 已生成 | 已生成 |
+| 新重建工程上板回归 | 开发者确认通过 | 开发者确认通过 | 开发者于 2026-10-23 确认三类 UDP RX PASS |
 
-证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export}/SUCCESS.txt` 及实现报告。**待归档：** 新 XSA 对应的 Vitis 构建日志、板级 UART 日志、PC 接收日志以及关联的 Git Commit SHA。
+证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export,b6_udp_rx}/SUCCESS.txt` 及各自实现报告。**证据边界：** B6 `SUCCESS.txt` 在板级回归前生成，内部“未上板”属于原始工具状态，不作篡改；开发者后续确认的板级 PASS 记录于 `report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md`。待归档：与重建 XSA 对应的 Vitis 构建日志、UART/PC 原始日志、Bitstream/ELF 哈希关联和 Git SHA。
 
 ## 8. 大模型协作过程与纠错记录（专项附录 v0.1）
 

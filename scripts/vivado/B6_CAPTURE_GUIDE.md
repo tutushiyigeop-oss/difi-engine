@@ -100,3 +100,8 @@ git push
 - `report/results/b6_impl/{timing_summary.rpt,utilization.rpt,drc.rpt,clocks.rpt,capture_info.txt,PROVENANCE.md}`：**原始工程实现**，不是新的独立重建结果。
 
 `rebuild_bd.tcl` 和 `verify_rebuilt_impl.tcl` 现已加入 `b6_udp_rx` 分支，但**只有在上述真实快照复制并提交后才能运行**。两者的运行结果、产物必须由本机 Vivado 实测；重建后的报告另写 `report/results/vivado_rebuild/b6_udp_rx/`。详细原始依赖为 `ip_repo/` 和 `rtl/board/difi_b6_rx_meta_monitor.v`。
+
+
+## 最新结论（2026-10-23）
+
+此文上半部为采集操作历史指南，其中尚未完成的复现步骤现已有结果：B6 真实 `bd.tcl`、`manifest.tcl`、原始 Routed 报告均已入库，随后在新目录重建 B6 并生成新 XSA，工具输出见 `report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt`（WNS +2.372 ns、WHS +0.053 ns）；开发者已确认新 XSA 三类 RX 上板回归成功。`SUCCESS.txt` 生成时的“未重测”内容保留不变。应补档新板级运行的 UART/PC/Vitis 原始日志与新 XSA/ELF/Bitstream 哈希配对。
