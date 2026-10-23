@@ -3,6 +3,7 @@
 # Usage (from any working directory):
 #   vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs packaged_ip
 #   vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b5_raw_export
+#   vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b6_udp_rx
 # This script never deletes/resets runs and never overwrites original projects.
 
 namespace eval difi_verify {
@@ -25,8 +26,8 @@ proc difi_verify::assert_run_pass {run_name} {
 
 proc difi_verify::run {target} {
     variable root
-    if {$target ni {packaged_ip b5_raw_export}} {
-        difi_verify::fail "Choose packaged_ip or b5_raw_export"
+    if {$target ni {packaged_ip b5_raw_export b6_udp_rx}} {
+        difi_verify::fail "Choose packaged_ip, b5_raw_export, or b6_udp_rx"
     }
     if {[catch {version -short} ver]} { difi_verify::fail "Run inside Vivado 2024.2" }
     if {$ver ne "2024.2"} { difi_verify::fail "Expected Vivado 2024.2; got '$ver'" }
@@ -131,7 +132,7 @@ proc difi_verify::run {target} {
 
 if {![info exists ::DIFI_VERIFY_SKIP_AUTORUN]} {
     if {![info exists ::argv] || [llength $::argv] != 1} {
-        error "Usage: vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs packaged_ip|b5_raw_export"
+        error "Usage: vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs packaged_ip|b5_raw_export|b6_udp_rx"
     }
     difi_verify::run [lindex $::argv 0]
 }

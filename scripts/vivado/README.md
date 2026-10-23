@@ -160,3 +160,15 @@ Do not commit `vivado/rebuilt/`, regenerated IP cache, synthesized run files, or
 ## B6 v0.2 UDP RX（2026-10-23）
 
 已有 `rtl/board/difi_b6_rx_meta_monitor.v`、`vitis/vitis_ws/difi_b6_udp_rx_pro/src/`、`scripts/verify/tools/difi_b6_three_types.py` 和板级三类报文 PASS 记录 `report/results/udp/rx/three_types_udp_rx.rtf`。**但这里现存的 packaged_ip / b5_raw_export 两套 Tcl 不包括 B6 v0.2**；其 BD、独立实现和复现证据待补，操作说明见 [B6_REPRODUCTION.md](B6_REPRODUCTION.md)。B6 必须采用正确的 MDIO MIO 52/53 设置，不应照搬历史 packaged_ip Tcl 的 EMIO 配置。
+
+
+## B6 v0.2 真实 BD 快照与独立重建命令（2026-10-23）
+
+原始 B6 已验证 BD 及 Routed 报告已完成审查：100 MHz Setup WNS +2.372 ns / Hold WHS +0.053 ns、DRC 存在普通 Warning。**仓库必须先放入真实 `scripts/vivado/generated/b6_udp_rx/bd.tcl`、`manifest.tcl`、`export_info.txt`**，再在 Vivado 2024.2 中从新目录运行：
+
+```powershell
+vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b6_udp_rx
+vivado -mode batch -source scripts/vivado/verify_rebuilt_impl.tcl -tclargs b6_udp_rx
+```
+
+B6 模式先添加 `ip_repo/` 自定义 IP 和 Metadata Monitor RTL Module Reference，之后才 `source` 原生 BD Tcl。它不沿用 B5 的 module-reference wrapper。新建工程位于 `/vivado/rebuilt/b6_udp_rx/`（Git 忽略），独立重建产物报告为 `report/results/vivado_rebuild/b6_udp_rx/`。**这些命令尚未在你本机执行，因此不能预写 PASS 或使用原始 B6 实现报告替代重建结果。** 使用新 XSA 创建 Vitis Platform 和联测需再验证。参阅 [B6 捕获和归档说明](B6_CAPTURE_GUIDE.md)。

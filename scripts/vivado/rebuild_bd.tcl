@@ -2,6 +2,7 @@
 # Run from the DIFI checkout (any cwd is accepted):
 #   vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs packaged_ip
 #   vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b5_raw_export
+#   vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs b6_udp_rx
 #
 # Does not synthesize or implement automatically.  Reports BD-level
 # validation only; a full bitstream and Vitis XSA require further steps.
@@ -44,11 +45,23 @@ proc difi::add_b5_sources {root} {
     difi::msg "Added [llength $files] source/header files, including B5 raw export."
 }
 
+# B6 v0.2 is an IP-repository design with one user RTL Module Reference.
+# The real BD snapshot is required; this function never constructs a BD graph.
+proc difi::add_b6_sources {root} {
+    set monitor [file join $root rtl board difi_b6_rx_meta_monitor.v]
+    if {![file isfile $monitor]} {
+        difi::die "Missing B6 monitor RTL: $monitor"
+    }
+    add_files -fileset sources_1 -norecurse [list $monitor]
+    update_compile_order -fileset sources_1
+    difi::msg "Added B6 Metadata Monitor Module Reference source."
+}
+
 proc difi::rebuild {target} {
     variable root
     difi::check_vivado
-    if {$target ni {packaged_ip b5_raw_export}} {
-        difi::die "Usage: -tclargs packaged_ip | b5_raw_export"
+    if {$target ni {packaged_ip b5_raw_export b6_udp_rx}} {
+        difi::die "Usage: -tclargs packaged_ip | b5_raw_export | b6_udp_rx"
     }
     set snapshot_dir [file normalize [file join $root scripts vivado generated $target]]
     set bd_script [file join $snapshot_dir bd.tcl]
@@ -84,7 +97,7 @@ proc difi::rebuild {target} {
     create_project $name $project_dir -part $part
     set_property target_language Verilog [current_project]
 
-    if {$target eq "packaged_ip"} {
+    if {$target eq "packaged_ip" || $target eq "b6_udp_rx"} {
         set repo [file normalize [file join $root ip_repo difi_engine_ip]]
         if {![file isfile [file join $repo component.xml]]} {
             difi::die "Packaged IP component.xml missing: $repo"
@@ -92,6 +105,7 @@ proc difi::rebuild {target} {
         set_property ip_repo_paths [list [file join $root ip_repo]] [current_project]
         update_ip_catalog -rebuild
         difi::msg "Using custom packaged DIFI IP from $repo"
+        if {$target eq "b6_udp_rx"} { difi::add_b6_sources $root }
     } else {
         difi::add_b5_sources $root
     }
@@ -137,7 +151,7 @@ proc difi::rebuild {target} {
 # Command-line execution only, also allow source inspection under tclsh.
 if {![info exists ::DIFI_SKIP_AUTORUN]} {
     if {![info exists ::argv] || [llength $::argv] != 1} {
-        error "Usage: vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs packaged_ip|b5_raw_export"
+        error "Usage: vivado -mode batch -source scripts/vivado/rebuild_bd.tcl -tclargs packaged_ip|b5_raw_export|b6_udp_rx"
     }
     difi::rebuild [lindex $::argv 0]
 }

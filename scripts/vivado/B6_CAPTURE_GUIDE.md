@@ -88,3 +88,15 @@ git push
 - [ ] 本机执行实现报告抓取、保留 XSA SHA256
 - [ ] 将 B6 Tcl 与 Routed 报告提交
 - [ ] 在全新工程独立重建并上板验证
+
+
+## 已收到并审阅真实 B6 文件（2026-10-23）
+
+真实 B6 BD Tcl、manifest、export_info、Routed 资源/时序/DRC/时钟报告与带 Bitstream 的 XSA 已在本次审阅中核验。**静态检查通过不等于新目录独立重建已通过。** 原项目时序 Setup WNS +2.372 ns、Hold WHS +0.053 ns；DRC 有 Warning。XSA SHA256：`32878bef391c4e06d190454ce198aa5bf8feaf2f82e8362a590f1d7758419b7c`，禁止提交 XSA 本体。
+
+审核后的文本归档目标：
+
+- `scripts/vivado/generated/b6_udp_rx/{bd.tcl,manifest.tcl,export_info.txt}`
+- `report/results/b6_impl/{timing_summary.rpt,utilization.rpt,drc.rpt,clocks.rpt,capture_info.txt,PROVENANCE.md}`：**原始工程实现**，不是新的独立重建结果。
+
+`rebuild_bd.tcl` 和 `verify_rebuilt_impl.tcl` 现已加入 `b6_udp_rx` 分支，但**只有在上述真实快照复制并提交后才能运行**。两者的运行结果、产物必须由本机 Vivado 实测；重建后的报告另写 `report/results/vivado_rebuild/b6_udp_rx/`。详细原始依赖为 `ip_repo/` 和 `rtl/board/difi_b6_rx_meta_monitor.v`。
