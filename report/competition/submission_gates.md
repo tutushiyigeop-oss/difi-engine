@@ -37,5 +37,6 @@
 - [x] Version/Context/Data 三类 UDP RX 串口证据、PC 发包脚本、PS 软件和监控 RTL 已归档。
 - [x] B6 v0.2 真实 BD Tcl/manifest、原始及独立重建的 Vivado 实现报告已提交，新 XSA 已生成。
 - [x] B6 独立新 XSA 三类 UDP RX 板级回归由开发者确认通过（2026-10-23）。
-- [ ] 归档本次新 XSA 对应的 Vitis/UART/PC 原始运行日志、ELF/Bitstream 哈希关联；不得以旧串口记录代替。
+- [x] B6 独立重建 XSA、Bitstream SHA256 已归档。
+- [ ] 归档本次新 XSA 对应的 Vitis/UART/PC 原始运行日志、ELF SHA256 及版本关联；不得以旧串口记录代替。
 - [ ] B6 实时录屏及完整 PC 控制台原始记录。

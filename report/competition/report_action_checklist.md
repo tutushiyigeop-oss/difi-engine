@@ -44,5 +44,6 @@
 - [x] B6 v0.2 Vitis 源码、Metadata Monitor RTL、PC 三类发包器入库。
 - [x] B6 v0.2 真实 BD Tcl、原始及独立重建实现报告、XSA 生成证据均已入库。
 - [x] 开发者确认重建的新 XSA 已通过三类 UDP RX 板级回归（2026-10-23）。
-- [ ] 补档此次重建 XSA 对应的 PC/串口/Vitis 原始日志与哈希匹配证据。
+- [x] B6 独立重建 XSA、Bitstream SHA256 已归档。
+- [ ] 补档此次重建 XSA 对应的 PC/串口/Vitis 原始日志、ELF SHA256 以及实际测试版本关联。
 - [ ] 录制 B6 实时视频和对应 PC 完整控制台日志。

@@ -15,17 +15,23 @@
 
 注意：`SUCCESS.txt` 内的 `Vitis/board not yet retested` 是**该 Vivado 工具报告生成时的状态**，生成后又完成了硬件回归，故不修改原始输出。`report/results/udp/rx/three_types_udp_rx.rtf` 是之前原始 B6 三类联测的 UART 记录；没有证据证明它就是此次重建 XSA 的新运行日志。
 
-## 尚待补全的可审计证据（2026-10-23 仓库复核）
+## 独立重建产物文件指纹（2026-10-23 本机 PowerShell 实测）
 
-**目前仓库中没有重新构建的 `b6_udp_rx_rebuilt.xsa` 的真实 SHA256 数值。** 先前提交 `46028272e2d0` 的提交说明写有“record rebuilt B6 XSA SHA256”，但实际仅删除了待补列表，并没有保存哈希。不能据提交名称认定 SHA256 已归档，也不能将原始 B6 XSA 的哈希冒充为重建 XSA。
+开发者在仓库根目录执行 `Get-FileHash -Algorithm SHA256`，提供如下**独立重建工程**本地文件的 SHA256。这些哈希仅用于标识文件内容，**不能单独证明上板回归实际加载的文件版本**：
 
-- [ ] 本轮新 XSA SHA256（本机执行下列命令后记录完整 64 位十六进制值）。
-- [ ] 同轮 Bitstream 与 Vitis ELF 的 SHA256、Vitis 平台引用的 XSA 标识。
-- [ ] 新 XSA 板级联测对应的 UART/PC 原始日志与 Vitis 构建输出。
-- [ ] 版本绑定：测试所用 Git SHA、日期、Bitstream、XSA、ELF 及日志之间的对应关系。
+| 产物 | 相对仓库根目录的本地路径 | SHA256 |
+|---|---|---|
+| B6 rebuilt XSA | `vivado/rebuilt/b6_udp_rx/b6_udp_rx_rebuilt.xsa` | `BAA79DCA51DCA96674D38167642BC266CCC7A2D9EDA906AC1B5A543462343D20` |
+| B6 rebuilt Bitstream | `vivado/rebuilt/b6_udp_rx/difi_rebuilt_b6_udp_rx.runs/impl_1/difi_ip_test_wrapper.bit` | `1B986023CCE7FCF3789D11E2CC62319848DC57E67400E10A5E8B5F961CAFF9B8` |
 
-可在本机生成相应哈希（单行 PowerShell 命令）：
+**不可混淆：** `report/results/b6_impl/PROVENANCE.md` 中 `32878bef391c4e06d190454ce198aa5bf8feaf2f82e8362a590f1d7758419b7c` 是**原始 B6 工程 XSA** 的 SHA256，不属于这次独立重建的 XSA。这些二进制产物仍在开发者本地，仓库仅保存源码、重建结果和哈希。
 
-`Get-FileHash "vivado/rebuilt/b6_udp_rx/b6_udp_rx_rebuilt.xsa" -Algorithm SHA256`
+## 仍待补齐的板级版本证据
 
-B6 当前结论：**Vivado 独立重建工具 PASS；新 XSA 板级三类 UDP RX 回归由开发者确认 PASS；原始复测日志及版本绑定仍待补证。**
+- [x] 独立重建 XSA SHA256。
+- [x] 独立重建 Bitstream SHA256。
+- [ ] Vitis ELF SHA256，以及 Vitis Platform 使用该 XSA 的配置/构建记录。
+- [ ] 此次新 XSA 三类 UDP RX 复测的 UART、PC 原始输出和 Vitis 构建日志。
+- [ ] 实际测试时的源代码 Git SHA，以及 XSA/Bitstream/ELF 与测试运行记录的对应关系（当前文档提交 SHA 不等于硬件生成时的源码 SHA）。
+
+B6 当前结论：**Vivado 独立重建 PASS；开发者确认新 XSA 三类 UDP RX 上板 PASS；独立重建 XSA/Bitstream 哈希已入库，实测版本关联与复测原始日志待补。**

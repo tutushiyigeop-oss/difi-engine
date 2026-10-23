@@ -21,7 +21,8 @@
 - [x] 原始 B6 Routed 证据已入库：`report/results/b6_impl/`。
 - [x] 全新工程重建通过：`report/results/vivado_rebuild/b6_udp_rx/SUCCESS.txt`，WNS +2.372 ns，WHS +0.053 ns；Bitstream/XSA 已生成。
 - [x] 开发者确认重建 XSA 上板 Version、Context、Data 三类 UDP RX 回归 PASS。
-- [ ] 新 XSA SHA256 **实际数值尚未入库**；也缺本轮 Vitis/UART/PC 原始记录、ELF/Bitstream 哈希关联。
+- [x] 新 XSA SHA256 和 Bitstream SHA256 已由开发者本机计算并入库，见 [`BOARD_REGRESSION_STATUS.md`](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。
+- [ ] 仍缺本轮 Vitis/UART/PC 原始记录、ELF 哈希及实际测试版本绑定。
 - [ ] 异机完整复现、Context/Version Metadata 全字段 PS 读回、无 ACK 连续吞吐、同时全双工测试均未完成。
 
 保留早期原始 `three_types_udp_rx.rtf` 的真实历史定位，不作为新 XSA 回归日志。见 [B6 板级回归记录](../../report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。
