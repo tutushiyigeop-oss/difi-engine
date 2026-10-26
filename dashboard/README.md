@@ -1,5 +1,7 @@
 # DIFI ENGINE CONTROL CENTER
 
+**2026-10-25 升级：** 默认进入 Stage D 交互式半双工工作区，新增 v0.3 兼容、自定义合法 Packet/IQ、实测数据比较及独立 v0.4 固件。请先阅读 [Stage D 使用指南](STAGE_D_GUIDE.md)；[新功能验证状态](STAGE_D_VALIDATION.md) 与 [实体板验收步骤](STAGE_D_LIVE_ACCEPTANCE.md) 分开记录。下文保留原 B5/B6 Legacy 的使用说明和已验收行为。
+
 Windows 原生 PySide6 + pyqtgraph 桌面演示台。复用仓库现有 B5/B6 Python 校验程序，提供链路动画、逐包 Timeline、独立 Sequence 监测、IQ 校验、波形、事件控制台和会话导出。启动默认 **REPLAY / OFFLINE**，不会自动发送 UDP。
 
 ## 安装与启动（Windows 11 / PowerShell）
