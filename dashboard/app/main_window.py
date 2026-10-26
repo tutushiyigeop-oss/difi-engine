@@ -13,7 +13,7 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog,
     QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QSizePolicy,
-    QMessageBox, QPushButton, QScrollArea, QSpinBox, QSplitter, QStackedWidget, QVBoxLayout, QWidget,
+    QMessageBox, QPushButton, QScrollArea, QSpinBox, QSplitter, QVBoxLayout, QWidget,
 )
 
 from .config import DemoConfig
@@ -32,7 +32,6 @@ from .widgets.packet_timeline import PacketTimeline
 from .widgets.iq_waveform import IQWaveform
 from .widgets.log_console import LogConsole
 from .widgets.historical_metrics import HistoricalMetrics
-from .experiment.panel import ExperimentPanel
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "dashboard" / "output"
@@ -150,7 +149,7 @@ class MainWindow(QMainWindow):
 
     @property
     def mode(self) -> str:
-        return ("B5", "B6", "STAGED")[self.mode_combo.currentIndex()]
+        return "B5" if self.mode_combo.currentIndex() == 0 else "B6"
 
     @property
     def source(self) -> str:
@@ -158,7 +157,7 @@ class MainWindow(QMainWindow):
 
     @property
     def running(self) -> bool:
-        return (self.active_runner is not None and self.active_runner.running) or (hasattr(self, "stage_d") and self.stage_d.controller.busy)
+        return self.active_runner is not None and self.active_runner.running
 
     def _build_ui(self):
         central = QWidget()
@@ -191,7 +190,7 @@ class MainWindow(QMainWindow):
 
         nav = QHBoxLayout()
         self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["B5 UDP TX", "B6 UDP RX", "Stage D · UDP Half-Duplex"])
+        self.mode_combo.addItems(["B5 UDP TX", "B6 UDP RX"])
         self.mode_combo.setMinimumWidth(155)
         self.source_combo = QComboBox()
         self.source_combo.addItems(["Replay / Offline", "Live / Hardware"])
@@ -267,17 +266,9 @@ class MainWindow(QMainWindow):
         side.addWidget(self.history, 4)
         splitter.addWidget(sidebar)
         splitter.setSizes([1210, 430])
-        self.workspace_stack = QStackedWidget()
-        self.workspace_stack.addWidget(splitter)
-        self.stage_d = ExperimentPanel(self.output_root / "stage_d")
-        self.workspace_stack.addWidget(self.stage_d)
-        self.stage_d.status_changed.connect(self._stage_status_changed)
-        self.stage_d.controller.finished.connect(lambda _result: QTimer.singleShot(0, self.close) if self._close_pending else None)
-        layout.addWidget(self.workspace_stack, 1)
+        layout.addWidget(splitter, 1)
 
-        self.legacy_controls = QWidget()
-        controls = QHBoxLayout(self.legacy_controls)
-        controls.setContentsMargins(0, 0, 0, 0)
+        controls = QHBoxLayout()
         self.run_button = QPushButton("▶  Run B5 Demo")
         self.run_button.setObjectName("PrimaryButton")
         self.run_button.setMinimumWidth(185)
@@ -296,7 +287,7 @@ class MainWindow(QMainWindow):
         self.session_label = QLabel()
         self.session_label.setObjectName("footnote")
         controls.addWidget(self.session_label)
-        layout.addWidget(self.legacy_controls)
+        layout.addLayout(controls)
 
     def _load_settings(self):
         try:
@@ -310,15 +301,6 @@ class MainWindow(QMainWindow):
             pass
 
     def _selection_changed(self, _index=None):
-        if self.stage_d.controller.connected or self.stage_d.controller.busy:
-            self.mode_combo.blockSignals(True)
-            self.source_combo.blockSignals(True)
-            self.mode_combo.setCurrentIndex(2)
-            self.source_combo.setCurrentIndex(0 if self.stage_d.source == "REPLAY" else 1)
-            self.mode_combo.blockSignals(False)
-            self.source_combo.blockSignals(False)
-            self.stage_d.log("WARN", "APP", "Disconnect Stage D before switching workspace or source.")
-            return
         if self.running:
             self.mode_combo.blockSignals(True)
             self.source_combo.blockSignals(True)
@@ -329,10 +311,6 @@ class MainWindow(QMainWindow):
             self._on_log("WARN", "APP", "Stop the current session before switching mode or source.")
             return
         self._autosave(force=True)
-        if self.mode == "STAGED":
-            self.stage_d.set_source(self.source)
-            self._refresh()
-            return
         self._new_session()
 
     def _new_session(self):
@@ -348,8 +326,6 @@ class MainWindow(QMainWindow):
         self._refresh()
 
     def start_demo(self) -> bool:
-        if self.mode == "STAGED":
-            return self.stage_d.start_replay_demo() if self.source == "REPLAY" else self.stage_d.start_run()
         if self.running or self.session.state in ("PREPARING", "RUNNING"):
             self._on_log("WARN", "APP", "A session is already running; duplicate start ignored.")
             return False
@@ -378,17 +354,12 @@ class MainWindow(QMainWindow):
         return True
 
     def stop_demo(self):
-        if self.mode == "STAGED":
-            self.stage_d.controller.stop()
-            return
         if self.running:
             self._on_log("WARN", "APP", "Stop requested; waiting for worker process to release resources.")
             self.stop_button.setEnabled(False)
             self.active_runner.stop()
 
     def reset_session(self) -> bool:
-        if self.mode == "STAGED":
-            return self.stage_d.reset_session()
         if self.running:
             self._on_log("WARN", "APP", "Stop the active task before resetting its session.")
             return False
@@ -494,12 +465,6 @@ class MainWindow(QMainWindow):
                 self._on_log("ERROR", "CAPTURE", f"Cannot decode captured IQ: {exc}")
 
     def _refresh(self):
-        self.workspace_stack.setCurrentIndex(1 if self.mode == "STAGED" else 0)
-        self.legacy_controls.setVisible(self.mode != "STAGED")
-        self.settings_button.setVisible(self.mode != "STAGED")
-        if self.mode == "STAGED":
-            self._stage_status_changed(self.stage_d.controller.snapshot())
-            return
         state = self.session.state
         active = state in ("PREPARING", "RUNNING")
         self.run_button.setText(f"▶  Run {self.mode} Demo")
@@ -531,26 +496,7 @@ class MainWindow(QMainWindow):
         for widget in (self.packet_summary, self.iq_verification, self.sequence_monitor, self.metadata_monitor, self.timeline):
             widget.update_session(self.session)
 
-    def _stage_status_changed(self, snapshot):
-        if self.mode != "STAGED":
-            return
-        locked = snapshot.get("connected") or snapshot.get("busy")
-        self.mode_combo.setEnabled(not locked)
-        self.source_combo.setEnabled(not locked)
-        self.source_badge.setText("REPLAY / OFFLINE" if self.source == "REPLAY" else "LIVE / HARDWARE")
-        self.source_badge.setStyleSheet("color:#ffbd69; background:#2a2319; border:1px solid #79572c; padding:10px 14px; border-radius:6px;" if self.source == "REPLAY" else
-                                       "color:#53d7ef; background:#102d38; border:1px solid #286276; padding:10px 14px; border-radius:6px;")
-        self.state_badge.setText("●  " + snapshot["state"])
-        self.state_badge.setStyleSheet(f"color:{'#fa7c87' if snapshot['state'] in {'FAULT', 'RECOVERY_REQUIRED'} else '#54d3ed'}; font:600 13px Consolas;")
-        self.endpoint_label.setText(f"STAGE D  ·  {self.stage_d.board.text()}:{self.stage_d.port.value()}  ·  single socket / dual DMA")
-        self.preflight_label.setText("STAGE D · ONE BITSTREAM / ONE ELF · HALF DUPLEX  ·  " +
-                                     ("Offline fixtures are simulated. Local Preview is never an FPGA measurement." if self.source == "REPLAY" else
-                                      "Connect explicitly negotiates v0.3 / v0.4. TX and RX require real returned bytes. Stop drains before direction changes."))
-
     def open_settings(self):
-        if self.mode == "STAGED":
-            self.stage_d.tabs.setCurrentIndex(0)
-            return
         if self.running:
             return
         dialog = SettingsDialog(self.mode, self.configs[self.mode], self)
@@ -574,9 +520,6 @@ class MainWindow(QMainWindow):
             self._save_future = self._io_executor.submit(export_session, snapshot, logs, self.session_dir)
 
     def export_result(self):
-        if self.mode == "STAGED":
-            self.stage_d.export_result()
-            return
         if self._export_future is not None:
             self._on_log("WARN", "EXPORT", "An export is already in progress.")
             return
@@ -607,7 +550,6 @@ class MainWindow(QMainWindow):
             event.ignore()
             return
         self._autosave(force=True)
-        self.stage_d.shutdown()
         self._poll_timer.stop()
         self._autosave_timer.stop()
         self._executor.shutdown(wait=False, cancel_futures=True)
