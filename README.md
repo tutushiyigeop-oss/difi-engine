@@ -188,7 +188,7 @@ vvp sim/icarus/tb_difi_engine_perf.vvp +packets=100
 | 目的 | RTL/BD 选择 | DMA S2MM 最终收到的内容 | 对应 Vitis App |
 | --- | --- | --- | --- |
 | 封装 IP 收发回环与性能 | 封装 IP `ip_repo/difi_engine_ip/`，BD `difi_ip_test`（已实现报告顶层：`difi_ip_test_wrapper`） | **解封装 IQ 数据** | [`difi_ip_loopback_test`](vitis/vitis_ws/difi_ip_loopback_test/src/)、[`difi_ip_perf_test`](vitis/vitis_ws/difi_ip_perf_test/src/) |
-| B5 原始 Packet / UDP 导出 | [`rtl/board/difi_engine_board_b5.v`](rtl/board/difi_engine_board_b5.v)，模块 `difi_board_raw_packet_export` | **DIFI 完整 Packet（头部+IQ）** | [`difi_stage_b5-b_test`](vitis/vitis_ws/difi_stage_b5-b_test/src/)、[`difi_b5_udp_tx`](vitis/vitis_ws/difi_b5_udp_tx/src/) |
+| B5 原始 Packet / UDP 导出 | [`rtl/board/difi_engine_board_b5.v`](rtl/board/difi_engine_board_b5.v)，模块 `difi_board_raw_packet_export` | **DIFI 完整 Packet（头部+IQ）** | [`difi_b5_udp_tx`](vitis/vitis_ws/difi_b5_udp_tx/src/) |
 | B6 PC→UDP→PL RX | DMA MM2S 接 DIFI `S_AXIS_RX_PKT`；DIFI `M_AXIS_IQ` 接 DMA S2MM；Metadata Monitor→双通道 AXI GPIO | **Data 恢复的 IQ**；Context/Version 不输出 IQ | [`difi_b6_udp_rx_pro`](vitis/vitis_ws/difi_b6_udp_rx_pro/src/) |
 
 **不要混用三种 XSA / Vitis 应用。** 封装 IP 回环输出 IQ；B5 DMA S2MM 得到完整 DIFI Packet；B6 MM2S 输入完整 Packet、Data 的 S2MM 输出 IQ，Context/Version 通过 Metadata 监测。B6 的 PS Ethernet/MDIO 使用 B5 已联网成功的 MIO 配置（MDIO MIO 52/53），历史 `packaged_ip` 快照不代表 B6 的以太网配置。
@@ -258,7 +258,7 @@ report_timing_summary -file timing_summary.rpt
 python scripts/verify/tools/difi_b6_three_types.py --board 192.168.1.10 --local-ip 192.168.1.20 --types version,context,data --rounds 20
 ```
 
-已归档 [B6 v0.2 板级串口记录](report/results/udp/rx/three_types_udp_rx.rtf)：Version 44 B×1 与 Context 108 B×1 由 PL Metadata Monitor 观测到有效握手各 1 次，检查 Sequence、Changed 与相关错误事件；Data 1052 B×20 经 PL Parser 恢复 20×256 IQ 样本，PS Golden 比对均正确，Sequence 覆盖 15→0。B6 v0.1 的 Data-only 历史日志另见 [`data_udp_rx.rtf`](report/results/udp/rx/data_udp_rx.rtf)，勿与 v0.2 混淆。**当前 Metadata 监测未逐字段将全部 Context/Version 值回读至 PS；未完成持续无 ACK 流的吞吐、丢包或同时双向运行验证。**
+已归档 [B6 v0.2 板级串口记录](report/results/udp/rx/three_types_udp_rx.rtf)：Version 44 B×1 与 Context 108 B×1 由 PL Metadata Monitor 观测到有效握手各 1 次，检查 Sequence、Changed 与相关错误事件；Data 1052 B×20 经 PL Parser 恢复 20×256 IQ 样本，PS Golden 比对均正确，Sequence 覆盖 15→0。**当前 Metadata 监测未逐字段将全部 Context/Version 值回读至 PS；未完成持续无 ACK 流的吞吐、丢包或同时双向运行验证。**
 
 [PC 三类发包器](scripts/verify/tools/difi_b6_three_types.py)依赖同目录 [Data 报文生成器](scripts/verify/tools/difi_b6_sender.py)；对应的 Vivado BD 快照和实现报告位于 `scripts/vivado/generated/b6_udp_rx/` 与 `report/results/vivado_rebuild/b6_udp_rx/`。
 
@@ -295,42 +295,30 @@ ip.src == 192.168.1.10 && ip.dst == 192.168.1.20 && udp.dstport == 4991
 | RTL 逐包延迟 CSV | [`report/results/perf/difi_perf_latency.csv`](report/results/perf/difi_perf_latency.csv) |
 | Zynq 板级 PMU/回环串口日志 | [`report/results/perf/board_IP_perf.rtf`](report/results/perf/board_IP_perf.rtf) |
 | 封装 IP 利用率与时序、关键路径、DRC | [`report/results/packaged_ip_impl/`](report/results/packaged_ip_impl/) |
-| B4/B5 板级实现报告 | [`report/results/b4_impl/`](report/results/b4_impl/)、[`report/results/b5_impl/`](report/results/b5_impl/) |
+| B5 板级实现报告 | [`report/results/b5_impl/`](report/results/b5_impl/) |
 | 完整 UDP 网络抓包 | [`report/results/udp/tx/difi_b5_udp_22.pcapng`](report/results/udp/tx/difi_b5_udp_22.pcapng) |
 | 分流后的第三方验证输入 | [`report/results/udp/tx/difi_b5_udp_version_only.pcapng`](report/results/udp/tx/difi_b5_udp_version_only.pcapng)、[`difi_b5_udp_context_data.pcapng`](report/results/udp/tx/difi_b5_udp_context_data.pcapng) |
 | 参考工具校验输出与截图 | [`report/results/udp/tx/consortium/`](report/results/udp/tx/consortium/)、[`report/results/udp/tx/screenshots/`](report/results/udp/tx/screenshots/) |
 | UDP 验证文字记录 | [`report/results/udp/tx/validation_notes.md`](report/results/udp/tx/validation_notes.md) |
 
-## 7. 仓库目录与提交物对照
+## 7. 仓库结构与交付物
 
 ```text
 difi-engine/
-├── rtl/                  # 可综合 Verilog，协议核心、封装和板级 Shell
-├── ip_repo/              # Vivado 自定义 DIFI IP 包
-├── sim/                  # 模块与系统 Testbench、仿真向量、性能测试
-├── vitis/vitis_ws/       # 各阶段应用的 src/*.c / *.h（生成工作区被忽略）
-├── scripts/              # RTL/Vivado Tcl、Python 验证、绘图与审查脚本
-├── report/results/       # RTL、封装 IP、B4/B5 与 B6 TX/RX UDP 证据
-├── report/competition/   # 设计报告初稿、AI 协作复盘、量化证据索引（尚待终验）
-├── docs/                 # 接口规格及开发备注
-├── board/                # 板级目录（部分为预留）
-├── host/                 # PC 工具预留目录
-└── skill/                # 四个可复用 Skill 已制作；统一真实/跨项目验收待完成
+├── rtl/                  # DIFI 协议 RTL、IP 顶层与 B5/B6 板级辅助逻辑
+├── ip_repo/              # Vivado 自定义 IP 元数据和源码快照
+├── sim/                  # RTL 模块、集成、性能测试平台
+├── vitis/vitis_ws/       # B5/B6 网络应用、封装 IP 回环与性能测试源码
+├── scripts/vivado/       # BD 导出、完整工程重建、实现验证及 Tcl 快照
+├── scripts/verify/       # UDP 捕获、发送及报文检查脚本
+├── scripts/figures/      # 技术图表生成程序
+├── dashboard/            # B5/B6 桌面演示应用及自动测试
+├── docs/                 # DIFI 协议和 RTL 接口规格、系统架构源文件
+├── report/               # 设计报告、技术图表、测量及测试原始证据
+└── skill/                # 四项可复用工程 Skill
 ```
 
-这套目录与 AMD 自主选题赛道推荐的 `src/`、`sim/`、`build/`、`board/`、`data/`、`skill/`、`report/` **不是一一同名**，对应关系如下：
-
-| 官方推荐类型 | 本仓库位置 |
-| --- | --- |
-| 源码 `src/` | `rtl/`、`vitis/vitis_ws/*/src/`、`ip_repo/` |
-| 仿真与验证 `sim/` | `sim/`、`scripts/verify/` |
-| 构建文件与实现报告 `build/` | `scripts/vivado/{export_bd,rebuild_bd,verify_rebuilt_impl}.tcl`、`scripts/vivado/generated/`、`ip_repo/`、`report/results/vivado_rebuild/` |
-| 上板工程与证据 `board/` | `rtl/board/`、`vitis/vitis_ws/`、`report/results/` |
-| 测试数据 `data/` | `sim/vectors/`、`report/results/perf/`、`report/results/udp/` |
-| 技能包 `skill/` | `skill/` 下四套 Skill，均已制作；新通用工具的真实/跨项目验收待统一进行 |
-| 设计报告 `report/` | `report/competition/` 现有初稿、`report/ai_collaboration/` 证据索引及 `report/results/` 实测资料 |
-
-**交付状态边界：** AI 协作案例与工程证据索引已在 [`report/ai_collaboration/`](report/ai_collaboration/)；原始逐字模型交互仍需补档。四个 Skill 已制作，但其新通用工具的统一验收尚未进行，见 [`skill/README.md`](skill/README.md)。本 README 不将初稿或已制作的工具表述为已经通过最终提交验收。
+提交包的源代码、仿真、Vivado 重建脚本、板级应用和测量证据分别放在以上目录。根目录是统一的操作入口；独立运行 Dashboard 的方法见 [dashboard/README.md](dashboard/README.md)，Skill 的使用方法见 [skill/README.md](skill/README.md)。
 
 ## 8. 已知限制与后续工作
 

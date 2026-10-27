@@ -240,7 +240,7 @@ PC 接收脚本 `scripts/verify/tools/difi_udp_receiver.py` 对类型、长度�
 
 B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Payload，Zynq PS GEM0/lwIP 将完整 32-bit 网络大端报文转换并写入 DDR，AXI DMA MM2S 发送至 PL `S_AXIS_RX_PKT`。Data Parser 输出 256 个 I16/Q16 样本，经 DMA S2MM 返回 PS 与 Golden 比对；Version 和 Context 没有 IQ 输出，使用接在同一 PL 时钟域的 [Metadata Monitor](../../rtl/board/difi_b6_rx_meta_monitor.v) 统计各自 `VALID && READY` 握手，状态经双通道 AXI GPIO (`0x41200000`) 提供给 PS。
 
-正式三类接收程序为 [`difi_b6_udp_rx_pro/src/main.c`](../../vitis/vitis_ws/difi_b6_udp_rx_pro/src/main.c)，PC 端使用 [`difi_b6_three_types.py`](../../scripts/verify/tools/difi_b6_three_types.py)，早期 [`difi_b6_udp_rx`](../../vitis/vitis_ws/difi_b6_udp_rx/src/main.c) 为仅接收 Data 的 v0.1 历史版本。
+正式三类接收程序为 [`difi_b6_udp_rx_pro/src/main.c`](../../vitis/vitis_ws/difi_b6_udp_rx_pro/src/main.c)，PC 端使用 [`difi_b6_three_types.py`](../../scripts/verify/tools/difi_b6_three_types.py)。
 
 | B6 类型 | 本轮网络输入 | FPGA 验证依据 | 结果 |
 |---|---:|---|---|
@@ -248,7 +248,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 | Context | 1 × 108 B | Metadata 有效握手计数 +1；Sequence/Changed/错误事件检查 | PASS |
 | Data | 20 × 1,052 B | DMA 恢复 20 × 256 = 5,120 IQ，PS Golden 对比；Sequence 15→0 | PASS |
 
-原始依据：[`report/results/udp/rx/three_types_udp_rx.rtf`](../results/udp/rx/three_types_udp_rx.rtf)；v0.1 单独 Data 回归记录：[`data_udp_rx.rtf`](../results/udp/rx/data_udp_rx.rtf)。**验证边界：** 未经 PS 逐字段回读核验 Version/Context 所有 Metadata；不声称 B6 已经获得 DIFI Consortium 第三方认证、并发全双工或无 ACK 连续传输性能。B6 已提交软件、RTL、真实 BD Tcl、原始与独立重建的实现报告；新 XSA 三类 UDP RX 板级回归由开发者确认成功，B6 本阶段验收已收束。见 `scripts/vivado/generated/b6_udp_rx/` 工程快照。
+原始依据：[`report/results/udp/rx/three_types_udp_rx.rtf`](../results/udp/rx/three_types_udp_rx.rtf)。**验证边界：** 未经 PS 逐字段回读核验 Version/Context 所有 Metadata；不声称 B6 已经获得 DIFI Consortium 第三方认证、并发全双工或无 ACK 连续传输性能。B6 已提交软件、RTL、真实 BD Tcl、原始与独立重建的实现报告；新 XSA 三类 UDP RX 板级回归由开发者确认成功，B6 本阶段验收已收束。见 `scripts/vivado/generated/b6_udp_rx/` 工程快照。
 
 ### 6.4 DIFI Consortium 开源参考工具校验（仅 B5 TX 真实 PCAP）
 
@@ -338,17 +338,11 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 7. 在 B6 独立重建 XSA 上执行 PC→FPGA 三类 UDP RX 回归：Version/Context Metadata 握手与 20×256 IQ Golden 对比。
 8. 对 B5 抓包按 DIFI 1.1 模式分别验证 Version 与 Context/Data 流，并归档脚本版本、PCAP Hash、输出日志。
 
-### 10.3 交付核查清单
+### 10.3 交付文件
 
-- [x] RTL、Testbench、Vitis C、封装 IP 仓库及 Tcl 重建/实现脚本。
-- [x] 原始 RTL 性能、综合/实现、UDP/第三方工具的既有证据。
-- [x] 三套 Vivado Tcl 独立重建的实现输出及开发者确认的对应板级通过结果。
-- [x] 四个 Skill 的初始内容。
-- [ ] Skill 的统一验收及交叉项目复用测试。
-- [ ] 大模型真实协作记录和失败→修复→验证的逐例证据。
-- [x] B6 实现与重建结果已保存至 `report/results/vivado_rebuild/b6_udp_rx/`。
-- [ ] 文献/开源方案对比与参考文献、图片标注及最终校对。
-- [ ] 最终 Git Commit SHA/Tag、开源许可证及目录命名检查。
+工程交付包含 Verilog RTL 与 Testbench、Vivado IP 封装与 Block Design 重建 Tcl、Zynq Vitis 应用、B5/B6 UDP 收发及校验工具、Dashboard 和自动测试。报告所引用的资源时序结果、板级串口记录、PCAP 与 DIFI 开源参考检查结果保存在 `report/results/`，可复用工程工具见 `skill/`。
+
+报告引用的指标必须按照原始测试条件解释，不能将 RTL 理想仿真吞吐率、板级 DMA 事务吞吐率与实际 UDP 网络吞吐率视为同一口径。
 
 ---
 
@@ -368,12 +362,10 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 | Vitis C 源码 | `vitis/vitis_ws/` |
 | Skill | `skill/` |
 
-## 附录 B：定稿前必须审阅的风险点
+## 附录 B：结果解释与适用范围
 
 1. DIFI 标准符合性声明不可超出已测试内容，不可将开源工具 PASS 说成“官方认证”。
 2. 196.916 MB/s 只能称为无外部背压 RTL 理想回环的 **IQ 有效吞吐率**。
 3. 25.01/107.18 MB/s 必须保留 CPU 时钟配置与 PMU ticks 的计算口径；不同条件不能横比。
 4. OOC 资源对比、封装 IP 资源与完整 PL 资源是三种不同统计口径。
 5. “新 XSA 上板通过”依据开发者实际复测确认；原始 Vivado 工具 PASS 与先前 B6 UART 验证材料均保留其真实时间线，本阶段不再设置附加归档要求。
-6. Skill 初版离线测试结果不等于其已完成跨项目复现；统一验收暂缓。
-7. 仓库中的文件名/目录名应遵循 AMD 指南“英文小写、数字、下划线或连字符”的要求，检查并修改不合规名称或在必要情况下解释仓库结构。

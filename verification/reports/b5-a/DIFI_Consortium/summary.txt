@@ -1,8 +1,0 @@
-﻿DIFI 1.1 split-flow offline verification
-Result: PASS
-PCAP directory: D:\Study\project\DIFI\verification\pcap\b5-a
-Version Flow: PASS
-Data + Context Flow: PASS
-Report directory: D:\Study\project\DIFI\verification\reports\b5-a
-Original combined-stream PCAP was NOT tested for cross-stream consistency.
-No Ethernet/UDP physical transfer or official consortium certification is claimed.

@@ -6,7 +6,6 @@
 - 可追溯源码：
   - `vitis/vitis_ws/difi_ip_loopback_test/src/difi_ip_loopback_test.c`
   - `vitis/vitis_ws/difi_ip_perf_test/src/difi_ip_perf_test.c`
-  - `vitis/vitis_ws/difi_stage_b5-b_test/src/difi_stage_b5-b_test.c`
   - `vitis/vitis_ws/difi_b5_udp_tx/src/difi_b5_udp_tx.c`
 
 ## 两种不能混淆的系统
