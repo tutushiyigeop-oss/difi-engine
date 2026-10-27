@@ -6,7 +6,7 @@
 
 [架构与功能](#1-项目概述) · [实测结果](#2-验证状态与实测结果) · [快速复现](#5-快速复现) · [文件索引](#7-仓库目录与提交物对照) · [限制与待办](#8-已知限制与后续工作)
 
-**Windows 桌面演示台：** [DIFI ENGINE CONTROL CENTER](dashboard/main.py) 使用 PySide6 + pyqtgraph 集成现有 B5/B6 校验工具，提供链路动画、逐包统计、IQ 波形、日志与会话导出；默认 Replay / Offline，无开发板也可演示。安装 `dashboard/requirements.txt` 后运行 `python dashboard/main.py`，硬件模式仅在点击 Run 后通信。**2026-10-23 开发者已确认 B5 UDP TX 和 B6 UDP RX 两种 Dashboard Live / Hardware 模式均成功上板运行，本阶段集成验证完成**；见[实机验收记录](report/competition/dashboard_live_acceptance_20261023.md)。
+**Windows 桌面演示台：** 使用 [Dashboard](dashboard/README.md) 查看 B5/B6 收发结果、IQ 波形和逐包统计。安装依赖后运行 `python dashboard/main.py`。B5/B6 实机通信需要分别加载对应的 Bitstream 与 ELF。
 
 
 ## 1. 项目概述
@@ -193,7 +193,7 @@ vvp sim/icarus/tb_difi_engine_perf.vvp +packets=100
 
 **不要混用三种 XSA / Vitis 应用。** 封装 IP 回环输出 IQ；B5 DMA S2MM 得到完整 DIFI Packet；B6 MM2S 输入完整 Packet、Data 的 S2MM 输出 IQ，Context/Version 通过 Metadata 监测。B6 的 PS Ethernet/MDIO 使用 B5 已联网成功的 MIO 配置（MDIO MIO 52/53），历史 `packaged_ip` 快照不代表 B6 的以太网配置。
 
-**三套板级设计已经完成独立重建与开发者确认的功能回归：** [`packaged_ip`](scripts/vivado/generated/packaged_ip/)、[`b5_raw_export`](scripts/vivado/generated/b5_raw_export/) 和 [`b6_udp_rx`](scripts/vivado/generated/b6_udp_rx/)。仓库已保存真实 BD Tcl/manifest、IP/RTL 依赖、自动重建脚本和各自综合、实现、时序及 Bitstream/XSA 工具 PASS 记录。**B6 v0.2 于 2026-10-23 完成独立新工程重建和 Version/Context/Data 三类 UDP RX 板级回归，本阶段验收结束。** 本地生成的 .xpr、.bit、.xsa 不作为仓库提交物；可通过 Vivado 2024.2 按 [重建指南](scripts/vivado/README.md) 再生。B6 的 XSA/Bitstream SHA256 与开发者确认的回归结论见 [B6 阶段验收记录](report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)。**功能回归来自开发者实测确认；本项目未声称已由独立第三方在陌生机器复现。**
+**Vivado 工程复现：** 三套工程分别为 [`packaged_ip`](scripts/vivado/generated/packaged_ip/)、[`b5_raw_export`](scripts/vivado/generated/b5_raw_export/) 和 [`b6_udp_rx`](scripts/vivado/generated/b6_udp_rx/)。通过 `scripts/vivado/rebuild_bd.tcl` 按工程 manifest 重建；综合、实现和时序结果保存在 `report/results/vivado_rebuild/`。B5/B6 是独立硬件配置。
 
 ```powershell
 # 在仓库根目录、Vivado 2024.2 命令行环境中分别运行
@@ -260,7 +260,7 @@ python scripts/verify/tools/difi_b6_three_types.py --board 192.168.1.10 --local-
 
 已归档 [B6 v0.2 板级串口记录](report/results/udp/rx/three_types_udp_rx.rtf)：Version 44 B×1 与 Context 108 B×1 由 PL Metadata Monitor 观测到有效握手各 1 次，检查 Sequence、Changed 与相关错误事件；Data 1052 B×20 经 PL Parser 恢复 20×256 IQ 样本，PS Golden 比对均正确，Sequence 覆盖 15→0。B6 v0.1 的 Data-only 历史日志另见 [`data_udp_rx.rtf`](report/results/udp/rx/data_udp_rx.rtf)，勿与 v0.2 混淆。**当前 Metadata 监测未逐字段将全部 Context/Version 值回读至 PS；未完成持续无 ACK 流的吞吐、丢包或同时双向运行验证。**
 
-[PC 三类发包器](scripts/verify/tools/difi_b6_three_types.py)依赖同目录 [Data 报文生成器](scripts/verify/tools/difi_b6_sender.py)；[B6 复现说明](scripts/vivado/B6_REPRODUCTION.md)与[阶段验收记录](report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md)给出独立重建、工具结果、文件指纹与开发者确认的板级 PASS，本阶段已经收束。
+[PC 三类发包器](scripts/verify/tools/difi_b6_three_types.py)依赖同目录 [Data 报文生成器](scripts/verify/tools/difi_b6_sender.py)；对应的 Vivado BD 快照和实现报告位于 `scripts/vivado/generated/b6_udp_rx/` 与 `report/results/vivado_rebuild/b6_udp_rx/`。
 
 ### 5.7 Wireshark 与 DIFI Consortium 参考验证
 
@@ -342,7 +342,6 @@ difi-engine/
 - **复现结论的范围**：三套真实 BD 快照、独立重建脚本、Vivado 综合/实现 PASS 均已入库；开发者已确认三套新工程的板级回归通过，B6 阶段正式收束。此结论不意味着无人工配置的一键部署、跨工具版本兼容性或独立第三方异机复现。
 - **性能换算证据**：板级 PMU 原始计数已归档，两项 MB/s 按开发者确认的约 666.667 MHz CPU 时钟换算。最终仍应将与该次 XSA/板级运行对应的 PS CPU 时钟配置证据独立归档；不要将软件 DMA 轮询测值视为纯 PL 峰值吞吐率。
 - **开源许可**：当前仓库根目录未包含 `LICENSE` 文件；若要允许第三方明确再分发，需先选定并加入 MIT 或 Apache-2.0 等许可，勿默认无 LICENSE 即可自由复用。
-- **授权与参赛发布计划**：详见[发布工作台](docs/release/publication_playbook.md)；许可证仍待权利人确认，尚未公开、合并 main 或冻结正式版本。
 
 ## 9. 参考标准与工具
 

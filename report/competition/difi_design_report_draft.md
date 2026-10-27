@@ -13,7 +13,7 @@
 
 在 XC7Z020CLG400-2 上，项目完成了 RTL 系统级仿真、BRAM 存储结构优化、封装 IP 的真实布局布线、Zynq PS/PL AXI DMA 板级数据回环与完整 DIFI 报文的 UDP 网络发送与接收解析。100 MHz 理想 RTL 回环测试中，100 个数据包 / 25,600 个 IQ 样本均正确，IQ 有效吞吐率为 **196.916 MB/s**。封装 IP 的已布线资源占用为 **1,776 LUT、2,309 FF、1 RAMB18、0 DSP**，Setup WNS **+0.411 ns**。B5 网络验证中，PC 端收到 **1 Version + 1 Context + 20 Data** 共 22 个 DIFI Packet，5,120 个 IQ 样本全部正确；DIFI Consortium 开源参考工具以 DIFI 1.1 模式检查上述 B5 三类报文，结果均为 PASS。新增 B6 网络接收链路中，PC 经 UDP 发送 Version×1、Context×1、Data×20；PL Metadata Monitor 记录 Version/Context 各一次有效握手，Data 经 FPGA RX Parser 恢复 **5,120 IQ** 且全部匹配，Sequence 经历 **15→0** 回绕。
 
-为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建**三套硬件工程**，完成综合、实现和 Bitstream/XSA 导出。B6 v0.2 独立重建 Setup WNS 为 **+2.372 ns**，Hold WHS 为 **+0.053 ns**；开发者于 2026-10-23 确认新 XSA 已完成三类 UDP RX 上板回归。三套 Tcl 和实现工具证据已归档；B6 独立重建 XSA 与 Bitstream SHA256 已记录在 `report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md`。基于上述 Vivado 实现数据、原始 B6 功能日志和开发者确认的重新上板结果，本阶段工程验证已完成。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
+为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建**三套硬件工程**，完成综合、实现和 Bitstream/XSA 导出。B6 v0.2 独立重建 Setup WNS 为 **+2.372 ns**，Hold WHS 为 **+0.053 ns**；开发者于 2026-10-23 确认新 XSA 已完成三类 UDP RX 上板回归。三套 Tcl 和实现工具证据已归档；B6 独立重建 XSA 与 Bitstream SHA256 已记录在 `report/results/vivado_rebuild/b6_udp_rx/` 中的实现报告。基于上述 Vivado 实现数据、原始 B6 功能日志和开发者确认的重新上板结果，本阶段工程验证已完成。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
 
 **关键词：** FPGA；Zynq-7000；DIFI 1.1；VITA 49.2；AXI4-Stream；AXI DMA；UDP；可复现构建
 
@@ -248,7 +248,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 | Context | 1 × 108 B | Metadata 有效握手计数 +1；Sequence/Changed/错误事件检查 | PASS |
 | Data | 20 × 1,052 B | DMA 恢复 20 × 256 = 5,120 IQ，PS Golden 对比；Sequence 15→0 | PASS |
 
-原始依据：[`report/results/udp/rx/three_types_udp_rx.rtf`](../results/udp/rx/three_types_udp_rx.rtf)；v0.1 单独 Data 回归记录：[`data_udp_rx.rtf`](../results/udp/rx/data_udp_rx.rtf)。**验证边界：** 未经 PS 逐字段回读核验 Version/Context 所有 Metadata；不声称 B6 已经获得 DIFI Consortium 第三方认证、并发全双工或无 ACK 连续传输性能。B6 已提交软件、RTL、真实 BD Tcl、原始与独立重建的实现报告；新 XSA 三类 UDP RX 板级回归由开发者确认成功，B6 本阶段验收已收束。见 [B6 工程复现清单](../../scripts/vivado/B6_REPRODUCTION.md)。
+原始依据：[`report/results/udp/rx/three_types_udp_rx.rtf`](../results/udp/rx/three_types_udp_rx.rtf)；v0.1 单独 Data 回归记录：[`data_udp_rx.rtf`](../results/udp/rx/data_udp_rx.rtf)。**验证边界：** 未经 PS 逐字段回读核验 Version/Context 所有 Metadata；不声称 B6 已经获得 DIFI Consortium 第三方认证、并发全双工或无 ACK 连续传输性能。B6 已提交软件、RTL、真实 BD Tcl、原始与独立重建的实现报告；新 XSA 三类 UDP RX 板级回归由开发者确认成功，B6 本阶段验收已收束。见 `scripts/vivado/generated/b6_udp_rx/` 工程快照。
 
 ### 6.4 DIFI Consortium 开源参考工具校验（仅 B5 TX 真实 PCAP）
 
@@ -270,7 +270,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 
 项目新增 `dashboard/` 中的 **DIFI ENGINE CONTROL CENTER**，使用 PySide6 / pyqtgraph，通过非阻塞 QProcess 对接既有 B5 UDP 接收验证和 B6 UDP 发送/ACK 校验程序，提供链路动画、三类 Packet 统计、Sequence 时间轴、IQ 波形、日志及会话结果导出。Re​​play/Offline 仅用于标注的离线演示样例。
 
-开发者于 2026-10-23 确认：**B5 UDP TX 与 B6 UDP RX 两种 Dashboard Live / Hardware 模式均已在实体开发板上运行成功，界面正常工作**。新增 GUI 的首次交付静态/离线 101 项自动化测试见 `dashboard/VALIDATION.md`，后续开发者实机确认见 `report/competition/dashboard_live_acceptance_20261023.md`。两者属于不同证据层次。
+开发者于 2026-10-23 确认：**B5 UDP TX 与 B6 UDP RX 两种 Dashboard Live / Hardware 模式均已在实体开发板上运行成功，界面正常工作**。Dashboard 可通过 `dashboard/tests/` 中的自动化测试检查，B5/B6 实机运行仍须使用对应的硬件配置。
 
 界面未改变 B5/B6 固定实验的 FPGA 硬件边界：B5 波形来自 PC 实收并验证的 Packet；B6 波形是发包脚本 Golden Reference，板卡 ACK 仅确认内部 IQ/Metadata 验证结果。B5/B6 需要切换各自 XSA 与 Vitis 程序，**不是**单套 XSA 同时全双工运行，也不是 GUI 任意自定义 Packet 生成/实时返回能力。演示录制安排见 `report/competition/demo_plan.md`。
 
@@ -288,7 +288,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 | 重建 XSA | 已生成 | 已生成 | 已生成 |
 | 新重建工程上板回归 | 开发者确认通过 | 开发者确认通过 | 开发者于 2026-10-23 确认三类 UDP RX PASS |
 
-证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export,b6_udp_rx}/SUCCESS.txt` 及各自实现报告。**证据边界：** B6 `SUCCESS.txt` 在板级回归前生成，内部“未上板”属于原始工具状态，不作篡改；开发者后续确认的板级 PASS 记录于 `report/results/vivado_rebuild/b6_udp_rx/BOARD_REGRESSION_STATUS.md`。B6 重建 XSA 与 Bitstream 的 SHA256 已归档；结合工具 PASS 和开发者确认的板级回归，本阶段验收完成。原始工具日志和早期 UART 文件保留各自真实的测试时间线。
+证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export,b6_udp_rx}/SUCCESS.txt` 及各自实现报告。**证据边界：** B6 `SUCCESS.txt` 在板级回归前生成，内部“未上板”属于原始工具状态，不作篡改；开发者后续确认的板级 PASS 记录于 `report/results/vivado_rebuild/b6_udp_rx/` 中的实现报告。B6 重建 XSA 与 Bitstream 的 SHA256 已归档；结合工具 PASS 和开发者确认的板级回归，本阶段验收完成。原始工具日志和早期 UART 文件保留各自真实的测试时间线。
 
 ## 8. 大模型协作过程与纠错记录（专项附录 v0.1）
 
@@ -300,7 +300,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 4. **Vivado Tcl 重建（C04）**：修复 Tcl 环境命令可用性误判；封装 IP、B5 和 B6 三套独立工程均生成 Bitstream/XSA、时序 PASS，开发者确认板级功能回归通过，本阶段验证结束。
 5. **UDP 参考工具（C05）**：22 包真实 UDP 验证、不同 Stream ID 分流使用 DIFI Consortium 参考工具，三类报文均通过本轮参考检查。
 
-为保证 AI 协作证据的真实性，报告将**聊天逐字记录（E1）、Git 代码与提交（E2）、真实实验日志（E3）、事后技术复盘（E4）**分开。当前 E2/E3 证据较完整，但五个案例的原始多轮 AI 聊天尚待集中导出，不将历史摘要改写为模型逐字原话。具体关联 Git SHA、文件路径、原始数据及缺失项见 [`evidence_index.csv`](../ai_collaboration/evidence_index.csv)，留档要求见 [`report/ai_collaboration/README.md`](../ai_collaboration/README.md)。
+为保证 AI 协作证据的真实性，报告将**聊天逐字记录（E1）、Git 代码与提交（E2）、真实实验日志（E3）、事后技术复盘（E4）**分开。当前 E2/E3 证据较完整，但五个案例的原始多轮 AI 聊天尚待集中导出，不将历史摘要改写为模型逐字原话。具体关联 Git SHA、文件路径、原始数据及缺失项关联的代码、实验日志和案例资料见 [`evidence_index.csv`](../ai_collaboration/evidence_index.csv)。
 
 **当前阶段结论：** 已形成可审查的协作案例和工程证据索引；尚不能称 AMD 所要求的“完整原始 AI 交互记录”已经全部提交。Skill 通用部分亦按此前计划留待统一验收。
 
@@ -346,7 +346,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 - [x] 四个 Skill 的初始内容。
 - [ ] Skill 的统一验收及交叉项目复用测试。
 - [ ] 大模型真实协作记录和失败→修复→验证的逐例证据。
-- [x] B6 独立重建 XSA、Bitstream SHA256 已记录在 `BOARD_REGRESSION_STATUS.md`；B6 的独立重建与板级回归阶段已完成。
+- [x] B6 实现与重建结果已保存至 `report/results/vivado_rebuild/b6_udp_rx/`。
 - [ ] 文献/开源方案对比与参考文献、图片标注及最终校对。
 - [ ] 最终 Git Commit SHA/Tag、开源许可证及目录命名检查。
 
