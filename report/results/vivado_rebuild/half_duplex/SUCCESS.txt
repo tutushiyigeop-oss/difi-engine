@@ -1,9 +1,0 @@
-Stage D tool result: PASS (NOT board tested)
-Vivado: 2024.2
-Part: xc7z020clg400-2
-Top: difi_ip_test_wrapper
-WNS: 2.093 ns
-WHS: 0.052 ns
-Bitstream: D:/Study/project/DIFI/vivado/rebuilt/half_duplex/difi_stage_d_half_duplex.runs/impl_1/difi_ip_test_wrapper.bit
-XSA: D:/Study/project/DIFI/vivado/rebuilt/half_duplex/stage_d_half_duplex.xsa
-Next gates: Vitis DMA0 RX test, Vitis DMA1 TX test, same XSA without re-download, no concurrent transfer.

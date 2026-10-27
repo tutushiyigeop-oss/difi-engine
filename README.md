@@ -6,9 +6,8 @@
 
 [架构与功能](#1-项目概述) · [实测结果](#2-验证状态与实测结果) · [快速复现](#5-快速复现) · [文件索引](#7-仓库目录与提交物对照) · [限制与待办](#8-已知限制与后续工作)
 
-**Windows 桌面演示台：** [DIFI ENGINE CONTROL CENTER](dashboard/README.md) 使用 PySide6 + pyqtgraph 集成现有 B5/B6 校验工具，提供链路动画、逐包统计、IQ 波形、日志与会话导出；默认 Replay / Offline，无开发板也可演示。安装 `dashboard/requirements.txt` 后运行 `python dashboard/main.py`，硬件模式仅在点击 Run 后通信。**2026-10-23 开发者已确认 B5 UDP TX 和 B6 UDP RX 两种 Dashboard Live / Hardware 模式均成功上板运行，本阶段集成验证完成**；见[实机验收记录](report/competition/dashboard_live_acceptance_20261023.md)。
+**Windows 桌面演示台：** [DIFI ENGINE CONTROL CENTER](dashboard/main.py) 使用 PySide6 + pyqtgraph 集成现有 B5/B6 校验工具，提供链路动画、逐包统计、IQ 波形、日志与会话导出；默认 Replay / Offline，无开发板也可演示。安装 `dashboard/requirements.txt` 后运行 `python dashboard/main.py`，硬件模式仅在点击 Run 后通信。**2026-10-23 开发者已确认 B5 UDP TX 和 B6 UDP RX 两种 Dashboard Live / Hardware 模式均成功上板运行，本阶段集成验证完成**；见[实机验收记录](report/competition/dashboard_live_acceptance_20261023.md)。
 
-**2026-10-25 Stage D 升级：** [交互式半双工使用指南](dashboard/STAGE_D_GUIDE.md) 提供 v0.3 兼容、自定义 Packet/IQ、实际 TX/RX 字节比较和独立 v0.4 固件。Stage D 的 Live 通信由明确点击 Connect/命令触发；软件测试和固件编译已通过，新增 GUI Live 与 v0.4 尚待实体板验收，详见[升级验证记录](dashboard/STAGE_D_VALIDATION.md)。
 
 ## 1. 项目概述
 

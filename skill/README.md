@@ -1,19 +1,19 @@
-# 可复用技能包（Skill Library）
+# 可复用 Skill 使用说明
 
-本目录依据 AMD 自主选题赛道关于 Skill 沉淀的要求，汇总在真实 DIFI 工程开发与大模型协作中提炼的工作流、模板、脚本和失败条件。**四个 Skill 均已制作完成；本轮暂缓统一真实工程/跨项目验收。**
+本目录提供四个可以独立阅读和调用的工程 Skill。每个 Skill 的 `SKILL.md` 是主要使用入口，具体脚本及模板位于其 `scripts/`、`templates/` 和 `examples/` 目录。
 
-| Skill | 范围与入口 | 已具备的证据 | 仍待完成 |
-| --- | --- | --- | --- |
-| [`vivado-rebuild`](vivado-rebuild/SKILL.md) | BD Tcl 导出、依赖审计、空目录重建、实现与 XSA | DIFI **专用脚本**两套真实工程工具构建与开发者确认的板级回归；新通用模板有静态/模拟检查 | 新通用模板在真实 Vivado 工程、跨项目及异机环境中实测 |
-| [`zynq-dma-debug`](zynq-dma-debug/SKILL.md) | AXI DMA Simple Mode、S2MM/MM2S、缓存、TLAST、日志诊断 | DIFI 原有 DMA 代码已上板；Skill 离线 Python 工具测试 | 新通用 C 模板 Vitis 编译及其他项目复用 |
-| [`axis-rtl-verification`](axis-rtl-verification/SKILL.md) | AXI4-Stream 握手、背压、TLAST、Golden/Scoreboard、错误注入 | DIFI 原有 RTL Testbench；Skill 离线 CSV 检查器测试 | Skill 自带示例/错误 RTL 的 Icarus 实测和跨项目复用 |
-| [`udp-packet-validation`](udp-packet-validation/SKILL.md) | UDP 监听、PCAP、数据长度/序列/Golden 校验，DIFI 示例适配 | DIFI 原有 B5 UDP 22 包、5120 IQ 与第三方参考工具记录；Skill 合成测试 | 新通用 UDP 工具接入真实板级链路及跨项目复用 |
+| Skill | 使用场景 | 入口 |
+| --- | --- | --- |
+| Vivado Rebuild | 导出 Block Design、检查依赖、从干净目录重建工程、生成 Bitstream/XSA | [vivado-rebuild/SKILL.md](vivado-rebuild/SKILL.md) |
+| Zynq DMA Debug | AXI DMA Simple Mode、Cache、一致性及 TLAST 故障排查 | [zynq-dma-debug/SKILL.md](zynq-dma-debug/SKILL.md) |
+| AXIS RTL Verification | 握手、背压、报文边界、Golden Model 与故障注入 | [axis-rtl-verification/SKILL.md](axis-rtl-verification/SKILL.md) |
+| UDP Packet Validation | UDP 捕获、PCAP、二进制字段解析与 DIFI 报文校验 | [udp-packet-validation/SKILL.md](udp-packet-validation/SKILL.md) |
 
-## 使用与证据边界
+## 使用步骤
 
-1. 每个 Skill 均从其 `SKILL.md` 开始阅读，配有使用方法、适用场景和失效条件，必要时参阅 `README.md`、`examples/`、`tests/`。
-2. **原 DIFI 项目已通过**不等于 **新通用 Skill 已完成真实/跨项目验证**。离线单元测试也不等同于板级实测。
-3. AI 对话与纠错轨迹另在 [`report/ai_collaboration/`](../report/ai_collaboration/) 归档；当前仍需补齐完整原始交互。
-4. `bd.tcl` 与 `manifest.tcl` 是可执行 Tcl，运行前应审查并只使用可信仓库内容；自定义 IP、外部约束和第三方工具按许可证和实际环境另行核实。
+1. 选择适合问题的 Skill，阅读相应 `SKILL.md` 中的输入要求、命令和适用边界。
+2. 按文档说明准备工具链、工作目录及输入文件；先阅读命令参数，再运行对应的 `scripts/`。
+3. 按需要引用 `templates/` 与 `examples/`，将工程相关的寄存器地址、Stream ID、器件型号替换为目标项目的实际值。
+4. 将生成的日志、输出文件、工具版本和使用的参数保存在自己的工程记录中。
 
-统一验收完成后再更新每个 Skill 的真实结果，并汇总为 `report/skill_validation_report.md`。不要在现阶段写“全部 Skill 已验收通过”。
+注意：Vivado Tcl 和其他外部脚本可能执行文件操作，运行前检查来源及目标目录。不要在未经备份的唯一工程副本上直接执行重建或覆盖操作。
