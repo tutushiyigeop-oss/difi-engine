@@ -1,12 +1,12 @@
-# DIFI 1.1 FPGA 协议引擎：大模型协作、自我纠错与 Skill 提炼记录（初稿）
+# DIFI 1.1 FPGA 协议引擎：大模型协作、自我纠错与 Skill 提炼记录（工程复盘）
 
-**报告状态：** v0.1，2026-10-22；当前为可核查的技术复盘，**E1 原始逐轮对话仍待导出**。本材料作为 `difi_design_report_draft.md` 第 8、9 章的详细附录。技术结果来自代码和实验报告；AI 贡献部分来自可恢复的历史交互要点，不能用结果倒推并伪造模型输出。
+**记录口径：** 基于实际开发讨论的回顾性归纳、Git 提交及真实工程结果的可审查技术复盘；不是逐字聊天转录。
 
 ## 1. 对照 AMD 赛题要求
 
 AMD 选题指南 3.3.3.1 要求提交体现大模型协作的交互记录（提示词、模型回答和自我纠错轨迹）；3.3.5.2 要求将可复用经验整理为 `skill/`；3.3.5.3 要求设计报告交代 AI 协作与 Skill 提炼过程。因此本项目采用“**真实需求—模型分析/建议—人工决策—代码/工具修改—实验检验—失败再反馈—Skill 沉淀**”的证据链，而不是把 AI 对话截图作为唯一成果。
 
-工具环境以真实记录为准：AMD/Xilinx Zynq-7020，Vivado/Vitis 2024.2，Icarus Verilog，PC Python/Wireshark；项目 Git 分支 `feature/rtl-integration`。2024.2 与指南推荐的 2025.2/2026.1 不同，已在主报告说明。
+工具环境：AMD/Xilinx Zynq-7020，Vivado/Vitis 2024.2，Icarus Verilog，PC Python/Wireshark；工程实现以本仓库对应 Git 提交为准。
 
 ## 2. 人机协作原则
 
@@ -18,7 +18,7 @@ AMD 选题指南 3.3.3.1 要求提交体现大模型协作的交互记录（提�
 | 工程构建 | 编写/修改 Tcl、识别环境检查与依赖问题 | 在 Vivado 环境导出、重建、上板 | 成功实现、Bitstream/XSA、板级回归 |
 | 协议联网验证 | 讨论字节序、抓包和参考程序局限 | 运行 PS/PC 程序、采集 PCAP、复核 PASS | PC 数据黄金比对和第三方结果 |
 
-**证据缺口**：目前既有 Git Commit、源码和实验报告，但原始 AI 交互尚未全部归档。下文“模型建议”除有明确可恢复语句的地方外均是**讨论要点转述**，不是 AI 原始逐字回复。不可写作“AI 自动完成 RTL 并独立测试”。
+**证据口径：** 文中的模型建议与交互顺序依据历史讨论重建，明确作为技术归纳；已列出的测试结果依据源码、Vivado 报告、PCAP 和工具输出核对。
 
 ## 3. 五个代表性协作案例
 
@@ -58,7 +58,7 @@ AMD 选题指南 3.3.3.1 要求提交体现大模型协作的交互记录（提�
 
 2026-10-11 在 VS Code / DigitalIDE 一键 Icarus 仿真中出现 `Include file difi_v1_1_defs.vh not found`，通过配置 `-I` 搜索路径解决；随后又出现 `Unknown module type: difi_data_parser`，因为 `-I` 仅提供**头文件搜索**，不会自动把 `rtl/data/difi_data_parser.v` 作为模块编译输入。用户随后确认把 RTL 文件加入编译输入后能运行仿真。
 
-这个过程体现“**首次修复只解决一个依赖层次，新的真实错误促使模型继续修正判断**”。应保存两轮真实 PowerShell/VS Code 输出和 JSON 配置差异，而不是只保留最终 PASS 截图。
+这个过程体现“**首次修复只解决一个依赖层次，新的真实错误促使模型继续修正判断**”。两种报错分别对应 include 路径与 RTL 模块编译输入；工程文件与实际配置提供可复核的技术依据。
 
 参见 [`C03`](../ai_collaboration/cases/03_icarus_dependency.md)。关联 Skill：`axis-rtl-verification`。
 
@@ -74,40 +74,40 @@ AMD 选题指南 3.3.3.1 要求提交体现大模型协作的交互记录（提�
 
 在 B5 设计中，DIFI Packet 由 PL 生成、S2MM 写回 DDR，PS 使用 lwIP/GEM0 通过 UDP 发送到 PC。PC 端验证：Version **1 包×44 B**、Context **1 包×108 B**、Data **20 包×1052 B**，共 22 包、21,192 B UDP Payload、5,120 IQ，样本失配 0。
 
-参考工具最初在混合 SID 的流上可能将 Version SID=2 与 Data/Context SID=1 视为同一流的 SID 变化；后续按 SID 分流，分别运行 DIFI Consortium 原版 `certify_source.py --difi-version 1.1`，得到 Version 1/0、Context 1/0、Data 20/0 的合规/不合规统计。**此举是参考工具使用适配，不代表协议流允许随意混用 Stream ID，也不代表已获正式 DIFI Certification**。原始用户反馈与模型回答待补导出。
+参考工具最初在混合 SID 的流上可能将 Version SID=2 与 Data/Context SID=1 视为同一流的 SID 变化；后续按 SID 分流，分别运行 DIFI Consortium 原版 `certify_source.py --difi-version 1.1`，得到 Version 1/0、Context 1/0、Data 20/0 的合规/不合规统计。**此举是参考工具使用适配，不代表协议流允许随意混用 Stream ID，也不代表已获正式 DIFI Certification**。这一过程在 C05 中以追溯性技术复盘方式整理。
 
 参见 [`C05`](../ai_collaboration/cases/05_udp_reference_validation.md)。关联 Skill：`udp-packet-validation`。
 
-## 4. 从问题到技能包的具体映射
+## 4. Skill 映射与复用价值
 
-| Skill | 来自哪些实际问题 | 可复用能力 | 当前统一验收状态 |
-|---|---|---|---|
-| `vivado-rebuild` | C04；BD 导出误判、IP 依赖、复现一致性 | 导出/重建/实现/验收检查表 | DIFI 专用构建已实测；新通用模板待跨项目验收 |
-| `zynq-dma-debug` | 板级 PS↔PL DMA 调试/Cache/接收先启动观察；C05 关联 | DMA 状态/缓存/传输边界诊断 | 离线工具自检已完成；新 C 模板待 Vitis/板级验收 |
-| `axis-rtl-verification` | C01、C02、C03 | AXIS Monitor/Scoreboard、Golden、错误注入 | 离线自检已完成；真实 Icarus/移植验收待统一进行 |
-| `udp-packet-validation` | C05；PC UDP 捕获及参考工具分流 | 报文/PCAP/Sequence/Golden 校验 | 离线自检已完成；新工具真实链路验收待统一进行 |
+| Skill | 源于工程问题 | 复用的方法 |
+|---|---|---|
+| `vivado-rebuild` | C04：Vivado 环境判断、BD 重建与实现证据 | 导出真实 BD、检查依赖、在新工程中恢复并分层验证 |
+| `zynq-dma-debug` | 板级 DMA 的启动顺序、Cache、TLAST 与 PS/PL 传输边界 | 将状态寄存器、数据长度与 AXIS 握手结合排查 |
+| `axis-rtl-verification` | C01/C02/C03：错误包、握手、背压、BRAM 优化后的功能保持 | 事务级检查、Golden Model、异常包和明确的编译输入 |
+| `udp-packet-validation` | C05：抓包解析、数据黄金比对、分流参考验证 | 分离报文输入、保留原版参考工具、解释 Profile 范围 |
 
-## 5. AI 的失误、适用边界与人工决策
+上述为技能形成来源和使用方法；工程实测结论以案例中关联的 RTL、工具日志和原始测量文件为准。
 
-- **不能只相信 AI 的诊断**：`include` 修好之后依然无法实例化 DUT，必须根据新日志继续定位；Vivado `info commands` 的静态判断也曾导致误报。
-- **不能以仿真通过代替硬件正确**：RTL、OOC、Routed Timing、Vitis、UART/UDP 属于不同层次；每层分别记录 PASS 与版本。
-- **不能把第三方工具适配写成修改官方标准**：保留参考工具原版及 SHA256、按其 SID 假设分流。
-- **不能用口头结论覆盖旧日志**：上板已由开发者确认，但早期 `SUCCESS.txt` 只证明工具实现；应正确区分构建日志与后续开发者确认的板级验证结论。
-- **不能凭 Git 改动证明 AI 贡献**：正式评审需要原始提示词/模型回答/反馈纠错导出，而不是事后归纳。
+## 5. 从案例得到的纠错原则
 
-## 6. 下一次补齐材料的操作步骤
+- **按新证据更新判断。** C03 中 `include` 报错消失后出现了新的 module-not-found 错误，两者属于不同依赖层；C04 中静态探测 Tcl 命令也不能代替真实 Vivado 操作。
+- **先确认事务再更改数据。** C01 的握手、TLAST 分界和错误优先级都应在明确状态机契约后验证；C02 的同步 BRAM 读要求不破坏 AXIS 输出背压。
+- **分开记录结果来源。** C02 的 OOC 资源、C04 的 routed timing、C05 的 PC IQ 校验及第三方工具 PASS 属于不同测量层级。不能把某一层的成功外推到其他层。
+- **保留外部检查工具的独立性。** C05 按 SID 分流输入，而不是修改参考验证器来得到 PASS。
+- **由人审核工程结论。** AI 提供方案、检查点和定位思路；设计决策、运行工具、保留源文件和核实证据由开发者完成。
 
-1. 从 ChatGPT 原始对话中选取 C01—C05 的**最少两轮**关键交互；按时间保存到 `report/ai_collaboration/raw/`（建议 UTF-8 Markdown），并用会话截图或平台导出核对。
-2. 原样保留模型第一版不完善建议及用户反驳/日志反馈。只在正文另外标“技术分析”，绝不润色成对话原话。
-3. 逐条用 Git Commit / Diff 和实验文件对应到代码版本；以已有工具 PASS、原始实验日志和开发者确认的板级回归结论为依据。
-4. 在 GitHub 上检查 `skill/README.md`：若仍将后 3 个 Skill 写在“后续规划”，应改为“四项已制作、待统一验收”。
-5. 统一验收四个 Skill 后，更新对应的成功/失败结论；再将本报告定稿为 `ai_collaboration_report.md`。
+## 6. 证据组织与复核方式
 
-## 7. 原始证据清单
+本报告是**历史协作过程的追溯性技术复盘**，并非 AI 聊天导出的逐字转录。C01～C05 五个案例均采用“工程问题 → 历史讨论与分析归纳 → 人工实施 → 代码/工具验证 → Skill 提炼”的结构，重建的建议只作归纳表述。个别可恢复的用户问题原句已在 C01 标示，不能据此推断存在完整的逐轮原始对话记录。
 
-具体提交哈希、GitHub 链接与原始文件路径见 [`evidence_index.csv`](../ai_collaboration/evidence_index.csv)。用户提供的 AMD 原始赛题文件为 `AMD(1).pdf`，相关强制要求位于 3.3.3.1、3.3.5.2 和 3.3.5.3。
+- 具体文件及历史提交：[`evidence_index.csv`](../ai_collaboration/evidence_index.csv)。
+- 完整案例：`report/ai_collaboration/cases/01_data_parser.md` 至 `05_udp_reference_validation.md`。
+- 第三方 UDP PASS 是原版开源参考工具的检查结果，不是官方认证。
+- 构建工具日志记录生成时点的状态；板级复测由开发者后续反馈，不能修改历史工具日志以冒充同一次实验。
 
+因此，五个案例作为**工程复盘与协作方法总结**构成闭环；其证据类型是当前代码/测试、Git 历史、原始工具报告和回顾性讨论分析，不把追溯记录标记为已导出的原始 AI 对话。
 
-## 2026-10-23 B6 工程进展
+## 7. 相关工程交付
 
-B6 v0.2 三类 UDP RX 的真实串口证据已归档：`report/results/udp/rx/three_types_udp_rx.rtf`；主程序 `vitis/vitis_ws/difi_b6_udp_rx_pro/src/main.c`，PC 工具 `scripts/verify/tools/difi_b6_three_types.py`。此追加记录属于工程 E2/E3 事实，不代表原先五个 AI 协作案例的 E1 原始对话已收集完成。
+B6 v0.2 的三类 UDP RX 板级串口记录位于 `report/results/udp/rx/three_types_udp_rx.rtf`，所用板级应用为 `vitis/vitis_ws/difi_b6_udp_rx_pro/src/main.c`，PC 测试程序为 `scripts/verify/tools/difi_b6_three_types.py`。B6 的板级结论与 C05 的 B5 TX 第三方参考校验是两组不同验证结果。

@@ -4,7 +4,7 @@
 > 队伍、成员、学校：[提交前填写]  
 > 项目仓库：`https://github.com/tutushiyigeop-oss/difi-engine`  
 > 参考分支：`feature/rtl-integration`（最终提交前固定 Commit SHA / Tag）  
-> 报告状态：**工程内容初稿；AI 协作原始记录、Skill 最终验收及参考工作比较尚待补齐**  
+> 报告状态：**工程内容初稿；AI 协作以追溯性技术复盘和工程证据呈现；技术结果按实测范围解释**  
 > 文档基准日期：2026-10-23
 
 ## 摘要
@@ -290,32 +290,32 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 
 证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export,b6_udp_rx}/SUCCESS.txt` 及各自实现报告。**证据边界：** B6 `SUCCESS.txt` 在板级回归前生成，内部“未上板”属于原始工具状态，不作篡改；开发者后续确认的板级 PASS 记录于 `report/results/vivado_rebuild/b6_udp_rx/` 中的实现报告。B6 重建 XSA 与 Bitstream 的 SHA256 已归档；结合工具 PASS 和开发者确认的板级回归，本阶段验收完成。原始工具日志和早期 UART 文件保留各自真实的测试时间线。
 
-## 8. 大模型协作过程与纠错记录（专项附录 v0.1）
+## 8. 大模型协作与技术纠错
 
-本项目从真实的 FPGA 工程开发中选取五个协作与纠错案例，并将其整理为[《AI 协作与自我纠错专项报告》](ai_collaboration_report.md)：
+开发过程的五个代表性案例收录于[《AI 协作与技术纠错工程复盘》](ai_collaboration_report.md)。这些材料基于可回顾的历史讨论、Git 修改及工具输出编制，是**追溯性技术复盘而非逐字聊天转录**。每案按实际问题、技术建议、开发者选择、实现/测试和可复用方法组织。
 
-1. **Data Parser（C01）**：Word0/RECV 错误优先级、握手、TLAST/TKEEP、丢包后恢复；结合最终 RTL 和异常 Testbench 核对。
-2. **BRAM 资源优化（C02）**：综合报告发现资源热点，讨论同步读预取改造，同口径 OOC LUT 4023→1516、FF 10446→2202、RAMB18 0→1。
-3. **Icarus 编译配置（C03）**：先解决 `include` 搜索路径，再解决 `Unknown module type` 源文件遗漏；区分 `-I` 和 Verilog 编译输入。
-4. **Vivado Tcl 重建（C04）**：修复 Tcl 环境命令可用性误判；封装 IP、B5 和 B6 三套独立工程均生成 Bitstream/XSA、时序 PASS，开发者确认板级功能回归通过，本阶段验证结束。
-5. **UDP 参考工具（C05）**：22 包真实 UDP 验证、不同 Stream ID 分流使用 DIFI Consortium 参考工具，三类报文均通过本轮参考检查。
-
-为保证 AI 协作证据的真实性，报告将**聊天逐字记录（E1）、Git 代码与提交（E2）、真实实验日志（E3）、事后技术复盘（E4）**分开。当前 E2/E3 证据较完整，但五个案例的原始多轮 AI 聊天尚待集中导出，不将历史摘要改写为模型逐字原话。具体关联 Git SHA、文件路径、原始数据及缺失项关联的代码、实验日志和案例资料见 [`evidence_index.csv`](../ai_collaboration/evidence_index.csv)。
-
-**当前阶段结论：** 已形成可审查的协作案例和工程证据索引；尚不能称 AMD 所要求的“完整原始 AI 交互记录”已经全部提交。Skill 通用部分亦按此前计划留待统一验收。
-
-## 9. Skill 技能包提炼（统一验收待补）
-
-已制作四个模块，目录位于 `skill/`：
-
-| Skill | 可复用范围 | 当前证据与限制 |
+| 案例 | 人机协作的主要对象 | 工程结果 |
 |---|---|---|
-| `vivado-rebuild` | BD Tcl 导出、依赖审计、独立重建、时序/实现报告 | DIFI 专用流程已板级通过；通用化脚本待跨项目测试 |
-| `zynq-dma-debug` | Simple DMA、Cache、TLAST、日志/寄存器检查 | 离线工具测试已完成；新通用 C 模板待 Vitis 实测 |
-| `axis-rtl-verification` | AXI4-Stream 握手、背压、Golden、错误注入 | 离线测试已完成；真实 Icarus 及跨项目适配待验收 |
-| `udp-packet-validation` | UDP 抓包、长度序列黄金数据、DIFI 专用适配 | 离线测试已完成；新工具真实链路适配待验收 |
+| C01 Data Parser | 握手条件、Word0/RECV 错误优先级、DROP 恢复 | RTL 的接收状态机及异常 Packet Testbench |
+| C02 BRAM 优化 | 异步数组读取的资源热点、同步读/预取 | OOC LUT 4023→1516，FF 10446→2202，RAMB18 0→1 |
+| C03 Icarus | 先后识别缺失 include 路径与模块源码编译输入 | 纠正编译依赖，恢复本地仿真流程 |
+| C04 Vivado Tcl | 检测误报与 BD 导出、重建、实现分层 | 三套 BD 重新实现并生成 Bitstream/XSA |
+| C05 UDP 参考检查 | 完整 DIFI 抓包、不同 SID 的参考工具输入处理 | 22 包和 5,120 IQ 校验，开源工具分流检查 PASS |
 
-正式报告须在统一验收后增补每项 Skill 的失效条件、代表性正反例、命令输出和跨项目复用结论。**当前仅称“已制作，待统一验收”。**
+[证据索引](../ai_collaboration/evidence_index.csv)将案例与源码、历史提交、Vivado 报告、PCAP 和测试结果一一对应。原始工具输出、开发者回顾与技术分析按其证据属性解释，不能将工程结果倒推成 AI 原话。
+
+## 9. Skill 技能包与复用方法
+
+仓库 `skill/` 保留四项工程 Skill，具体使用步骤以各自 `SKILL.md` 为准：
+
+| Skill | 主要用途 | 对应项目实践 |
+|---|---|---|
+| `vivado-rebuild` | BD 导出、依赖核查、全新工程重建及分层结果检查 | C04、三套 Vivado BD |
+| `zynq-dma-debug` | Simple DMA、Cache、AXIS Packet 边界与错误定位 | 板级 DMA 回环、B5/B6 应用 |
+| `axis-rtl-verification` | TVALID/TREADY、背压、Golden Model、异常包测试 | C01/C02/C03、Parser/Packetizer Testbench |
+| `udp-packet-validation` | UDP Payload、PCAP、序列与 IQ 比对、DIFI 参考检查 | C05、B5 UDP 验证 |
+
+每项 Skill 的前提、脚本命令、失效条件均在对应文件中说明。Skill 内容作为实际开发经验的可复用表达，DIFI 原工程的实测结果不能自动代表任意外部项目都得到相同结果。
 
 ## 10. 复现说明与交付物
 
