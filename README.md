@@ -300,7 +300,6 @@ ip.src == 192.168.1.10 && ip.dst == 192.168.1.20 && udp.dstport == 4991
 | 分流后的第三方验证输入 | [`report/results/udp/tx/difi_b5_udp_version_only.pcapng`](report/results/udp/tx/difi_b5_udp_version_only.pcapng)、[`difi_b5_udp_context_data.pcapng`](report/results/udp/tx/difi_b5_udp_context_data.pcapng) |
 | 参考工具校验输出与截图 | [`report/results/udp/tx/consortium/`](report/results/udp/tx/consortium/)、[`report/results/udp/tx/screenshots/`](report/results/udp/tx/screenshots/) |
 | UDP 验证文字记录 | [`report/results/udp/tx/validation_notes.md`](report/results/udp/tx/validation_notes.md) |
-| 历史分阶段的工具/验证归档 | [`verification/`](verification/) |
 
 ## 7. 仓库目录与提交物对照
 
@@ -311,7 +310,6 @@ difi-engine/
 ├── sim/                  # 模块与系统 Testbench、仿真向量、性能测试
 ├── vitis/vitis_ws/       # 各阶段应用的 src/*.c / *.h（生成工作区被忽略）
 ├── scripts/              # RTL/Vivado Tcl、Python 验证、绘图与审查脚本
-├── verification/         # 旧阶段的 PCAP、标准校验与记录
 ├── report/results/       # RTL、封装 IP、B4/B5 与 B6 TX/RX UDP 证据
 ├── report/competition/   # 设计报告初稿、AI 协作复盘、量化证据索引（尚待终验）
 ├── docs/                 # 接口规格及开发备注
@@ -325,7 +323,7 @@ difi-engine/
 | 官方推荐类型 | 本仓库位置 |
 | --- | --- |
 | 源码 `src/` | `rtl/`、`vitis/vitis_ws/*/src/`、`ip_repo/` |
-| 仿真与验证 `sim/` | `sim/`、`scripts/verify/`、`verification/` |
+| 仿真与验证 `sim/` | `sim/`、`scripts/verify/` |
 | 构建文件与实现报告 `build/` | `scripts/vivado/{export_bd,rebuild_bd,verify_rebuilt_impl}.tcl`、`scripts/vivado/generated/`、`ip_repo/`、`report/results/vivado_rebuild/` |
 | 上板工程与证据 `board/` | `rtl/board/`、`vitis/vitis_ws/`、`report/results/` |
 | 测试数据 `data/` | `sim/vectors/`、`report/results/perf/`、`report/results/udp/` |
