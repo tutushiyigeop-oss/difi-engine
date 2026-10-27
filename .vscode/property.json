@@ -10,11 +10,11 @@
     "device": "none",
     "arch": {
         "structure": "custom",
-        "prjPath": "D:/Study/project/DIFI/prj",
+        "prjPath": ".",
         "hardware": {
-            "src": "D:/Study/project/DIFI/rtl",
-            "sim": "D:/Study/project/DIFI/sim",
-            "data": "D:/Study/project/DIFI/constraints"
+            "src": "./rtl",
+            "sim": "./sim",
+            "data": ""
         },
         "software": {
             "src": "",
@@ -24,27 +24,27 @@
     "iverilogCompileOptions": {
         "standard": "2005",
         "includes": [
-            "D:/Study/project/DIFI/rtl/include",
-            "D:/Study/project/DIFI/rtl/common",
-            "D:/Study/project/DIFI/rtl/context",
-            "D:/Study/project/DIFI/rtl/data",
-            "D:/Study/project/DIFI/rtl/rx",
-            "D:/Study/project/DIFI/rtl/tx",
-            "D:/Study/project/DIFI/rtl/version",
+            "./rtl/include",
+            "./rtl/common",
+            "./rtl/context",
+            "./rtl/data",
+            "./rtl/rx",
+            "./rtl/tx",
+            "./rtl/version",
 
-            "D:/Study/project/DIFI/rtl/common/difi_cfg_regs.v",
-            "D:/Study/project/DIFI/rtl/context/difi_context_generator.v",
-            "D:/Study/project/DIFI/rtl/context/difi_context_parser.v",
-            "D:/Study/project/DIFI/rtl/data/difi_data_packetizer.v",
-            "D:/Study/project/DIFI/rtl/data/difi_data_parser.v",
-            "D:/Study/project/DIFI/rtl/rx/difi_rx_dispatch.v",
-            "D:/Study/project/DIFI/rtl/tx/difi_tx_scheduler.v",
-            "D:/Study/project/DIFI/rtl/version/difi_version_generator.v",
-            "D:/Study/project/DIFI/rtl/version/difi_version_parser.v",
-            "D:/Study/project/DIFI/rtl/top/difi_engine_top.v",
-            "D:/Study/project/DIFI/rtl/common/difi_periodic_trigger_gen.v",
-            "D:/Study/project/DIFI/rtl/common/difi_time_source.v",
-            "D:/Study/project/DIFI/rtl/common/difi_time_cfg_regs.v"
+            "./rtl/common/difi_cfg_regs.v",
+            "./rtl/context/difi_context_generator.v",
+            "./rtl/context/difi_context_parser.v",
+            "./rtl/data/difi_data_packetizer.v",
+            "./rtl/data/difi_data_parser.v",
+            "./rtl/rx/difi_rx_dispatch.v",
+            "./rtl/tx/difi_tx_scheduler.v",
+            "./rtl/version/difi_version_generator.v",
+            "./rtl/version/difi_version_parser.v",
+            "./rtl/top/difi_engine_top.v",
+            "./rtl/common/difi_periodic_trigger_gen.v",
+            "./rtl/common/difi_time_source.v",
+            "./rtl/common/difi_time_cfg_regs.v"
         ]
     }
 }

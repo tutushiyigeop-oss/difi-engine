@@ -44,17 +44,16 @@ description: >-
 # 离线测试（本 Skill）
 python -m unittest discover -s skill/udp-packet-validation/tests -v
 
-# PC 端已捕获的 22 包二进制（只检查 DIFI B5 特定向量）
-python skill/udp-packet-validation/scripts/difi_b5_validate.py `
-  --capture-bin report/results/udp/difi_udp_capture.bin
+# 将仓库实际提供的 B5 pcapng 转换为 classic PCAP（需要 TShark）
+tshark -r report/results/udp/tx/difi_b5_udp_22.pcapng -F pcap -w difi_b5_udp_22.pcap
 
-# 真实 Ethernet PCAP（仅当已经转换成 classic PCAP）
+# 使用转换后的 PCAP 检查 B5 22 包测试向量
 python skill/udp-packet-validation/scripts/difi_b5_validate.py `
-  --pcap report/results/udp/difi_b5_udp_22.pcap `
+  --pcap difi_b5_udp_22.pcap `
   --src-ip 192.168.1.10 --dst-ip 192.168.1.20 --dst-port 4991
 ```
 
-若仓库中只有 `.pcapng`，先转换；请勿凭空假定上面示例文件存在。通用配置示例见 [README](README.md)。
+`difi_b5_validate.py` 不读取 `.pcapng`；也可用 Wireshark 将原始文件另存为经典 PCAP。通用配置模板是 `templates/generic_profile.json`，合成样例位于 `tests/fixtures/`。
 
 ## 四种核心交付能力
 
@@ -78,10 +77,10 @@ python skill/udp-packet-validation/scripts/difi_b5_validate.py `
 
 ## 来源与证据等级
 
-来自本仓库 `feature/rtl-integration` 已完成的真实链路：`rtl/board/difi_engine_board_b5.v`、`vitis/vitis_ws/difi_b5_udp_tx/src/difi_b5_udp_tx.c`、`scripts/verify/tools/difi_udp_receiver.py`、`report/results/udp/validation_notes.md`、`scripts/verify/tools/certify_difi_pcap.ps1`。
+来自本仓库 `chore/competition-submission-cleanup` 已完成的真实链路：`rtl/board/difi_engine_board_b5.v`、`vitis/vitis_ws/difi_b5_udp_tx/src/difi_b5_udp_tx.c`、`scripts/verify/tools/difi_udp_receiver.py`、`report/results/udp/tx/validation_notes.md`、`scripts/verify/tools/certify_difi_pcap.ps1`。
 
 **真实既有证据**：Zynq-7020 → PS GEM0 → PC，22 包（1 Version + 1 Context + 20 Data）、5,120 IQ、0 mismatch；参考工具 v1.1 检查 Version 1/1、Context 1/1、Data 20/20，分流均 PASS。这个结果属于原 DIFI 工程和原测试程序。
 
-**当前新 Skill 的验证范围**：Python 离线合成正反例自测通过；新通用接收器、解析器及通用配置在真实其他 FPGA 项目上的验证**待四个 Skill 统一测试**。不可将旧工程的实测证据当作本 Skill 工具的独立板级测试证据。
+通用工具的输入格式和运行方式以脚本参数为准；仓库 B5 板级记录来自原工程发送/接收程序，不应自动外推为其他项目的链路运行结果。
 
-请参见 [案例记录](examples/difi-case-study.md)、[AI 协作工作流](templates/ai_workflow.md)、[验收模板](templates/acceptance_report.md) 及 [离线自测说明](tests/VALIDATION.md)。
+参见 [工程案例](examples/difi-case-study.md)、[AI 协作工作流](templates/ai_workflow.md)、[测试矩阵](templates/test_matrix.md) 与 [离线单测](tests/test_tools.py)。

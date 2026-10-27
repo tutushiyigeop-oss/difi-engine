@@ -79,7 +79,7 @@ description: >-
 
 ## 交付物索引
 
-- [`README.md`](README.md)：快速安装、命令、退出状态、使用条件。
+- [`../README.md`](../README.md)：Skill 入口；操作流程、参数与使用边界见本文。
 - [`scripts/dma_config_check.py`](scripts/dma_config_check.py)：离线 DMA 配置和内存区域审计。
 - [`scripts/dma_log_analyzer.py`](scripts/dma_log_analyzer.py)：离线 UART 日志与 DMASR 解析。
 - [`templates/axi_dma_simple_loopback_template.c`](templates/axi_dma_simple_loopback_template.c)：可移植的独立硬件教学模板（未上板验证）。
@@ -87,4 +87,4 @@ description: >-
 - [`templates/axis_dma_probe_checklist.md`](templates/axis_dma_probe_checklist.md)：ILA/TLAST/TKEEP 现场探测清单。
 - [`templates/acceptance_report.md`](templates/acceptance_report.md)：实际复现证据模板。
 - [`examples/difi-case-study.md`](examples/difi-case-study.md)：已实施的 DIFI 工程案例与证据范围。
-- [`tests/test_tools.py`](tests/test_tools.py)、[`tests/VALIDATION.md`](tests/VALIDATION.md)：离线单测与待测项。
+- [`tests/test_tools.py`](tests/test_tools.py)：离线单测；仓库根目录运行 `python skill/zynq-dma-debug/tests/test_tools.py`。

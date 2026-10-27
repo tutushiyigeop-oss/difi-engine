@@ -1,10 +1,9 @@
-# DIFI 1.1 FPGA Digital IF Protocol Engine：设计与验证报告（初稿 v0.3）
+# DIFI 1.1 FPGA Digital IF Protocol Engine：设计与验证报告
 
 > 全国大学生嵌入式芯片与系统设计竞赛（AMD 自主选题赛道）  
-> 队伍、成员、学校：[提交前填写]  
 > 项目仓库：`https://github.com/tutushiyigeop-oss/difi-engine`  
-> 参考分支：`feature/rtl-integration`（最终提交前固定 Commit SHA / Tag）  
-> 报告状态：**工程内容初稿；AI 协作以追溯性技术复盘和工程证据呈现；技术结果按实测范围解释**  
+> 参考源码：`chore/competition-submission-cleanup` 分支；具体提交版本以 Git Tag / 源码归档为准  
+> 证据口径：工程实测、开发者反馈及 AI 协作追溯性复盘分别标注来源  
 > 文档基准日期：2026-10-23
 
 ## 摘要
@@ -13,7 +12,7 @@
 
 在 XC7Z020CLG400-2 上，项目完成了 RTL 系统级仿真、BRAM 存储结构优化、封装 IP 的真实布局布线、Zynq PS/PL AXI DMA 板级数据回环与完整 DIFI 报文的 UDP 网络发送与接收解析。100 MHz 理想 RTL 回环测试中，100 个数据包 / 25,600 个 IQ 样本均正确，IQ 有效吞吐率为 **196.916 MB/s**。封装 IP 的已布线资源占用为 **1,776 LUT、2,309 FF、1 RAMB18、0 DSP**，Setup WNS **+0.411 ns**。B5 网络验证中，PC 端收到 **1 Version + 1 Context + 20 Data** 共 22 个 DIFI Packet，5,120 个 IQ 样本全部正确；DIFI Consortium 开源参考工具以 DIFI 1.1 模式检查上述 B5 三类报文，结果均为 PASS。新增 B6 网络接收链路中，PC 经 UDP 发送 Version×1、Context×1、Data×20；PL Metadata Monitor 记录 Version/Context 各一次有效握手，Data 经 FPGA RX Parser 恢复 **5,120 IQ** 且全部匹配，Sequence 经历 **15→0** 回绕。
 
-为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建**三套硬件工程**，完成综合、实现和 Bitstream/XSA 导出。B6 v0.2 独立重建 Setup WNS 为 **+2.372 ns**，Hold WHS 为 **+0.053 ns**；开发者于 2026-10-23 确认新 XSA 已完成三类 UDP RX 上板回归。三套 Tcl 和实现工具证据已归档；B6 独立重建 XSA 与 Bitstream SHA256 已记录在 `report/results/vivado_rebuild/b6_udp_rx/` 中的实现报告。基于上述 Vivado 实现数据、原始 B6 功能日志和开发者确认的重新上板结果，本阶段工程验证已完成。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
+为检验可复现性，项目使用从原始 Vivado 工程导出的 Tcl 快照独立重建**三套硬件工程**，完成综合、实现和 Bitstream/XSA 导出。B6 v0.2 独立重建 Setup WNS 为 **+2.372 ns**，Hold WHS 为 **+0.053 ns**；开发者于 2026-10-23 确认新 XSA 已完成三类 UDP RX 上板回归。三套 Tcl 和实现工具证据已归档；当前 B6 重建报告记录了本机生成路径与实现结果，未归档该次重建 XSA/Bitstream 的 SHA256 或二进制。基于上述 Vivado 实现数据、原始 B6 功能日志和开发者确认的重新上板结果，本阶段工程验证已完成。本文明确区分 RTL 理想吞吐率、Simple DMA 系统吞吐率与真实 UDP 功能验证结果；不将参考工具 PASS 表述为 DIFI Consortium 正式认证。
 
 **关键词：** FPGA；Zynq-7000；DIFI 1.1；VITA 49.2；AXI4-Stream；AXI DMA；UDP；可复现构建
 
@@ -45,7 +44,7 @@
 3. **多层验证闭环：** RTL 黄金模型、综合/时序、PS/PL DMA、UDP/PC 和独立 DIFI 参考工具相互补充，避免仅凭单一仿真结论推断系统正确。
 4. **可复现的软硬件工程：** 原始 Vivado 工程的 BD Tcl 导出、全新目录恢复、重新生成 XSA 与上板回归形成闭环。
 
-**待补：** 相关研究、开源 DIFI/VITA FPGA 实现或类似产品的客观对比。上述为本项目的**工程贡献和设计特点**，在完成文献/开源对比前不使用“首创”“唯一”“最先进”等缺乏证据的表述。
+**比较范围：** 上述工程特点能够由本项目 RTL、实现报告和网络校验记录支持；没有对外部商业 IP 或全部 DIFI/VITA 实现开展统一条件的性能基准测试，因此不使用“首创”“唯一”“最先进”等缺乏证据的比较性结论。
 
 ## 2. 设计需求与支持范围
 
@@ -60,7 +59,7 @@
 | 时间戳 | UTC 时间加载与协议字段编码 | RTL、B5 板级测试与参考工具（仅限已覆盖字段） |
 | 异常输入 | Stream ID、Size、TKEEP、TLAST 等检查 | 相关 RTL 异常包测试；不等于覆盖全部协议异常 |
 
-实际模块端口及寄存器偏移以 `rtl/top/`、`rtl/include/difi_cfg_regmap.vh`、`rtl/include/difi_time_cfg_regmap.vh` 与 `docs/interface/` 文件为准。
+实际模块端口与寄存器偏移应结合 `rtl/top/`、`rtl/common/difi_time_cfg_regs.v`、`rtl/include/difi_cfg_regmap.vh`、`rtl/include/difi_time_cfg_regmap.vh` 以及 `docs/interface/` 核对；B5/B6 板级工程是独立配置，不等同于规格描述的统一外围封装。
 
 ## 3. 总体架构及软硬件划分
 
@@ -272,7 +271,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 
 开发者于 2026-10-23 确认：**B5 UDP TX 与 B6 UDP RX 两种 Dashboard Live / Hardware 模式均已在实体开发板上运行成功，界面正常工作**。Dashboard 可通过 `dashboard/tests/` 中的自动化测试检查，B5/B6 实机运行仍须使用对应的硬件配置。
 
-界面未改变 B5/B6 固定实验的 FPGA 硬件边界：B5 波形来自 PC 实收并验证的 Packet；B6 波形是发包脚本 Golden Reference，板卡 ACK 仅确认内部 IQ/Metadata 验证结果。B5/B6 需要切换各自 XSA 与 Vitis 程序，**不是**单套 XSA 同时全双工运行，也不是 GUI 任意自定义 Packet 生成/实时返回能力。演示录制安排见 `report/competition/demo_plan.md`。
+界面未改变 B5/B6 固定实验的 FPGA 硬件边界：B5 波形来自 PC 实收并验证的 Packet；B6 波形是发包脚本 Golden Reference，板卡 ACK 仅确认内部 IQ/Metadata 验证结果。B5/B6 需要切换各自 XSA 与 Vitis 程序，**不是**单套 XSA 同时全双工运行，也不是 GUI 任意自定义 Packet 生成/实时返回能力。
 
 ## 7. Tcl 构建可复现性验证
 
@@ -288,7 +287,7 @@ B6 与 B5 为**独立 XSA/Bitstream**：B6 从 PC (`192.168.1.20`) 接收 UDP Pa
 | 重建 XSA | 已生成 | 已生成 | 已生成 |
 | 新重建工程上板回归 | 开发者确认通过 | 开发者确认通过 | 开发者于 2026-10-23 确认三类 UDP RX PASS |
 
-证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export,b6_udp_rx}/SUCCESS.txt` 及各自实现报告。**证据边界：** B6 `SUCCESS.txt` 在板级回归前生成，内部“未上板”属于原始工具状态，不作篡改；开发者后续确认的板级 PASS 记录于 `report/results/vivado_rebuild/b6_udp_rx/` 中的实现报告。B6 重建 XSA 与 Bitstream 的 SHA256 已归档；结合工具 PASS 和开发者确认的板级回归，本阶段验收完成。原始工具日志和早期 UART 文件保留各自真实的测试时间线。
+证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export,b6_udp_rx}/SUCCESS.txt` 及各自实现报告。**证据边界：** B6 `SUCCESS.txt` 在板级回归前生成，内部“未上板”属于原始工具状态，不作篡改；开发者随后反馈 B6 重建版本已重新上板通过；重建实现报告本身是工具输出，并不包含新的板级串口测试日志或 XSA/Bitstream 哈希。原始工具日志和早期 UART 文件保留各自真实的测试时间线。
 
 ## 8. 大模型协作与技术纠错
 

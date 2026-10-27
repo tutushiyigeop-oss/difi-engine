@@ -40,7 +40,7 @@ description: >-
 
 ## 快速入口
 
-- [`README.md`](README.md)：实际命令、目录、复用方法。
+- [`../README.md`](../README.md)：Skill 入口；实际运行命令和复用方法见本文。
 - [`scripts/axis_trace_check.py`](scripts/axis_trace_check.py)：对单路周期采样 CSV 检查 AXIS 保持规则、包边界以及黄金 beat 序列。
 - [`scripts/generate_golden.py`](scripts/generate_golden.py)：独立生成演示用 Golden CSV，**仅适用于示例数据图案**。
 - [`templates/axis_register_slice.v`](templates/axis_register_slice.v)：教学用单级寄存器 AXIS Relay。

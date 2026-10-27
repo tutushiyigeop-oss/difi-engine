@@ -45,7 +45,7 @@ description: >-
 - `scripts/vivado/rebuild_bd.tcl`
 - `scripts/vivado/verify_rebuilt_impl.tcl`
 
-按 [DIFI 实测案例](examples/difi-case-study.md) 操作；此流程已经完成两套 Vivado 工程的重建、工具实现和用户确认的上板回归。
+按 [DIFI 实测案例](examples/difi-case-study.md) 操作；三套工程的 Vivado 重建工具结果位于 `../../report/results/vivado_rebuild/`；板级反馈与实现报告应分别核对。
 
 ### B. 其他项目（可配置模板，尚待跨项目 Vivado 实测）
 
@@ -55,7 +55,7 @@ description: >-
 - `rtl_globs`、`include_dirs`、`ip_repo_dirs`
 - `snapshot_rel`、`build_rel`、`report_rel`
 
-然后按 [通用模板操作说明](README.md#通用流程用于其他-vivado-工程) 依次执行：
+从仓库根目录按以下步骤执行：
 
 1. `scripts/export_bd_generic.tcl`（原工程 GUI Tcl Console）
 2. `scripts/rebuild_generic.tcl`（新 Vivado Batch）
@@ -87,7 +87,7 @@ description: >-
 
 ## 技能包内容
 
-- [`README.md`](README.md)：逐步命令、目录与通用配置方法。
+- [`../README.md`](../README.md)：Skill 使用入口与索引；通用流程见本文。
 - [`scripts/`](scripts/)：通用导出、重建、实现与公共函数。
 - [`templates/`](templates/)：项目配置、AI 协作提示词、验收报告。
 - [`examples/difi-case-study.md`](examples/difi-case-study.md)：已发生的 DIFI 错误、修复和工具结果。
@@ -95,4 +95,4 @@ description: >-
 
 ## 来源与边界
 
-来源于 DIFI 1.1 FPGA 引擎的两套真实工程：封装 IP 回环和 B5 UDP 原始 DIFI Packet 导出。开发时出现了 Tcl 环境检查误报，并通过修复脚本检查方式、恢复 IP 依赖、重建工程和上板测试闭环确认。由于泛化后的模板并非原有两套已实测的专用脚本，**保留独立待验证状态**。
+来源于 DIFI 1.1 FPGA 引擎的封装 IP 回环、B5 UDP TX 与 B6 UDP RX 工程。开发时出现了 Tcl 环境检查误报，并通过修复脚本检查方式、恢复 IP 依赖、重建工程和上板测试闭环确认。通用模板与专用工程脚本的输入条件不同，复用时须核对 IP、约束、器件和对应软件。

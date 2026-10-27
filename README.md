@@ -4,7 +4,9 @@
 >
 > **项目状态（2026-10-23）：** RTL 功能仿真、Zynq-7020 封装 IP 板级回环、B5 FPGA→PC UDP TX，以及 B6 PC→FPGA UDP RX 三类报文联测均有归档证据。B6 Version/Context 以 PL Metadata 握手、序列号和错误事件监测为依据，Data 通过 DMA 恢复 IQ 并进行 Golden 比对。DIFI Consortium 开源参考工具 PASS 仅针对 B5 流量，不等于正式认证或整个 DIFI 1.1 规范覆盖。
 
-[架构与功能](#1-项目概述) · [实测结果](#2-验证状态与实测结果) · [快速复现](#5-快速复现) · [文件索引](#7-仓库目录与提交物对照) · [限制与待办](#8-已知限制与后续工作)
+[架构与功能](#1-项目概述) · [实测结果](#2-验证状态与实测结果) · [快速复现](#5-快速复现) · [文件索引](#7-仓库结构与交付物) · [限制与待办](#8-已知限制与后续工作)
+
+**设计接口文档：** 接口版本文档位于 `docs/interface/`，实际实现以 `rtl/` 与 `ip_repo/` 为准；最终 B5/B6 是两套独立板级配置，不等同于一个同时双向运行的系统。
 
 **Windows 桌面演示台：** 使用 [Dashboard](dashboard/README.md) 查看 B5/B6 收发结果、IQ 波形和逐包统计。安装依赖后运行 `python dashboard/main.py`。B5/B6 实机通信需要分别加载对应的 Bitstream 与 ELF。
 
@@ -150,7 +152,7 @@ rtl/
 ```powershell
 git clone https://github.com/tutushiyigeop-oss/difi-engine.git
 cd difi-engine
-git switch feature/rtl-integration
+git switch chore/competition-submission-cleanup
 ```
 
 以下相对路径均以仓库根目录为起点。
@@ -277,11 +279,11 @@ ip.src == 192.168.1.10 && ip.dst == 192.168.1.20 && udp.dstport == 4991
 ```powershell
 # 在 DIFI-Certification 仓库根目录执行；把下列路径替换为你自己的绝对路径
 .\.venv\Scripts\python.exe .\certify_source.py `
-  --pcap "<DIFI_REPO>\report\results\udp\difi_b5_udp_version_only.pcapng" `
+  --pcap "<DIFI_REPO>\report\results\udp\tx\difi_b5_udp_version_only.pcapng" `
   --difi-version 1.1
 
 .\.venv\Scripts\python.exe .\certify_source.py `
-  --pcap "<DIFI_REPO>\report\results\udp\difi_b5_udp_context_data.pcapng" `
+  --pcap "<DIFI_REPO>\report\results\udp\tx\difi_b5_udp_context_data.pcapng" `
   --difi-version 1.1
 ```
 
