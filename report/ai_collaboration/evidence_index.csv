@@ -18,3 +18,7 @@ C02,AI 协作与纠错案例复盘,report/ai_collaboration/cases/02_bram_optimiz
 C03,AI 协作与纠错案例复盘,report/ai_collaboration/cases/03_icarus_dependency.md,c7c68b11f3d9df169bfa37ff74363e8b3235d82d,https://github.com/tutushiyigeop-oss/difi-engine/commit/c7c68b11f3d9df169bfa37ff74363e8b3235d82d,E4 回顾性技术分析结合 E2/E3 工程证据,不是逐字对话转录
 C04,AI 协作与纠错案例复盘,report/ai_collaboration/cases/04_vivado_tcl_rebuild.md,c7c68b11f3d9df169bfa37ff74363e8b3235d82d,https://github.com/tutushiyigeop-oss/difi-engine/commit/c7c68b11f3d9df169bfa37ff74363e8b3235d82d,E4 回顾性技术分析结合 E2/E3 工程证据,不是逐字对话转录
 C05,AI 协作与纠错案例复盘,report/ai_collaboration/cases/05_udp_reference_validation.md,c7c68b11f3d9df169bfa37ff74363e8b3235d82d,https://github.com/tutushiyigeop-oss/difi-engine/commit/c7c68b11f3d9df169bfa37ff74363e8b3235d82d,E4 回顾性技术分析结合 E2/E3 工程证据,不是逐字对话转录
+R01,Packetizer 原始交互：用户要求自己写 RTL，模型改为逐步指导,report/ai_collaboration/transcripts/data_packetizer_chat_extracted.txt,,,E1 原始 PDF 会话文字抽取；PDF 页 1/19-39/70-123,20 条消息；原件待上传
+R02,Vivado report_clocks 后修正时序警告诊断,report/ai_collaboration/transcripts/zynq_board_chat_extracted.txt,,,E1 原始 PDF 会话文字抽取；PDF 页 13-21,50 条消息；初步推测和修正均保留
+R03,Vitis CMake 源文件错误与 Stage A 板级反馈,report/ai_collaboration/transcripts/zynq_board_chat_extracted.txt,,,E1 原始 PDF 会话文字抽取；PDF 页 27-31,UART 为用户粘贴文本，不是本次复测
+R04,B1/B2/B3 结果与外围开发优先级纠正,report/ai_collaboration/transcripts/zynq_board_chat_extracted.txt,,,E1 原始 PDF 会话文字抽取；PDF 页 43-56,已有测试范围有限；非标准认证
