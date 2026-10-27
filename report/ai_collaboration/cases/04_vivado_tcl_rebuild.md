@@ -1,38 +1,38 @@
-# C04 — Vivado Tcl 检测误报与三工程独立重建
+# C04 — Vivado Tcl 环境误判与三套独立 BD 重建
 
-**状态：** 三套 E3 工具构建 PASS；开发者确认板级回归，本阶段收束；AI 逐字 E1 待导出。
+**材料性质：** 来自项目历史排错讨论、Git Tcl 脚本、Vivado 2024.2 实现报告的追溯性工程复盘，不冒充聊天逐轮原文。
 
-## 触发问题
+## 1. 实际任务
 
-为了让 Vivado Block Design 不依赖本机 `.xpr` 与缓存，开发了：
+原始 Vivado 工程内有 Zynq PS、AXI DMA、互连、自定义 RTL Module Reference 与封装 DIFI IP。仅提交 `.xpr` 或本机生成缓存不等于可复现，因此采用“导出实际 BD Tcl → 写入 manifest → 空目录重建 → 重新实现 → 导出 Bitstream/XSA”的交付路径。
+
+涉及的脚本：
 
 - `scripts/vivado/export_bd.tcl`
 - `scripts/vivado/rebuild_bd.tcl`
 - `scripts/vivado/verify_rebuilt_impl.tcl`
+- `scripts/vivado/generated/{packaged_ip,b5_raw_export,b6_udp_rx}/`
 
-早期 Tcl 环境检查尝试使用 `[info commands open_bd_design]` 判断 Vivado 能否操作 Block Design，出现 `open_bd_design unavailable` 类型误报。修正思路是避免把按需加载命令未出现在静态枚举中视为无 Vivado 环境，而以 `version -short`、`current_project` 等实际环境/工程操作确认。
+## 2. AI 辅助排错与人工修正
 
-## 可复核的最终结果
+早期环境检查使用 `[info commands open_bd_design]` 推断 BD 功能是否可用，出现 `open_bd_design unavailable` 一类误报。历史讨论和技术复盘的修正策略是：Vivado 某些 Tcl 命令可能按需注册，**静态枚举不到命令不能直接证明软件环境不支持它**。更可靠的做法是校验 Vivado 版本、工程状态和目标 Part/Top，并在实际 Vivado 会话中执行相应操作，以执行结果及返回错误定位。
 
-| 工程 | Top | Setup WNS | Hold WHS | 结果 |
-|---|---|---:|---:|---|
-| `packaged_ip` | `difi_ip_test_wrapper` | +0.411 ns | +0.046 ns | Implemented + Bitstream + XSA |
-| `b5_raw_export` | `difi_system_wrapper` | +2.206 ns | +0.021 ns | Implemented + Bitstream + XSA |
+随后将工作划分为四个可独立核实的层次：BD 导出/来源校验、综合与布局布线、Bitstream/XSA 生成、Vitis/实体板功能回归。这样不会因为一个 Tcl 脚本返回成功就误判整个网络链路正确。
 
-证据：`report/results/vivado_rebuild/{packaged_ip,b5_raw_export}/SUCCESS.txt`，以及对应 `timing_summary.rpt`/`utilization.rpt`/`drc.rpt`。
+## 3. 实际实现数据
 
-**证据时间线说明：** `SUCCESS.txt` 生成时原备注是“Vitis/board not yet retested”；后来开发者在聊天中明确表示“两套重建工程的板级测试都通过”。这是先后两个阶段，并非相互排斥；如果竞赛评委要求 E3 实测佐证，本阶段以工具报告和开发者确认完成验收。
+| 目标工程 | 顶层 | Setup WNS (ns) | Hold WHS (ns) | Vivado 结果 |
+| --- | --- | ---: | ---: | --- |
+| `packaged_ip` | `difi_ip_test_wrapper` | +0.411 | +0.046 | Implementation / Bitstream / XSA |
+| `b5_raw_export` | `difi_system_wrapper` | +2.206 | +0.021 | Implementation / Bitstream / XSA |
+| `b6_udp_rx` | `difi_ip_test_wrapper` | +2.372 | +0.053 | Implementation / Bitstream / XSA |
 
-## AI 纠错价值
+以上由 `report/results/vivado_rebuild/<target>/SUCCESS.txt` 与同目录报告支持。开发者在后续讨论中确认独立重建工程的相应板级回归通过；该结论属于**开发者反馈层**。特别是 B6 的 `SUCCESS.txt` 保留了生成时“Vitis/board not yet retested”的原始说明，不能把工具日志事后修改成上板记录。原始三类 UDP RX 串口证据另见 `report/results/udp/rx/three_types_udp_rx.rtf`。
 
-从“静态探测 Tcl 命令”转为“在正确软件上下文执行并验证”，并把**BD 恢复、Synthesis/Implementation/Timing、Bitstream/XSA、Vitis/Board**划成四个独立验收层。不能由一个 Tcl 命令成功直接推断整套软硬件可复现。
+## 4. 对应 Git 和 Skill
 
-## 技能包对应
+- 脚本与报告提交：[`66d532bd`](https://github.com/tutushiyigeop-oss/difi-engine/commit/66d532bd5eff3ed3f0b8de5e3d041705bd7ea7ab)。
+- 功能与重建入口：根 `README.md` 的 Vivado 重建章节。
+- 技能沉淀：`skill/vivado-rebuild/SKILL.md`，强调版本/Part/Top、IP 和外部 RTL、实现证据及功能回归的分层对应。
 
-`skill/vivado-rebuild/` 提炼了版本、Part/Top、Module Reference、自定义 IP Repo、XDC、Timing、Bitstream/XSA 的跨项目检查表；新通用模板尚待统一跨项目实测。
-
-## 待补
-
-- [ ] 原始 Tcl 错误命令、完整日志及 AI 最初与修正后的回答。
-- [ ] Tcl 修改前后 Diff、对应 Git SHA。
-
+**技术结论：** Tcl 工程重建的成功判据不是“导出成功”四个字，而是多层、同版本、可定位证据的组合。

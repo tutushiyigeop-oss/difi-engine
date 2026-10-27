@@ -1,44 +1,48 @@
-# C05 — B5 原始 DIFI UDP 报文与参考验证器的 Stream ID 处理
+# C05 — B5 UDP 报文检查与 DIFI Consortium 参考工具的 Stream ID 适配
 
-**状态：** PCAP、PC 端程序、第三方报告 E2/E3 可查；真实逐轮 E1 待导出。
+**材料性质：** 基于历史交流回顾、B5 UDP 捕获记录、原版参考工具输出和 Git 提交的技术复盘；不是重现的逐字问答。
 
-## 架构事实
+## 1. 真实链路及测试向量
 
-B5 不是板级 TX→RX 的 DIFI 解析回环：PL 从 `AXI DMA MM2S` 读取 DDR IQ 样本，生成完整 DIFI 报文到 `DMA S2MM`，PS 从 DDR 获取报文并经 lwIP/GEM0 发送 UDP 到 PC。
+B5 路径为 `DDR IQ → DMA MM2S → PL DIFI TX → DMA S2MM → DDR → PS lwIP/GEM0 → PC UDP`。它导出**完整 DIFI Packet**，区别于封装 IP 内部 TX→RX 后只取回 IQ 的回环测试。
 
-## 完成的验证
-
-| Packet | 数量 | 每包 UDP Payload | Stream ID（本次测试） |
-|---|---:|---:|---:|
+| Packet | 数量 | 每包 UDP Payload | 本轮 Stream ID |
+| --- | ---: | ---: | ---: |
 | Version Flow Context | 1 | 44 B | 2 |
 | Standard Flow Signal Context | 1 | 108 B | 1 |
-| Signal Data | 20 | 1052 B | 1 |
+| Signal Data | 20 | 1,052 B | 1 |
 
-合计 22 个 UDP Payload、21,192 Byte，Data IQ 20×256=5,120 个，PC 黄金比对失配 0；Data Sequence 按 4 bit 0～15 回绕。
+实收共 **22 包、21,192 字节 UDP Payload、5,120 IQ**，PC 黄金参考比对失配 0。Data Packet 采用 4-bit Sequence，并覆盖回绕。
 
-在第三方 DIFI Consortium 参考工具中，混合不同 Stream ID 的抓包可能触发单流假设检查；本项目将 Version 与 Context+Data 分成两个验证流，**保持原版验证器不修改**，使用 `--difi-version 1.1` 检查，结果为：Version 1/0、Context 1/0、Data 20/0（合规/不合规）。
+## 2. AI 讨论与方案纠正
 
-证据：`report/results/udp/tx/validation_notes.md`、`difi_b5_udp_22.pcapng`、`report/results/udp/tx/consortium/{version,data_context}/console.txt`、`scripts/verify/tools/difi_udp_receiver.py`。提交：[`a25ded8a`](https://github.com/tutushiyigeop-oss/difi-engine/commit/a25ded8aa8817b55bd69b6dc2651a53ac16c9506)。
+验证中遇到的重点并非只看 UDP 能否接收，而是如何正确解释参考工具面对不同 Stream ID 的行为：Version SID=2，Context/Data SID=1，混合抓包可能不符合该版参考工具单流状态检查的输入假设。
 
-## AI 迭代的可恢复要点
+历史技术交流中出现过调整检查器行为的方案，最终选择**不修改 DIFI Consortium 原版参考程序**，而是按 Stream ID 将原始抓包拆分为 Version 与 Context/Data 两个输入，在 DIFI 1.1 模式分别测试。这保留了第三方工具的独立性，也避免把混流产生的 SID 变化提示当成单个 Packet 字段错误。
 
-历史讨论曾出现修改参考验证器的备选想法，后来明确转向“不修改官方参考工具、按 Stream ID 分流测试”。该描述目前属于**历史交互摘要**，不是逐字 AI 聊天。提交时应以原始聊天截图证实具体建议先后，不应从最终 PASS 反推 AI 一开始就选择了正确方案。
+## 3. 测试结果与证据
 
-## 限制
+| 验证输入 | 参考检查统计（合规/不合规） |
+| --- | --- |
+| Version 流 | 1/0 |
+| Context/Data 流中的 Context | 1/0 |
+| Context/Data 流中的 Data | 20/0 |
 
-第三方开源程序对本轮三类报文判为 PASS 不等于取得 DIFI 正式认证；本轮包含人为 2 ms 发包间隔，不构成最大网络吞吐率测试。分流结果只验证各自流内协议合规性，不能代表混合链路的跨流排序/丢包已被参考工具检查。
+对应原版验证器命令采用 `certify_source.py --difi-version 1.1`，两份实际运行结果位于：
 
-## 对应 Skill
+- `report/results/udp/tx/consortium/version/result.txt`
+- `report/results/udp/tx/consortium/data_context/result.txt`
+- `report/results/udp/tx/consortium/{version,data_context}/console.txt`
+- 原始 22 包 PCAPNG：`report/results/udp/tx/difi_b5_udp_22.pcapng`
+- PC 接收工具：`scripts/verify/tools/difi_udp_receiver.py`
+- 提交：[`a25ded8a`](https://github.com/tutushiyigeop-oss/difi-engine/commit/a25ded8aa8817b55bd69b6dc2651a53ac16c9506)。
 
-`skill/udp-packet-validation` 将 PCAP、UDP Payload、Golden 和 Stream ID 适配工作封装成通用工具；新版本工具的真实板级复测仍待统一验收。
+归档结果文件中仍保留了当时验证工具输入文件的本机绝对路径；这些是历史工具执行记录，而不是当前仓库要求存在的路径。
 
-## 待补
+## 4. 结论与工程边界
 
-- [ ] 原始修改验证器/分流方案相关的用户提问与模型回答。
-- [ ] 初次混流失败完整原始控制台日志。
-- [ ] 分流操作具体命令、原始结果截图和关联 SHA。
+本案例说明如何通过外部参考程序交叉检查**指定 DIFI 1.1 Profile 报文**。两组 PASS 属于开源验证器结果，**不是 DIFI Consortium 官方认证**，亦不覆盖所有 VITA 49.2 Packet 类型、持续网络吞吐与跨流丢包行为。原 UDP 演示设置了约 2 ms 发送间隔，不能将接收统计直接宣称为网络峰值速率。
 
+## 5. Skill 与 B6 的关系
 
-## B6 RX 后续独立实验（2026-10-23）
-
-本 C05 为历史 B5 UDP TX 参考工具验证案例；B6 v0.2 另已完成 Version×1、Context×1 的 PL Metadata 握手及 Data×20 的 5,120 IQ 恢复与 Golden 验证，记录见 `report/results/udp/rx/three_types_udp_rx.rtf`。B6 不等于在第三方参考工具上重新取得认证，且尚未补齐对应原始 AI 多轮对话。
+`skill/udp-packet-validation/SKILL.md` 对应 PCAP 提取、UDP Payload、Sequence、Golden 对比和外部参考工具独立校验。B6 v0.2 则是另一方向的板级验证：Version/Context 经 PL Metadata 事件核验，Data 经 PL RX 还原 5,120 IQ 并由 PS 比对，见 `report/results/udp/rx/three_types_udp_rx.rtf`。B6 的结论不与 B5 的第三方参考检查混为一谈。
